@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>エラー - パラメータシート生成ツール</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>パラメータシート生成ツール</h1>
+            <p class="subtitle">FortiGate / Palo Alto 設定ファイルからパラメータシートを自動生成</p>
+        </header>
+
+        <main>
+            <div class="error-page">
+                <div class="error-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                </div>
+                <h2>エラー {{ error.code }}</h2>
+                <p class="error-message">{{ error.message }}</p>
+                <a href="{{ url_for('index') }}" class="btn btn-primary">トップページに戻る</a>
+            </div>
+        </main>
+
+        <footer>
+            <p>Firewall Parameter Sheet Generator v1.0.0</p>
+        </footer>
+    </div>
+</body>
+</html>

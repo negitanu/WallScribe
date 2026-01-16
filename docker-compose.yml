@@ -1,0 +1,39 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gen-parameter-sheet
+    ports:
+      - "80:8080"
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - FLASK_PORT=8080
+      - SECRET_KEY=${SECRET_KEY:-}
+      - UPLOAD_FOLDER=/app/uploads
+      - MAX_CONTENT_LENGTH=${MAX_CONTENT_LENGTH:-52428800}
+      - CLEANUP_INTERVAL=${CLEANUP_INTERVAL:-3600}
+      - TZ=${TZ:-Asia/Tokyo}
+    volumes:
+      # アップロードファイルを永続化（オプション）
+      - ./uploads:/app/uploads
+      # 開発時のみ: コードをマウントしてホットリロード
+      # - ./app.py:/app/app.py
+      # - ./parsers:/app/parsers
+      # - ./models:/app/models
+      # - ./exporters:/app/exporters
+      # - ./web:/app/web
+      # - ./static:/app/static
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

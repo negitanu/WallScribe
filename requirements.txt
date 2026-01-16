@@ -1,0 +1,20 @@
+# Web Framework
+flask>=2.0.0
+
+# Excel output
+openpyxl>=3.0.0
+
+# Template engine (included with Flask, but explicit for clarity)
+jinja2>=3.0.0
+
+# Production WSGI server
+gunicorn>=20.0.0
+
+# Development utilities
+werkzeug>=2.0.0
+
+# Security: XXE攻撃対策
+defusedxml>=0.7.1
+
+# PDF output
+weasyprint>=62.0

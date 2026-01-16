@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>パラメータシート生成ツール</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>パラメータシート生成ツール</h1>
+            <p class="subtitle">FortiGate / Palo Alto 設定ファイルからパラメータシートを自動生成</p>
+        </header>
+
+        <main>
+            <div class="upload-section">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="drop-zone" id="dropZone">
+                        <div class="drop-zone-content">
+                            <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p class="drop-text">設定ファイルをドラッグ＆ドロップ</p>
+                            <p class="drop-subtext">または</p>
+                            <label class="file-select-btn">
+                                ファイルを選択
+                                <input type="file" id="fileInput" name="config_file" accept=".conf,.xml" hidden>
+                            </label>
+                            <p class="supported-formats">対応形式: .conf (FortiGate), .xml (Palo Alto)</p>
+                        </div>
+                        <div class="selected-file" id="selectedFile" style="display: none;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                            </svg>
+                            <span class="file-name" id="fileName"></span>
+                            <button type="button" class="remove-file" id="removeFile">&times;</button>
+                        </div>
+                    </div>
+
+                    <div class="options-section">
+                        <h3>出力形式</h3>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="output_format" value="html" checked>
+                                <span class="radio-custom"></span>
+                                <span class="radio-label">HTML <span class="recommended">(推奨)</span></span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="output_format" value="pdf">
+                                <span class="radio-custom"></span>
+                                <span class="radio-label">PDF</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="output_format" value="excel" disabled>
+                                <span class="radio-custom"></span>
+                                <span class="radio-label">Excel <span class="coming-soon">(準備中)</span></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="options-section">
+                        <h3>出力する項目</h3>
+                        <div class="preset-group">
+                            <label class="radio-option">
+                                <input type="radio" name="output_preset" value="normal" checked>
+                                <span class="radio-custom"></span>
+                                <span class="radio-label">通常 <span class="recommended">(推奨)</span></span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="output_preset" value="detailed">
+                                <span class="radio-custom"></span>
+                                <span class="radio-label">詳細（すべて）</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="output_preset" value="custom">
+                                <span class="radio-custom"></span>
+                                <span class="radio-label">カスタム</span>
+                            </label>
+                        </div>
+                        <div class="sections-grid" id="sectionsGrid">
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="sections" value="device_info" checked>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">機器概要</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="sections" value="system_settings" checked>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">システム設定</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="sections" value="network" checked>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">ネットワーク設定</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="sections" value="objects">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">オブジェクト定義</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="sections" value="policies" checked>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">ファイアウォールポリシー</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="sections" value="nat" checked>
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">NAT設定</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="sections" value="vpn">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">VPN設定</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="sections" value="security_profiles">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">セキュリティプロファイル</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="sections" value="ha">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">HA設定</span>
+                            </label>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="sections" value="logging">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">ログ・監視設定</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="submitBtn" disabled>
+                        <span class="btn-text">パラメータシートを生成</span>
+                        <span class="btn-loading" style="display: none;">
+                            <span class="spinner"></span>
+                            生成中...
+                        </span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="progress-section" id="progressSection" style="display: none;">
+                <div class="progress-content">
+                    <div class="spinner large"></div>
+                    <p class="progress-text">パラメータシートを生成中...</p>
+                    <p class="progress-subtext" id="progressSubtext">設定ファイルを解析しています</p>
+                </div>
+            </div>
+
+            <div class="error-section" id="errorSection" style="display: none;">
+                <div class="error-content">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <h3 class="error-title">エラーが発生しました</h3>
+                    <p class="error-message" id="errorMessage"></p>
+                    <p class="error-details" id="errorDetails"></p>
+                    <button class="retry-btn" id="retryBtn">やり直す</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Firewall Parameter Sheet Generator v1.0.0</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

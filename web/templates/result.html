@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成完了 - パラメータシート生成ツール</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>パラメータシート生成ツール</h1>
+            <p class="subtitle">FortiGate / Palo Alto 設定ファイルからパラメータシートを自動生成</p>
+        </header>
+
+        <main>
+            <div class="result-section">
+                <div class="success-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <h2>パラメータシートの生成が完了しました</h2>
+
+                <div class="result-info">
+                    <table>
+                        <tr>
+                            <th>ファイル名</th>
+                            <td>{{ file_info.filename }}</td>
+                        </tr>
+                        <tr>
+                            <th>機器タイプ</th>
+                            <td>{{ file_info.device_type }}</td>
+                        </tr>
+                        <tr>
+                            <th>ホスト名</th>
+                            <td>{{ file_info.hostname }}</td>
+                        </tr>
+                        <tr>
+                            <th>OSバージョン</th>
+                            <td>{{ file_info.version }}</td>
+                        </tr>
+                        <tr>
+                            <th>ポリシー数</th>
+                            <td>{{ file_info.summary.policies }}</td>
+                        </tr>
+                        <tr>
+                            <th>オブジェクト数</th>
+                            <td>{{ file_info.summary.objects }}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="result-actions">
+                    <a href="{{ url_for('download_file', file_id=file_id) }}" class="btn btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        ダウンロード
+                    </a>
+                    <a href="{{ url_for('preview_file', file_id=file_id) }}" class="btn btn-secondary" target="_blank">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        プレビュー
+                    </a>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                            <path d="M3 3v5h5"></path>
+                        </svg>
+                        別のファイルを変換
+                    </a>
+                </div>
+
+                <div class="result-note">
+                    <p>※ 生成されたファイルは1時間後に自動削除されます。必要な場合はダウンロードしてください。</p>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Firewall Parameter Sheet Generator v1.0.0</p>
+        </footer>
+    </div>
+</body>
+</html>
