@@ -2,6 +2,15 @@
 
 FortiGate および Palo Alto Networks ファイアウォールの設定ファイルから、統一フォーマットのパラメータシートを自動生成するツールです。
 
+## 技術スタック
+
+![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat-square&logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-2.0+-000000?style=flat-square&logo=flask&logoColor=white)
+![WeasyPrint](https://img.shields.io/badge/WeasyPrint-62.0+-FF6B6B?style=flat-square)
+![Gunicorn](https://img.shields.io/badge/Gunicorn-20.0+-499848?style=flat-square&logo=gunicorn&logoColor=white)
+![Jinja2](https://img.shields.io/badge/Jinja2-3.0+-B41717?style=flat-square&logo=jinja&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-20.10+-2496ED?style=flat-square&logo=docker&logoColor=white)
+
 ## 対応機器
 
 | ベンダー | 機種 | 設定ファイル形式 |
