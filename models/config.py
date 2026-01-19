@@ -203,7 +203,8 @@ class FirewallPolicy:
 class NATPolicy:
     """NATポリシー"""
     name: str = ""
-    nat_type: str = ""  # snat, dnat, static, vip
+    nat_type: str = ""  # snat, dnat, static, vip, ippool, central-snat
+    pool_type: str = ""  # overload, one-to-one, fixed-port-range, port-block-allocation
     original_source: str = ""
     original_destination: str = ""
     translated_source: str = ""
@@ -215,7 +216,10 @@ class NATPolicy:
     port_forward: bool = False
     original_port: str = ""
     translated_port: str = ""
+    protocol: str = ""  # for central-snat-map
+    nat_ippool: str = ""  # IP Pool name reference
     vdom: str = "root"
+    enabled: bool = True
     description: str = ""
 
 
