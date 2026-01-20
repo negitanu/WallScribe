@@ -1,178 +1,325 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>パラメータシート生成ツール</title>
+    <!-- Bootstrap 5 (Local) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <!-- Bootstrap Icons (Local) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}">
+    <!-- Custom Styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>パラメータシート生成ツール</h1>
-            <p class="subtitle">FortiGate / Palo Alto 設定ファイルからパラメータシートを自動生成</p>
+    <!-- Animated Background Grid -->
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+
+    <div class="container py-4">
+        <!-- Header -->
+        <header class="text-center mb-5 position-relative">
+            <div class="header-badge mb-3">
+                <span class="badge-icon"><i class="bi bi-shield-lock"></i></span>
+                <span class="badge-text">Firewall Config Parser</span>
+            </div>
+            <h1 class="display-5 fw-bold mb-3">
+                <span class="text-gradient">パラメータシート</span>
+                <br>
+                <span class="text-secondary-emphasis">生成ツール</span>
+            </h1>
+            <p class="lead text-body-secondary mb-0">
+                <span class="font-mono text-info-emphasis">FortiGate</span>
+                <span class="mx-2 text-body-tertiary">/</span>
+                <span class="font-mono text-warning-emphasis">Palo Alto</span>
+                <span class="ms-2">設定ファイルから自動生成</span>
+            </p>
+            <div class="header-line mt-4"></div>
         </header>
 
         <main>
-            <div class="upload-section">
-                <form id="uploadForm" enctype="multipart/form-data">
-                    <div class="drop-zone" id="dropZone">
-                        <div class="drop-zone-content">
-                            <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="17 8 12 3 7 8"></polyline>
-                                <line x1="12" y1="3" x2="12" y2="15"></line>
-                            </svg>
-                            <p class="drop-text">設定ファイルをドラッグ＆ドロップ</p>
-                            <p class="drop-subtext">または</p>
-                            <label class="file-select-btn">
-                                ファイルを選択
-                                <input type="file" id="fileInput" name="config_file" accept=".conf,.xml" hidden>
-                            </label>
-                            <p class="supported-formats">対応形式: .conf (FortiGate), .xml (Palo Alto)</p>
-                        </div>
-                        <div class="selected-file" id="selectedFile" style="display: none;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                            </svg>
-                            <span class="file-name" id="fileName"></span>
-                            <button type="button" class="remove-file" id="removeFile">&times;</button>
-                        </div>
+            <!-- Upload Section -->
+            <section class="upload-section" id="uploadSection">
+                <div class="card card-glass">
+                    <div class="card-body p-4">
+                        <form id="uploadForm" enctype="multipart/form-data">
+                            <!-- Drop Zone -->
+                            <div class="drop-zone" id="dropZone">
+                                <div class="drop-zone-content" id="dropZoneContent">
+                                    <div class="drop-zone-icon">
+                                        <i class="bi bi-cloud-arrow-up"></i>
+                                        <div class="icon-ring"></div>
+                                    </div>
+                                    <h5 class="drop-zone-title">設定ファイルをドラッグ＆ドロップ</h5>
+                                    <p class="drop-zone-subtitle text-body-secondary mb-3">または</p>
+                                    <label class="btn btn-outline-primary btn-lg px-4">
+                                        <i class="bi bi-folder2-open me-2"></i>ファイルを選択
+                                        <input type="file" id="fileInput" name="config_files[]" accept=".conf,.xml" multiple hidden>
+                                    </label>
+                                    <div class="supported-formats mt-4">
+                                        <span class="format-badge format-fortigate">
+                                            <i class="bi bi-file-earmark-code me-1"></i>.conf
+                                        </span>
+                                        <span class="format-badge format-paloalto">
+                                            <i class="bi bi-file-earmark-code me-1"></i>.xml
+                                        </span>
+                                    </div>
+                                    <p class="text-body-tertiary small mt-2 mb-0">
+                                        <i class="bi bi-info-circle me-1"></i>HA構成の場合は複数ファイルを選択できます
+                                    </p>
+                                </div>
+
+                                <!-- Selected Files List -->
+                                <div class="selected-files" id="selectedFiles" style="display: none;">
+                                    <div class="files-header d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="mb-0 text-body-secondary">
+                                            <i class="bi bi-files me-2"></i>選択済みファイル
+                                        </h6>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" id="clearFiles">
+                                            <i class="bi bi-trash3 me-1"></i>すべて削除
+                                        </button>
+                                    </div>
+                                    <div class="files-list" id="filesList"></div>
+                                </div>
+                            </div>
+
+                            <!-- HA Options -->
+                            <div class="options-card mt-4" id="haOptions" style="display: none;">
+                                <div class="options-header">
+                                    <i class="bi bi-diagram-3 me-2 text-info"></i>
+                                    <span>HA構成オプション</span>
+                                </div>
+                                <div class="options-body">
+                                    <div class="btn-group w-100" role="group" aria-label="HA mode selection">
+                                        <input type="radio" class="btn-check" name="ha_mode" id="haAuto" value="auto" checked>
+                                        <label class="btn btn-outline-secondary" for="haAuto">
+                                            <i class="bi bi-magic me-1"></i>自動判定
+                                            <span class="badge bg-success-subtle text-success ms-1">推奨</span>
+                                        </label>
+                                        <input type="radio" class="btn-check" name="ha_mode" id="haCluster" value="cluster">
+                                        <label class="btn btn-outline-secondary" for="haCluster">
+                                            <i class="bi bi-hdd-stack me-1"></i>HAクラスタ
+                                        </label>
+                                        <input type="radio" class="btn-check" name="ha_mode" id="haSingle" value="single">
+                                        <label class="btn btn-outline-secondary" for="haSingle">
+                                            <i class="bi bi-hdd me-1"></i>単一機器
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Output Format -->
+                            <div class="options-card mt-4">
+                                <div class="options-header">
+                                    <i class="bi bi-file-earmark-richtext me-2 text-primary"></i>
+                                    <span>出力形式</span>
+                                </div>
+                                <div class="options-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <input type="radio" class="btn-check" name="output_format" id="formatHtml" value="html" checked>
+                                            <label class="btn btn-outline-secondary w-100 format-option" for="formatHtml">
+                                                <i class="bi bi-filetype-html format-icon text-warning"></i>
+                                                <span class="format-name">HTML</span>
+                                                <span class="badge bg-success-subtle text-success">推奨</span>
+                                            </label>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="radio" class="btn-check" name="output_format" id="formatPdf" value="pdf">
+                                            <label class="btn btn-outline-secondary w-100 format-option" for="formatPdf">
+                                                <i class="bi bi-filetype-pdf format-icon text-danger"></i>
+                                                <span class="format-name">PDF</span>
+                                            </label>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="radio" class="btn-check" name="output_format" id="formatExcel" value="excel">
+                                            <label class="btn btn-outline-secondary w-100 format-option" for="formatExcel">
+                                                <i class="bi bi-filetype-xlsx format-icon text-success"></i>
+                                                <span class="format-name">Excel</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Output Sections -->
+                            <div class="options-card mt-4">
+                                <div class="options-header">
+                                    <i class="bi bi-list-check me-2 text-success"></i>
+                                    <span>出力する項目</span>
+                                </div>
+                                <div class="options-body">
+                                    <!-- Presets -->
+                                    <div class="btn-group w-100 mb-3" role="group" aria-label="Output preset selection">
+                                        <input type="radio" class="btn-check" name="output_preset" id="presetNormal" value="normal" checked>
+                                        <label class="btn btn-outline-secondary" for="presetNormal">
+                                            <i class="bi bi-check2-circle me-1"></i>通常
+                                            <span class="badge bg-success-subtle text-success ms-1">推奨</span>
+                                        </label>
+                                        <input type="radio" class="btn-check" name="output_preset" id="presetDetailed" value="detailed">
+                                        <label class="btn btn-outline-secondary" for="presetDetailed">
+                                            <i class="bi bi-list-ul me-1"></i>詳細（すべて）
+                                        </label>
+                                        <input type="radio" class="btn-check" name="output_preset" id="presetCustom" value="custom">
+                                        <label class="btn btn-outline-secondary" for="presetCustom">
+                                            <i class="bi bi-sliders me-1"></i>カスタム
+                                        </label>
+                                    </div>
+
+                                    <!-- Section Checkboxes -->
+                                    <div class="sections-grid" id="sectionsGrid">
+                                        <div class="row g-2">
+                                            <div class="col-6 col-lg-4">
+                                                <div class="form-check section-check">
+                                                    <input class="form-check-input" type="checkbox" name="sections" value="device_info" id="secDevice" checked>
+                                                    <label class="form-check-label" for="secDevice">
+                                                        <i class="bi bi-cpu me-1 text-info"></i>機器概要
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-lg-4">
+                                                <div class="form-check section-check">
+                                                    <input class="form-check-input" type="checkbox" name="sections" value="system_settings" id="secSystem" checked>
+                                                    <label class="form-check-label" for="secSystem">
+                                                        <i class="bi bi-gear me-1 text-secondary"></i>システム設定
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-lg-4">
+                                                <div class="form-check section-check">
+                                                    <input class="form-check-input" type="checkbox" name="sections" value="network" id="secNetwork" checked>
+                                                    <label class="form-check-label" for="secNetwork">
+                                                        <i class="bi bi-diagram-2 me-1 text-primary"></i>ネットワーク設定
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-lg-4">
+                                                <div class="form-check section-check">
+                                                    <input class="form-check-input" type="checkbox" name="sections" value="objects" id="secObjects">
+                                                    <label class="form-check-label" for="secObjects">
+                                                        <i class="bi bi-box me-1 text-warning"></i>オブジェクト定義
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-lg-4">
+                                                <div class="form-check section-check">
+                                                    <input class="form-check-input" type="checkbox" name="sections" value="policies" id="secPolicies" checked>
+                                                    <label class="form-check-label" for="secPolicies">
+                                                        <i class="bi bi-shield-check me-1 text-success"></i>ファイアウォールポリシー
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-lg-4">
+                                                <div class="form-check section-check">
+                                                    <input class="form-check-input" type="checkbox" name="sections" value="nat" id="secNat" checked>
+                                                    <label class="form-check-label" for="secNat">
+                                                        <i class="bi bi-arrows-angle-contract me-1 text-info"></i>NAT設定
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-lg-4">
+                                                <div class="form-check section-check">
+                                                    <input class="form-check-input" type="checkbox" name="sections" value="vpn" id="secVpn">
+                                                    <label class="form-check-label" for="secVpn">
+                                                        <i class="bi bi-lock me-1 text-danger"></i>VPN設定
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-lg-4">
+                                                <div class="form-check section-check">
+                                                    <input class="form-check-input" type="checkbox" name="sections" value="security_profiles" id="secSecurity">
+                                                    <label class="form-check-label" for="secSecurity">
+                                                        <i class="bi bi-shield-exclamation me-1 text-warning"></i>セキュリティプロファイル
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-lg-4">
+                                                <div class="form-check section-check">
+                                                    <input class="form-check-input" type="checkbox" name="sections" value="ha" id="secHa">
+                                                    <label class="form-check-label" for="secHa">
+                                                        <i class="bi bi-hdd-stack me-1 text-primary"></i>HA設定
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-lg-4">
+                                                <div class="form-check section-check">
+                                                    <input class="form-check-input" type="checkbox" name="sections" value="logging" id="secLogging">
+                                                    <label class="form-check-label" for="secLogging">
+                                                        <i class="bi bi-journal-text me-1 text-secondary"></i>ログ・監視設定
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button type="submit" class="btn btn-primary btn-lg w-100 mt-4 submit-btn" id="submitBtn" disabled>
+                                <span class="btn-text">
+                                    <i class="bi bi-file-earmark-arrow-down me-2"></i>パラメータシートを生成
+                                </span>
+                                <span class="btn-loading" style="display: none;">
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    生成中...
+                                </span>
+                            </button>
+                        </form>
                     </div>
-
-                    <div class="options-section">
-                        <h3>出力形式</h3>
-                        <div class="radio-group">
-                            <label class="radio-option">
-                                <input type="radio" name="output_format" value="html" checked>
-                                <span class="radio-custom"></span>
-                                <span class="radio-label">HTML <span class="recommended">(推奨)</span></span>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="output_format" value="pdf">
-                                <span class="radio-custom"></span>
-                                <span class="radio-label">PDF</span>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="output_format" value="excel" disabled>
-                                <span class="radio-custom"></span>
-                                <span class="radio-label">Excel <span class="coming-soon">(準備中)</span></span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="options-section">
-                        <h3>出力する項目</h3>
-                        <div class="preset-group">
-                            <label class="radio-option">
-                                <input type="radio" name="output_preset" value="normal" checked>
-                                <span class="radio-custom"></span>
-                                <span class="radio-label">通常 <span class="recommended">(推奨)</span></span>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="output_preset" value="detailed">
-                                <span class="radio-custom"></span>
-                                <span class="radio-label">詳細（すべて）</span>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="output_preset" value="custom">
-                                <span class="radio-custom"></span>
-                                <span class="radio-label">カスタム</span>
-                            </label>
-                        </div>
-                        <div class="sections-grid" id="sectionsGrid">
-                            <label class="checkbox-option">
-                                <input type="checkbox" name="sections" value="device_info" checked>
-                                <span class="checkbox-custom"></span>
-                                <span class="checkbox-label">機器概要</span>
-                            </label>
-                            <label class="checkbox-option">
-                                <input type="checkbox" name="sections" value="system_settings" checked>
-                                <span class="checkbox-custom"></span>
-                                <span class="checkbox-label">システム設定</span>
-                            </label>
-                            <label class="checkbox-option">
-                                <input type="checkbox" name="sections" value="network" checked>
-                                <span class="checkbox-custom"></span>
-                                <span class="checkbox-label">ネットワーク設定</span>
-                            </label>
-                            <label class="checkbox-option">
-                                <input type="checkbox" name="sections" value="objects">
-                                <span class="checkbox-custom"></span>
-                                <span class="checkbox-label">オブジェクト定義</span>
-                            </label>
-                            <label class="checkbox-option">
-                                <input type="checkbox" name="sections" value="policies" checked>
-                                <span class="checkbox-custom"></span>
-                                <span class="checkbox-label">ファイアウォールポリシー</span>
-                            </label>
-                            <label class="checkbox-option">
-                                <input type="checkbox" name="sections" value="nat" checked>
-                                <span class="checkbox-custom"></span>
-                                <span class="checkbox-label">NAT設定</span>
-                            </label>
-                            <label class="checkbox-option">
-                                <input type="checkbox" name="sections" value="vpn">
-                                <span class="checkbox-custom"></span>
-                                <span class="checkbox-label">VPN設定</span>
-                            </label>
-                            <label class="checkbox-option">
-                                <input type="checkbox" name="sections" value="security_profiles">
-                                <span class="checkbox-custom"></span>
-                                <span class="checkbox-label">セキュリティプロファイル</span>
-                            </label>
-                            <label class="checkbox-option">
-                                <input type="checkbox" name="sections" value="ha">
-                                <span class="checkbox-custom"></span>
-                                <span class="checkbox-label">HA設定</span>
-                            </label>
-                            <label class="checkbox-option">
-                                <input type="checkbox" name="sections" value="logging">
-                                <span class="checkbox-custom"></span>
-                                <span class="checkbox-label">ログ・監視設定</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="submit-btn" id="submitBtn" disabled>
-                        <span class="btn-text">パラメータシートを生成</span>
-                        <span class="btn-loading" style="display: none;">
-                            <span class="spinner"></span>
-                            生成中...
-                        </span>
-                    </button>
-                </form>
-            </div>
-
-            <div class="progress-section" id="progressSection" style="display: none;">
-                <div class="progress-content">
-                    <div class="spinner large"></div>
-                    <p class="progress-text">パラメータシートを生成中...</p>
-                    <p class="progress-subtext" id="progressSubtext">設定ファイルを解析しています</p>
                 </div>
-            </div>
+            </section>
 
-            <div class="error-section" id="errorSection" style="display: none;">
-                <div class="error-content">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <h3 class="error-title">エラーが発生しました</h3>
-                    <p class="error-message" id="errorMessage"></p>
-                    <p class="error-details" id="errorDetails"></p>
-                    <button class="retry-btn" id="retryBtn">やり直す</button>
+            <!-- Progress Section -->
+            <section class="progress-section" id="progressSection" style="display: none;">
+                <div class="card card-glass">
+                    <div class="card-body p-5 text-center">
+                        <div class="progress-spinner mb-4">
+                            <div class="spinner-ring"></div>
+                            <i class="bi bi-file-earmark-code spinner-icon"></i>
+                        </div>
+                        <h4 class="mb-2">パラメータシートを生成中...</h4>
+                        <p class="text-body-secondary mb-4" id="progressSubtext">設定ファイルを解析しています</p>
+                        <div class="progress-wrapper">
+                            <div class="progress" role="progressbar" aria-label="生成進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBarFill" style="width: 0%"></div>
+                            </div>
+                            <span class="progress-percent" id="progressPercent">0%</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
+
+            <!-- Error Section -->
+            <section class="error-section" id="errorSection" style="display: none;">
+                <div class="card card-glass border-danger">
+                    <div class="card-body p-5 text-center">
+                        <div class="error-icon mb-4">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                        <h4 class="text-danger mb-3">エラーが発生しました</h4>
+                        <p class="text-body-secondary mb-2" id="errorMessage"></p>
+                        <p class="text-body-tertiary small mb-4" id="errorDetails"></p>
+                        <button class="btn btn-outline-primary" id="retryBtn">
+                            <i class="bi bi-arrow-clockwise me-2"></i>やり直す
+                        </button>
+                    </div>
+                </div>
+            </section>
         </main>
 
-        <footer>
-            <p>Firewall Parameter Sheet Generator v1.0.0</p>
+        <!-- Footer -->
+        <footer class="text-center mt-5 py-4">
+            <p class="text-body-tertiary small mb-0 font-mono">
+                <i class="bi bi-terminal me-1"></i>
+                Firewall Parameter Sheet Generator
+                <span class="text-body-secondary">v1.0.0</span>
+            </p>
         </footer>
     </div>
 
+    <!-- Bootstrap JS (Local) -->
+    <script src="{{ url_for('static', filename='js/vendor/bootstrap.bundle.min.js') }}"></script>
+    <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

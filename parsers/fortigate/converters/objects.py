@@ -10,7 +10,7 @@ from models.config import (
     ConfigModel, AddressObject, AddressGroup,
     ServiceObject, ServiceGroup
 )
-from parsers.utils import get_nested
+from parsers.utils import get_nested, ip_to_cidr
 
 
 def convert_objects(
@@ -39,7 +39,9 @@ def _add_objects_from_config(
 ) -> None:
     """オブジェクトを追加"""
     _add_address_objects(config_model, config, vdom)
+    _add_address6_objects(config_model, config, vdom)
     _add_address_groups(config_model, config, vdom)
+    _add_address6_groups(config_model, config, vdom)
     _add_service_objects(config_model, config, vdom)
     _add_service_groups(config_model, config, vdom)
 
@@ -62,7 +64,48 @@ def _add_address_objects(
                     end = addr_data.get("end-ip", "")
                     value = f"{start}-{end}" if start and end else ""
                 else:
-                    value = addr_data.get("subnet", "")
+                    # subnetタイプの場合、CIDR表記に変換
+                    subnet_value = addr_data.get("subnet", "")
+                    if subnet_value:
+                        value = ip_to_cidr(subnet_value)
+                    else:
+                        value = ""
+
+                addr_obj = AddressObject(
+                    name=addr_data.get("_name", addr_name),
+                    object_type=addr_type,
+                    value=value,
+                    vdom=vdom,
+                    description=addr_data.get("comment", "")
+                )
+                config_model.objects.addresses.append(addr_obj)
+
+
+def _add_address6_objects(
+    config_model: ConfigModel,
+    config: Dict,
+    vdom: str
+) -> None:
+    """IPv6アドレスオブジェクトを追加（firewall address6）"""
+    firewall_address6 = get_nested(config, "firewall address6", default={})
+    if isinstance(firewall_address6, dict):
+        for addr_name, addr_data in firewall_address6.items():
+            if isinstance(addr_data, dict):
+                addr_type = addr_data.get("type", "subnet")
+                value = ""
+
+                # 代表的なフィールド（FortiOS）
+                if addr_type == "fqdn":
+                    value = addr_data.get("fqdn", "")
+                elif addr_type == "iprange":
+                    # 表記揺れ: start-ip6/end-ip6 or start-ip/end-ip
+                    start = addr_data.get("start-ip6", "") or addr_data.get("start-ip", "")
+                    end = addr_data.get("end-ip6", "") or addr_data.get("end-ip", "")
+                    value = f"{start}-{end}" if start and end else ""
+                else:
+                    ip6 = addr_data.get("ip6", "") or addr_data.get("subnet", "")
+                    if ip6:
+                        value = ip_to_cidr(ip6)
 
                 addr_obj = AddressObject(
                     name=addr_data.get("_name", addr_name),
@@ -83,6 +126,28 @@ def _add_address_groups(
     firewall_addrgrp = get_nested(config, "firewall addrgrp", default={})
     if isinstance(firewall_addrgrp, dict):
         for grp_name, grp_data in firewall_addrgrp.items():
+            if isinstance(grp_data, dict):
+                members = grp_data.get("member", [])
+                if isinstance(members, str):
+                    members = [members]
+                grp_obj = AddressGroup(
+                    name=grp_data.get("_name", grp_name),
+                    members=members,
+                    vdom=vdom,
+                    description=grp_data.get("comment", "")
+                )
+                config_model.objects.address_groups.append(grp_obj)
+
+
+def _add_address6_groups(
+    config_model: ConfigModel,
+    config: Dict,
+    vdom: str
+) -> None:
+    """IPv6アドレスグループを追加（firewall addrgrp6）"""
+    firewall_addrgrp6 = get_nested(config, "firewall addrgrp6", default={})
+    if isinstance(firewall_addrgrp6, dict):
+        for grp_name, grp_data in firewall_addrgrp6.items():
             if isinstance(grp_data, dict):
                 members = grp_data.get("member", [])
                 if isinstance(members, str):

@@ -6,7 +6,7 @@ HTMLExporterを再利用してHTMLを生成し、WeasyPrintでPDFに変換
 """
 
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime
 import logging
 import re
@@ -15,6 +15,7 @@ from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
 
 from models.config import ConfigModel
+from models.cluster import ClusterConfig
 from exporters.html import HTMLExporter
 
 logger = logging.getLogger(__name__)
@@ -30,16 +31,26 @@ _font_config_cache: Optional[FontConfiguration] = None
 class PDFExporter:
     """PDF形式でパラメータシートを出力"""
 
-    def __init__(self, config: ConfigModel, sections: List[str] = None):
+    def __init__(self, config: Union[ConfigModel, ClusterConfig], sections: List[str] = None):
         """PDFエクスポーターを初期化
         
         Args:
             config: 設定データモデル
             sections: 出力するセクションのリスト（Noneの場合は全セクション）
         """
-        self.config = config
+        # HTMLExporter は ClusterConfig も扱えるため、HTML生成は渡された config をそのまま使う。
+        self.export_config = config
+
+        # ヘッダー等で参照する代表ConfigModelを解決（ClusterConfig の場合は primary_config を使用）
+        if isinstance(config, ClusterConfig):
+            self.config = config.primary_config if config.primary_config else ConfigModel()
+            self.cluster_config: Optional[ClusterConfig] = config
+        else:
+            self.config = config
+            self.cluster_config = None
+
         # PDF用に最適化されたHTMLExporterを使用（JavaScript削除など）
-        self.html_exporter = HTMLExporter(config, sections=sections, for_pdf=True)
+        self.html_exporter = HTMLExporter(self.export_config, sections=sections, for_pdf=True)
 
     def export(self, output_path: str) -> str:
         """PDFを生成
@@ -72,6 +83,7 @@ class PDFExporter:
                 stylesheets=[CSS(string=pdf_css), CSS(string=header_css)],
                 font_config=font_config,
                 optimize_images=True,  # 画像最適化
+                presentational_hints=False,  # HTML属性からのスタイル推論を無効化（高速化）
             )
 
             logger.info(f"PDF出力完了: {output_path}")
@@ -83,7 +95,16 @@ class PDFExporter:
 
     def _generate_header_css(self) -> str:
         """動的なヘッダーCSSを生成（ホスト名と作成日を含む）"""
-        hostname = self.config.device_info.hostname or "Unknown"
+        # ClusterConfig を渡された場合も考慮して安全にホスト名/クラスタ名を取得
+        hostname = "Unknown"
+        if self.cluster_config is not None:
+            hostname = (
+                self.cluster_config.cluster_info.cluster_name
+                or (self.config.device_info.hostname if self.config else "")
+                or "Unknown"
+            )
+        else:
+            hostname = self.config.device_info.hostname or "Unknown"
         created_date = datetime.now().strftime("%Y-%m-%d")
 
         return f'''

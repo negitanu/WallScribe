@@ -47,6 +47,7 @@ uploads/*
 
 # 古いファイル
 .old/
+*.old
 
 # Claude
 .claude/

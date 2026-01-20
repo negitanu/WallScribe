@@ -1,91 +1,166 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>生成完了 - パラメータシート生成ツール</title>
+    <!-- Bootstrap 5 (Local) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <!-- Bootstrap Icons (Local) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}">
+    <!-- Custom Styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>パラメータシート生成ツール</h1>
-            <p class="subtitle">FortiGate / Palo Alto 設定ファイルからパラメータシートを自動生成</p>
+    <!-- Animated Background Grid -->
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-success"></div>
+
+    <div class="container py-4">
+        <!-- Header -->
+        <header class="text-center mb-5 position-relative">
+            <div class="header-badge mb-3">
+                <span class="badge-icon"><i class="bi bi-shield-lock"></i></span>
+                <span class="badge-text">Firewall Config Parser</span>
+            </div>
+            <h1 class="display-5 fw-bold mb-3">
+                <span class="text-gradient">パラメータシート</span>
+                <br>
+                <span class="text-secondary-emphasis">生成ツール</span>
+            </h1>
+            <p class="lead text-body-secondary mb-0">
+                <span class="font-mono text-info-emphasis">FortiGate</span>
+                <span class="mx-2 text-body-tertiary">/</span>
+                <span class="font-mono text-warning-emphasis">Palo Alto</span>
+                <span class="ms-2">設定ファイルから自動生成</span>
+            </p>
+            <div class="header-line mt-4"></div>
         </header>
 
         <main>
-            <div class="result-section">
-                <div class="success-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                </div>
-                <h2>パラメータシートの生成が完了しました</h2>
+            <!-- Result Card -->
+            <section class="result-section">
+                <div class="card card-glass">
+                    <div class="card-body p-4 p-md-5">
+                        <!-- Success Icon with Animation -->
+                        <div class="text-center mb-4">
+                            <div class="success-icon-wrapper">
+                                <div class="success-icon-bg"></div>
+                                <div class="success-icon">
+                                    <i class="bi bi-check-circle"></i>
+                                </div>
+                            </div>
+                        </div>
 
-                <div class="result-info">
-                    <table>
-                        <tr>
-                            <th>ファイル名</th>
-                            <td>{{ file_info.filename }}</td>
-                        </tr>
-                        <tr>
-                            <th>機器タイプ</th>
-                            <td>{{ file_info.device_type }}</td>
-                        </tr>
-                        <tr>
-                            <th>ホスト名</th>
-                            <td>{{ file_info.hostname }}</td>
-                        </tr>
-                        <tr>
-                            <th>OSバージョン</th>
-                            <td>{{ file_info.version }}</td>
-                        </tr>
-                        <tr>
-                            <th>ポリシー数</th>
-                            <td>{{ file_info.summary.policies }}</td>
-                        </tr>
-                        <tr>
-                            <th>オブジェクト数</th>
-                            <td>{{ file_info.summary.objects }}</td>
-                        </tr>
-                    </table>
-                </div>
+                        <!-- Title -->
+                        <h3 class="text-center text-success mb-4">
+                            <i class="bi bi-file-earmark-check me-2"></i>
+                            パラメータシートの生成が完了しました
+                        </h3>
 
-                <div class="result-actions">
-                    <a href="{{ url_for('download_file', file_id=file_id) }}" class="btn btn-primary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        ダウンロード
-                    </a>
-                    <a href="{{ url_for('preview_file', file_id=file_id) }}" class="btn btn-secondary" target="_blank">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                        プレビュー
-                    </a>
-                    <a href="{{ url_for('index') }}" class="btn btn-outline">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-                            <path d="M3 3v5h5"></path>
-                        </svg>
-                        別のファイルを変換
-                    </a>
-                </div>
+                        <!-- File Info Card -->
+                        <div class="info-card mb-4">
+                            <div class="info-card-header">
+                                <i class="bi bi-info-circle me-2"></i>生成情報
+                            </div>
+                            <div class="info-card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="info-item">
+                                            <span class="info-label">
+                                                <i class="bi bi-file-earmark-text me-1"></i>ファイル名
+                                            </span>
+                                            <span class="info-value font-mono">{{ file_info.filename }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-item">
+                                            <span class="info-label">
+                                                <i class="bi bi-router me-1"></i>機器タイプ
+                                            </span>
+                                            <span class="info-value">
+                                                {% if 'FortiGate' in file_info.device_type %}
+                                                <span class="badge bg-info-subtle text-info">{{ file_info.device_type }}</span>
+                                                {% else %}
+                                                <span class="badge bg-warning-subtle text-warning">{{ file_info.device_type }}</span>
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-item">
+                                            <span class="info-label">
+                                                <i class="bi bi-hdd-network me-1"></i>ホスト名
+                                            </span>
+                                            <span class="info-value font-mono">{{ file_info.hostname }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-item">
+                                            <span class="info-label">
+                                                <i class="bi bi-code-square me-1"></i>OSバージョン
+                                            </span>
+                                            <span class="info-value font-mono">{{ file_info.version }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-item">
+                                            <span class="info-label">
+                                                <i class="bi bi-shield-check me-1"></i>ポリシー数
+                                            </span>
+                                            <span class="info-value">
+                                                <span class="badge bg-primary-subtle text-primary fs-6">{{ file_info.summary.policies }}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-item">
+                                            <span class="info-label">
+                                                <i class="bi bi-box me-1"></i>オブジェクト数
+                                            </span>
+                                            <span class="info-value">
+                                                <span class="badge bg-secondary-subtle text-secondary fs-6">{{ file_info.summary.objects }}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                <div class="result-note">
-                    <p>※ 生成されたファイルは1時間後に自動削除されます。必要な場合はダウンロードしてください。</p>
+                        <!-- Action Buttons -->
+                        <div class="d-flex flex-wrap justify-content-center gap-3 mb-4">
+                            <a href="{{ url_for('download_file', file_id=file_id) }}" class="btn btn-primary btn-lg">
+                                <i class="bi bi-download me-2"></i>ダウンロード
+                            </a>
+                            <a href="{{ url_for('preview_file', file_id=file_id) }}" class="btn btn-success btn-lg" target="_blank">
+                                <i class="bi bi-eye me-2"></i>プレビュー
+                            </a>
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-arrow-repeat me-2"></i>別のファイルを変換
+                            </a>
+                        </div>
+
+                        <!-- Note -->
+                        <div class="alert alert-secondary border-0 text-center mb-0">
+                            <i class="bi bi-clock-history me-1"></i>
+                            生成されたファイルは<strong>1時間後</strong>に自動削除されます。必要な場合はダウンロードしてください。
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
         </main>
 
-        <footer>
-            <p>Firewall Parameter Sheet Generator v1.0.0</p>
+        <!-- Footer -->
+        <footer class="text-center mt-5 py-4">
+            <p class="text-body-tertiary small mb-0 font-mono">
+                <i class="bi bi-terminal me-1"></i>
+                Firewall Parameter Sheet Generator
+                <span class="text-body-secondary">v1.0.0</span>
+            </p>
         </footer>
     </div>
+
+    <!-- Bootstrap JS (Local) -->
+    <script src="{{ url_for('static', filename='js/vendor/bootstrap.bundle.min.js') }}"></script>
 </body>
 </html>

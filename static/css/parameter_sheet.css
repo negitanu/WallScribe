@@ -7,12 +7,32 @@
     --primary-color: #1a5276;
     --secondary-color: #2980b9;
     --accent-color: #e74c3c;
+
+    /* Layout / Rhythm (colors are unchanged) */
+    --surface: #ffffff;
+    --surface-muted: #f8f9fa;
+    --border-soft: #e9ecef;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06);
+    --shadow-2: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
 /* Body */
 body {
     font-family: 'Segoe UI', 'Meiryo', sans-serif;
-    background-color: #f8f9fa;
+    background-color: var(--surface-muted);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Container */
+.container {
+    max-width: 1480px;
+    padding-left: 20px;
+    padding-right: 20px;
 }
 
 /* Header */
@@ -22,10 +42,22 @@ header {
     padding: 40px 20px;
     margin-bottom: 30px;
     border-radius: 8px;
+    position: relative;
+    overflow: hidden;
 }
 
-header h1 { margin: 0 0 10px 0; }
-header .meta { opacity: 0.9; font-size: 0.95em; margin-bottom: 15px; }
+header h1 {
+    margin: 0 0 10px 0;
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+}
+
+header .meta {
+    opacity: 0.9;
+    font-size: 0.95em;
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
 
 /* Search Box */
 .search-box {
@@ -186,15 +218,30 @@ h2 {
     border-bottom: 3px solid var(--secondary-color);
     padding-bottom: 10px;
     margin-top: 0;
+    line-height: 1.2;
 }
 
-h3 { color: var(--secondary-color); margin-top: 25px; margin-bottom: 15px; }
-h4 { color: #333; margin-top: 20px; margin-bottom: 10px; }
-h5 { color: #6c757d; margin-top: 15px; margin-bottom: 8px; font-size: 0.95em; }
+h3 { color: var(--secondary-color); margin-top: 22px; margin-bottom: 14px; line-height: 1.25; }
+h4 { color: #333; margin-top: 18px; margin-bottom: 10px; line-height: 1.25; }
+h5 { color: #6c757d; margin-top: 12px; margin-bottom: 8px; font-size: 0.95em; line-height: 1.25; }
 
 /* Bootstrap Table Extensions */
 table {
     font-size: 0.875rem;
+    table-layout: auto;
+    width: 100%;
+    border-color: #dee2e6;
+}
+
+thead th {
+    background: linear-gradient(to bottom, #f8f9fa, #e9ecef) !important;
+    color: var(--primary-color) !important;
+    font-weight: 600;
+    white-space: nowrap;
+    vertical-align: middle;
+    text-align: left;
+    padding: 12px 8px;
+    border-bottom-width: 2px;
 }
 
 th {
@@ -202,6 +249,24 @@ th {
     color: var(--primary-color) !important;
     font-weight: 600;
     white-space: nowrap;
+    vertical-align: middle;
+    text-align: left;
+    padding: 12px 8px;
+}
+
+tbody td {
+    vertical-align: top;
+    padding: 10px 8px;
+}
+
+/* Inline code (screen only) */
+@media screen {
+    code {
+        padding: 0.08em 0.35em;
+        background: var(--surface-muted);
+        border: 1px solid #dee2e6;
+        border-radius: var(--radius-sm);
+    }
 }
 
 /* Action Classes */
@@ -223,11 +288,21 @@ th {
 .tag-untrust { background: #f8d7da; color: #842029; }
 .tag-dmz { background: #fff3cd; color: #664d03; }
 
+/* Badge base styles - prevent text wrapping */
+.badge {
+    display: inline-block !important;
+    white-space: nowrap !important;
+    vertical-align: middle;
+    margin: 2px 3px 2px 0;
+}
+
 /* Outline Badges */
 .badge-outline {
     background-color: transparent !important;
     border: 1px solid;
     font-weight: 500;
+    display: inline-block !important;
+    white-space: nowrap !important;
 }
 
 .badge-outline-primary { color: #0d6efd; border-color: #0d6efd; }
@@ -238,6 +313,13 @@ th {
 .badge-outline-info { color: #0dcaf0; border-color: #0dcaf0; }
 .badge-outline-dark { color: #212529; border-color: #212529; }
 .badge-outline-light { color: #6c757d; border-color: #dee2e6; }
+
+/* Badge container in table cells */
+td .badge,
+td .badge-outline {
+    display: inline-block !important;
+    white-space: nowrap !important;
+}
 
 /* Boxes - Bootstrap Alert Extensions */
 .summary-box {
@@ -259,7 +341,7 @@ th {
 /* Info Grid - Bootstrap Grid Extensions */
 .info-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
     gap: 20px;
     margin: 20px 0;
 }
@@ -281,6 +363,23 @@ th {
 /* Table Responsive Wrapper */
 .table-responsive {
     margin: 15px 0;
+    /* 横スクロールは可能にしつつ、縦方向のツールチップは表示されるようにする */
+    overflow-x: auto;
+    overflow-y: visible;
+    /* ツールチップが表の外に表示されるようにする */
+    position: relative;
+}
+
+/* テーブル自体もoverflowをvisibleに */
+.table-responsive table {
+    overflow: visible !important;
+}
+
+/* セクションやサブセクションもoverflowをvisibleに */
+section,
+.subsection {
+    overflow: visible !important;
+    position: relative;
 }
 
 /* Footer */
@@ -299,8 +398,225 @@ footer {
     nav.toc ul { columns: 1; }
 }
 
+/* Screen polish (kept out of PDF/print) */
+@media screen {
+    header {
+        box-shadow: 0 18px 50px rgba(26, 82, 118, 0.18);
+    }
+
+    header .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+    }
+
+    header::after {
+        content: '';
+        position: absolute;
+        inset: -40% -30%;
+        background: radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 55%);
+        transform: rotate(-8deg);
+        pointer-events: none;
+    }
+
+    nav.toc,
+    section {
+        box-shadow: var(--shadow-2);
+    }
+
+    .info-card {
+        box-shadow: var(--shadow-1);
+    }
+
+    /* Subtle hover feedback for dense tables */
+    .table-hover tbody tr:hover > * {
+        background-color: rgba(26, 82, 118, 0.035) !important;
+    }
+}
+
+/* Tooltip Styles */
+.has-tooltip {
+    position: relative;
+    cursor: help;
+    border-bottom: 1px dotted #6c757d;
+}
+
+/* Tooltip内のテーブルスタイル */
+.tooltip-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-size: 0.85em;
+}
+
+.tooltip-table thead th {
+    background-color: #f8f9fa;
+    color: #1a5276;
+    font-weight: 600;
+    padding: 6px 8px;
+    border-bottom: 2px solid #dee2e6;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.tooltip-table tbody td {
+    padding: 4px 8px;
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: top;
+}
+
+.tooltip-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.tooltip-table .tooltip-key {
+    font-weight: 500;
+    color: #adb5bd;
+    white-space: nowrap;
+    min-width: 80px;
+}
+
+.tooltip-table .tooltip-value {
+    color: #fff;
+    word-break: break-word;
+}
+
+.has-tooltip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 16px;
+    background: #212529;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: normal;
+    line-height: 1.6;
+    border-radius: 8px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.2s ease;
+    z-index: 10000;
+    max-width: 500px;
+    min-width: 250px;
+    white-space: normal;
+    word-wrap: break-word;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    text-align: left;
+    overflow-wrap: break-word;
+    word-break: keep-all;
+}
+
+.has-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 2px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-top-color: #212529;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1001;
+    pointer-events: none;
+}
+
+.has-tooltip:hover::after,
+.has-tooltip:hover::before {
+    opacity: 1;
+    visibility: visible;
+}
+
+.has-tooltip:hover::after {
+    transform: translateX(-50%) translateY(-4px);
+}
+
+/* Badge with tooltip */
+.badge.has-tooltip,
+.badge-outline.has-tooltip {
+    border-bottom: none;
+    cursor: help;
+}
+
+.badge.has-tooltip:hover,
+.badge-outline.has-tooltip:hover {
+    transform: scale(1.05);
+}
+
+/* Policy row styling */
+tr.policy-row {
+    transition: background-color 0.2s ease;
+}
+
+tr.policy-row:hover {
+    background-color: rgba(26, 82, 118, 0.03) !important;
+}
+
+/* Tooltip position adjustments for table cells */
+td .has-tooltip {
+    position: relative;
+    z-index: 1;
+}
+
+td .has-tooltip::after {
+    /* セル内の左端に配置し、必要に応じて右側に表示 */
+    left: 0;
+    transform: translateX(0);
+    /* ツールチップが表の外に出ても表示されるように */
+    z-index: 10000;
+    /* 画面外に出ないように最大幅を制限 */
+    max-width: min(500px, calc(100vw - 40px));
+}
+
+td .has-tooltip::before {
+    left: 16px;
+    transform: translateX(0);
+    z-index: 10001;
+}
+
+/* テーブルセル内のツールチップの位置調整 */
+td .has-tooltip:hover::after {
+    transform: translateX(0) translateY(-4px);
+}
+
+/* 右端のセルの場合、ツールチップを左側に表示 */
+td:last-child .has-tooltip::after,
+td:last-child .has-tooltip::before {
+    left: auto;
+    right: 0;
+    transform: translateX(0);
+}
+
+td:last-child .has-tooltip:hover::after {
+    transform: translateX(0) translateY(-4px);
+}
+
+/* 最初のセルの場合、ツールチップを左側に表示 */
+td:first-child .has-tooltip::after,
+td:first-child .has-tooltip::before {
+    left: 0;
+    right: auto;
+    transform: translateX(0);
+}
+
 /* Responsive Styles */
 @media (max-width: 768px) {
     nav.toc ul { columns: 1; }
     .info-grid { grid-template-columns: 1fr; }
+    .container { padding-left: 12px; padding-right: 12px; }
+    header { padding: 28px 16px; }
+    section { padding: 18px 16px; }
+}
+
+/* Tooltip adjustments for smaller screens */
+@media (max-width: 768px) {
+    .has-tooltip::after {
+        max-width: 250px;
+        min-width: 200px;
+        font-size: 0.85rem;
+        padding: 10px 14px;
+    }
 }

@@ -11,13 +11,15 @@ from pathlib import Path
 from typing import List, Optional
 
 from .base import BaseConfigParser
+from .utils import ip_to_cidr
 from models.config import (
     ConfigModel, DeviceInfo, DeviceType, OperationMode,
     SystemSettings, AdminUser, Interface, Route, DHCPServer,
     Objects, AddressObject, AddressGroup, ServiceObject, ServiceGroup,
     FirewallPolicy, NATPolicy, PolicyAction,
     VPNSettings, IPSecPhase1, IPSecPhase2, SSLVPNSettings,
-    SecurityProfile, SecurityProfiles, SSLInspectionProfile, HASettings, HAMode,
+    SecurityProfile, SecurityProfiles, SSLInspectionProfile,
+    HASettings, HAMode, HAHeartbeatInterface, HAManagementInterface,
     LoggingSettings, SyslogServer, SNMPSettings
 )
 
@@ -329,13 +331,29 @@ class PaloAltoParser(BaseConfigParser):
             # Static routes
             static_routes = vr.findall('routing-table/ip/static-route/entry')
             for route_entry in static_routes:
+                # 宛先ネットワークをCIDR表記に変換
+                destination = self._get_text(route_entry, 'destination')
+                if destination:
+                    destination = ip_to_cidr(destination)
+
+                # Nexthop: ip-address / discard / next-vr など
+                route_type = "static"
+                gateway = self._get_text(route_entry, 'nexthop/ip-address')
+                if route_entry.find('nexthop/discard') is not None:
+                    route_type = "blackhole"
+                    gateway = ""  # 破棄ルートなのでゲートウェイは空にする
+                elif route_entry.find('nexthop/next-vr') is not None:
+                    # 次の仮想ルータへ転送するタイプ（表示用に残す）
+                    route_type = "next-vr"
+                    gateway = self._get_text(route_entry, 'nexthop/next-vr')
+
                 route = Route(
                     name=route_entry.get('name', ''),
-                    destination=self._get_text(route_entry, 'destination'),
-                    gateway=self._get_text(route_entry, 'nexthop/ip-address'),
+                    destination=destination,
+                    gateway=gateway,
                     interface=self._get_text(route_entry, 'interface'),
                     distance=self._get_text(route_entry, 'metric'),
-                    route_type="static"
+                    route_type=route_type
                 )
                 self.config_model.routes.append(route)
 
@@ -397,7 +415,9 @@ class PaloAltoParser(BaseConfigParser):
 
             if addr_entry.find('ip-netmask') is not None:
                 addr_type = "subnet"
-                value = self._get_text(addr_entry, 'ip-netmask')
+                # CIDR表記に変換
+                ip_netmask = self._get_text(addr_entry, 'ip-netmask')
+                value = ip_to_cidr(ip_netmask) if ip_netmask else ""
             elif addr_entry.find('ip-range') is not None:
                 addr_type = "iprange"
                 value = self._get_text(addr_entry, 'ip-range')
@@ -476,7 +496,8 @@ class PaloAltoParser(BaseConfigParser):
             # Security rules
             rules = vsys.findall('rulebase/security/rules/entry')
             for idx, rule_entry in enumerate(rules, 1):
-                action_str = self._get_text(rule_entry, 'action', 'allow')
+                # 仕様: action が未定義なら拒否(deny)として扱う
+                action_str = self._get_text(rule_entry, 'action', 'deny')
                 if action_str == 'allow':
                     action = PolicyAction.ALLOW
                 elif action_str == 'deny':
@@ -690,28 +711,123 @@ class PaloAltoParser(BaseConfigParser):
         if group is None:
             return
 
-        mode_elem = group.find('mode')
-        if mode_elem is not None:
-            if mode_elem.find('active-passive') is not None:
-                mode = HAMode.ACTIVE_PASSIVE
-            elif mode_elem.find('active-active') is not None:
-                mode = HAMode.ACTIVE_ACTIVE
-            else:
-                mode = HAMode.STANDALONE
-        else:
-            mode = HAMode.STANDALONE
+        # enabled 判定（未設定の場合は設定が存在する＝有効として扱う）
+        enabled_raw = self._get_text(ha_config, 'enabled', '').strip().lower()
+        enabled = True if enabled_raw == "" else enabled_raw in ("yes", "true", "1", "enable", "enabled")
+
+        # HA mode
+        mode = HAMode.STANDALONE
+        if enabled:
+            mode_elem = group.find('mode')
+            if mode_elem is not None:
+                if mode_elem.find('active-passive') is not None:
+                    mode = HAMode.ACTIVE_PASSIVE
+                elif mode_elem.find('active-active') is not None:
+                    mode = HAMode.ACTIVE_ACTIVE
+
+        # group name / priority / preempt など
+        group_name = (
+            self._get_text(group, 'group-description')
+            or self._get_text(group, 'group-name')
+            or self._get_text(group, 'name')
+        )
+        priority = (
+            self._get_text(group, 'election-option/priority')
+            or self._get_text(group, 'election-option/device-priority')
+        )
+        preempt_raw = self._get_text(group, 'election-option/preemptive', 'no').strip().lower()
+        preempt = preempt_raw in ("yes", "true", "1", "enable", "enabled")
+
+        # 可能なら心拍系パラメータも拾う（PAN-OSの表記揺れ対策で複数候補）
+        hb_interval = (
+            self._get_text(group, 'election-option/hello-interval')
+            or self._get_text(group, 'election-option/heartbeat-interval')
+        )
+        hb_lost_threshold = (
+            self._get_text(group, 'election-option/hold-time')
+            or self._get_text(group, 'election-option/heartbeat-missed')
+        )
 
         self.config_model.ha = HASettings(
             mode=mode,
             group_id=self._get_text(group, 'group-id'),
-            priority=self._get_text(group, 'election-option/priority'),
-            preempt=self._get_text(group, 'election-option/preemptive', 'no') == 'yes'
+            group_name=group_name,
+            priority=priority,
+            preempt=preempt,
+            hb_interval=hb_interval,
+            hb_lost_threshold=hb_lost_threshold,
         )
 
-        # HA interfaces
-        ha1 = group.find('mode/active-passive/passive-link-state')
-        if ha1 is not None:
-            self.config_model.ha.ha_interfaces.append("HA1")
+        # Link/Path monitoring（監視対象インターフェース）
+        monitor_set = set()
+        for sec in (
+            group.find('link-monitoring'),
+            group.find('path-monitoring'),
+            group.find('monitoring/link-monitoring'),
+            group.find('monitoring/path-monitoring'),
+        ):
+            if sec is None:
+                continue
+            for m in sec.findall('.//member'):
+                if m is not None and m.text:
+                    val = m.text.strip()
+                    if val:
+                        monitor_set.add(val)
+        if monitor_set:
+            self.config_model.ha.monitor_interfaces = sorted(monitor_set)
+
+        # HA1/HA2インターフェース・IP等
+        iface_cfg = ha_config.find('interface')
+        if iface_cfg is not None:
+            hb_set = []
+            seen = set()
+            for key, label in (
+                ("ha1", "HA1"),
+                ("ha1-backup", "HA1-backup"),
+                ("ha2", "HA2"),
+                ("ha2-backup", "HA2-backup"),
+                ("ha3", "HA3"),
+                ("ha3-backup", "HA3-backup"),
+            ):
+                link = iface_cfg.find(key)
+                if link is None:
+                    continue
+
+                port = (
+                    self._get_text(link, 'port')
+                    or self._get_text(link, 'interface')
+                )
+                ipaddr = (
+                    self._get_text(link, 'ip-address')
+                    or self._get_text(link, 'ip')
+                )
+
+                # 表示用：HAインターフェース（ラベル＋実インターフェース名）
+                if port:
+                    self.config_model.ha.ha_interfaces.append(f"{label}: {port}")
+                else:
+                    self.config_model.ha.ha_interfaces.append(label)
+
+                # 表示用：ハートビートインターフェース（一覧/詳細）
+                if port and port not in seen:
+                    hb_set.append(port)
+                    seen.add(port)
+                    self.config_model.ha.heartbeat_interfaces_detail.append(
+                        HAHeartbeatInterface(interface=port, priority="")
+                    )
+
+                # 表示用：HA管理/リンク情報（gateway欄にIPを載せる）
+                if port or ipaddr:
+                    self.config_model.ha.ha_mgmt_interfaces.append(
+                        HAManagementInterface(
+                            id=label,
+                            interface=port or label,
+                            gateway=ipaddr or ""
+                        )
+                    )
+
+            if hb_set:
+                self.config_model.ha.heartbeat_interfaces = hb_set
 
     def _parse_logging(self):
         """ログ設定をパース"""

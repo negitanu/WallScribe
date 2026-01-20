@@ -7,13 +7,14 @@ HTMLエクスポーター
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from models.config import (
-    ConfigModel, PolicyAction, HAMode, DeviceType
+    ConfigModel, PolicyAction, HAMode, DeviceType, FirewallPolicy
 )
+from models.cluster import ClusterConfig, HARole
 from exporters.utils import (
-    STATIC_DIR, load_isdb, load_css, load_search_js, HtmlFormatter
+    STATIC_DIR, load_isdb, load_css, load_search_js, load_tooltip_js, HtmlFormatter
 )
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ class HTMLExporter:
 
     # グローバルセクション定義（VDOM横断の設定）
     GLOBAL_SECTIONS = [
+        ('cluster_overview', 'クラスタ概要', '_generate_cluster_overview_section'),
         ('device_info', '機器概要', '_generate_device_info_section'),
         ('system_settings', 'システム設定', '_generate_system_settings_section'),
         ('ha', 'HA設定', '_generate_ha_section'),
@@ -40,18 +42,33 @@ class HTMLExporter:
         ('security_profiles', 'セキュリティプロファイル', '_generate_security_profiles_section'),
     ]
 
-    def __init__(self, config: ConfigModel, sections: List[str] = None, for_pdf: bool = False):
+    def __init__(self, config: Union[ConfigModel, ClusterConfig], sections: List[str] = None, for_pdf: bool = False):
         """HTMLエクスポーターを初期化
-        
+
         Args:
-            config: 設定データモデル
+            config: 設定データモデル（ConfigModelまたはClusterConfig）
             sections: 出力するセクションのリスト（Noneの場合は全セクション）
             for_pdf: PDF用に最適化する場合True（JavaScript削除など）
         """
-        self.config = config
+        # ClusterConfigの場合、primary_configを使用
+        if isinstance(config, ClusterConfig):
+            self.cluster_config = config
+            self.config = config.primary_config if config.primary_config else ConfigModel()
+            self.is_cluster = config.is_cluster
+        else:
+            self.cluster_config = None
+            self.config = config
+            self.is_cluster = False
+
         # セクション指定は現在未使用（将来の拡張用に保持）
         self.sections = sections
         self.for_pdf = for_pdf
+        # ISDBデータをキャッシュ（ループ内での関数呼び出し削減）
+        self._isdb_cache = load_isdb()
+        # ツールチップ生成キャッシュ（同じオブジェクトの重複生成を防止）
+        self._tooltip_cache: Dict[tuple, str] = {}
+        # オブジェクト辞書を構築（ツールチップ用）
+        self._build_object_lookups()
 
     # FortiGateデフォルト値
     DEFAULTS = {
@@ -87,14 +104,13 @@ class HTMLExporter:
 
     def _resolve_isdb_name(self, isdb_id: str) -> str:
         """ISDB IDからアプリケーション名を解決"""
-        isdb = load_isdb()
-        # IDをそのまま検索
-        if isdb_id in isdb:
-            return isdb[isdb_id]
+        # IDをそのまま検索（キャッシュ使用）
+        if isdb_id in self._isdb_cache:
+            return self._isdb_cache[isdb_id]
         # 数字のみの場合もそのまま検索
         id_str = str(isdb_id).strip()
-        if id_str in isdb:
-            return isdb[id_str]
+        if id_str in self._isdb_cache:
+            return self._isdb_cache[id_str]
         # 見つからない場合は元の値を返す
         return isdb_id
 
@@ -141,6 +157,493 @@ class HTMLExporter:
         """指定VDOMの項目のみをフィルタリング"""
         return [item for item in items if getattr(item, 'vdom', 'root') == vdom]
 
+    def _build_object_lookups(self) -> None:
+        """オブジェクト名から詳細情報を引くための辞書を構築"""
+        # アドレスオブジェクト辞書: {(vdom, name): AddressObject}
+        self._address_lookup: Dict[tuple, Any] = {}
+        for addr in self.config.objects.addresses:
+            key = (addr.vdom, addr.name)
+            self._address_lookup[key] = addr
+
+        # アドレスグループ辞書: {(vdom, name): AddressGroup}
+        self._address_group_lookup: Dict[tuple, Any] = {}
+        for grp in self.config.objects.address_groups:
+            key = (grp.vdom, grp.name)
+            self._address_group_lookup[key] = grp
+
+        # サービスオブジェクト辞書: {(vdom, name): ServiceObject}
+        self._service_lookup: Dict[tuple, Any] = {}
+        for svc in self.config.objects.services:
+            key = (svc.vdom, svc.name)
+            self._service_lookup[key] = svc
+
+        # サービスグループ辞書: {(vdom, name): ServiceGroup}
+        self._service_group_lookup: Dict[tuple, Any] = {}
+        for grp in self.config.objects.service_groups:
+            key = (grp.vdom, grp.name)
+            self._service_group_lookup[key] = grp
+
+        # インターフェース辞書: {(vdom, name): Interface}
+        self._interface_lookup: Dict[tuple, Any] = {}
+        for iface in self.config.interfaces:
+            key = (iface.vdom, iface.name)
+            self._interface_lookup[key] = iface
+
+        # セキュリティプロファイル辞書を構築
+        self._security_profile_lookup: Dict[tuple, Any] = {}
+        detail = self.config.security_profiles_detail
+
+        # アンチウイルス
+        for av in detail.antivirus:
+            key = (av.vdom, "av", av.name)
+            self._security_profile_lookup[key] = av
+            key2 = (av.vdom, "antivirus", av.name)
+            self._security_profile_lookup[key2] = av
+
+        # Webフィルタ
+        for wf in detail.webfilter:
+            key = (wf.vdom, "webfilter", wf.name)
+            self._security_profile_lookup[key] = wf
+            key2 = (wf.vdom, "web-filter", wf.name)
+            self._security_profile_lookup[key2] = wf
+
+        # アプリケーションコントロール
+        for app in detail.app_control:
+            key = (app.vdom, "application", app.name)
+            self._security_profile_lookup[key] = app
+            key2 = (app.vdom, "app-ctrl", app.name)
+            self._security_profile_lookup[key2] = app
+
+        # IPS
+        for ips in detail.ips:
+            key = (ips.vdom, "ips", ips.name)
+            self._security_profile_lookup[key] = ips
+
+        # SSLインスペクション
+        for ssl in detail.ssl_inspection:
+            key = (ssl.vdom, "ssl", ssl.name)
+            self._security_profile_lookup[key] = ssl
+            key2 = (ssl.vdom, "ssl-ssh-profile", ssl.name)
+            self._security_profile_lookup[key2] = ssl
+
+    def _format_tooltip_table(self, rows: List[tuple]) -> str:
+        """ツールチップ用の表形式HTMLを生成
+        
+        Args:
+            rows: (項目, 値)のタプルのリスト。最初の行はヘッダーとして扱われる
+        
+        Returns:
+            表形式のHTML文字列
+        """
+        if not rows or len(rows) < 2:
+            return ""
+        
+        html = ['<table class="tooltip-table">']
+        # ヘッダー行
+        html.append('<thead><tr>')
+        html.append(f'<th>{self.escape(rows[0][0])}</th>')
+        html.append(f'<th>{self.escape(rows[0][1])}</th>')
+        html.append('</tr></thead>')
+        # データ行
+        html.append('<tbody>')
+        for key, value in rows[1:]:
+            html.append('<tr>')
+            html.append(f'<td class="tooltip-key">{self.escape(str(key))}</td>')
+            html.append(f'<td class="tooltip-value">{self.escape(str(value))}</td>')
+            html.append('</tr>')
+        html.append('</tbody>')
+        html.append('</table>')
+        return ''.join(html)
+
+    def _get_interface_tooltip(self, name: str, vdom: str = "root") -> str:
+        """インターフェース名からツールチップ用の詳細情報を取得（表形式）"""
+        # キャッシュチェック
+        cache_key = ("interface", vdom, name)
+        if cache_key in self._tooltip_cache:
+            return self._tooltip_cache[cache_key]
+
+        # インターフェースを検索
+        iface = self._interface_lookup.get((vdom, name))
+        if iface:
+            rows = []
+            rows.append(("項目", "値"))
+            rows.append(("タイプ", iface.interface_type or "-"))
+            if iface.ip_address:
+                rows.append(("IPアドレス", iface.ip_address))
+            if iface.vlan_id:
+                rows.append(("VLAN ID", str(iface.vlan_id)))
+            if iface.zone:
+                rows.append(("ゾーン", iface.zone))
+            if iface.role:
+                rows.append(("役割", iface.role))
+            if iface.allowed_access:
+                rows.append(("許可アクセス", ", ".join(iface.allowed_access)))
+            if iface.description:
+                rows.append(("説明", iface.description))
+            if iface.status:
+                rows.append(("状態", iface.status))
+
+            # 表形式のHTMLを生成してキャッシュ
+            result = self._format_tooltip_table(rows)
+            self._tooltip_cache[cache_key] = result
+            return result
+
+        self._tooltip_cache[cache_key] = ""
+        return ""
+
+    def _is_internet_service(self, name: str) -> bool:
+        """Internet Serviceかどうかを判定"""
+        name_lower = name.lower()
+        # Internet Serviceの一般的な形式をチェック
+        if name_lower.startswith("internet-service") or name_lower.startswith("internet_service"):
+            return True
+        # 数字のみのID（ISDB IDの可能性）
+        if name.strip().isdigit():
+            return True
+        # ISDBデータに存在するかチェック（キャッシュ使用）
+        if name in self._isdb_cache or name.strip() in self._isdb_cache:
+            return True
+        return False
+
+    def _get_internet_service_tooltip(self, name: str) -> str:
+        """Internet Serviceのツールチップを取得（表形式）"""
+        # キャッシュチェック
+        cache_key = ("internet_service", name)
+        if cache_key in self._tooltip_cache:
+            return self._tooltip_cache[cache_key]
+
+        rows = [("項目", "値")]
+        rows.append(("タイプ", "Internet Service"))
+
+        # Internet Service名の形式を処理（キャッシュ使用）
+        # "Google-Web"のような形式の場合、サービス名を表示
+        service_name = name
+        isdb_id = None
+
+        if "-" in name:
+            # "Google-Web"のような形式
+            parts = name.split("-", 1)
+            if len(parts) > 1:
+                service_name = parts[1]
+                # サービス名からISDB IDを検索（逆引き）
+                for app_id, app_name in self._isdb_cache.items():
+                    if app_name == service_name or app_name.lower() == service_name.lower():
+                        isdb_id = app_id
+                        break
+        elif name.strip().isdigit():
+            # 数字のみの場合はISDB IDとして扱う
+            isdb_id = name.strip()
+            if isdb_id in self._isdb_cache:
+                service_name = self._isdb_cache[isdb_id]
+            elif str(isdb_id) in self._isdb_cache:
+                service_name = self._isdb_cache[str(isdb_id)]
+        else:
+            # その他の形式からIDを抽出を試みる
+            isdb_id = name.strip()
+            parts = isdb_id.split("-")
+            for part in reversed(parts):
+                if part.isdigit():
+                    isdb_id = part
+                    if isdb_id in self._isdb_cache:
+                        service_name = self._isdb_cache[isdb_id]
+                    break
+
+        rows.append(("サービス名", service_name))
+        if isdb_id:
+            rows.append(("ISDB ID", isdb_id))
+        else:
+            rows.append(("Internet Service名", name))
+
+        result = self._format_tooltip_table(rows)
+        self._tooltip_cache[cache_key] = result
+        return result
+
+    def _get_address_tooltip(self, name: str, vdom: str = "root") -> str:
+        """アドレスオブジェクト名からツールチップ用の詳細情報を取得（表形式）"""
+        # キャッシュチェック
+        cache_key = ("address", vdom, name)
+        if cache_key in self._tooltip_cache:
+            return self._tooltip_cache[cache_key]
+
+        # 特殊なアドレス名
+        if name.lower() in ("all", "any"):
+            rows = [("項目", "値")]
+            rows.append(("タイプ", "特殊アドレス"))
+            rows.append(("値", "すべてのアドレス (0.0.0.0/0)"))
+            result = self._format_tooltip_table(rows)
+            self._tooltip_cache[cache_key] = result
+            return result
+
+        # Internet Serviceかどうかをチェック
+        if self._is_internet_service(name):
+            result = self._get_internet_service_tooltip(name)
+            self._tooltip_cache[cache_key] = result
+            return result
+
+        # アドレスオブジェクトを検索
+        addr = self._address_lookup.get((vdom, name))
+        if addr:
+            rows = [("項目", "値")]
+            rows.append(("タイプ", addr.object_type or "-"))
+            rows.append(("値", addr.value or "-"))
+            if addr.description:
+                rows.append(("説明", addr.description))
+
+            result = self._format_tooltip_table(rows)
+            self._tooltip_cache[cache_key] = result
+            return result
+
+        # アドレスグループを検索
+        grp = self._address_group_lookup.get((vdom, name))
+        if grp:
+            rows = [("項目", "値")]
+            rows.append(("タイプ", "アドレスグループ"))
+            members = ", ".join(grp.members[:10])
+            if len(grp.members) > 10:
+                members += f" ... (他{len(grp.members) - 10}件)"
+            rows.append(("メンバー", members))
+            if grp.description:
+                rows.append(("説明", grp.description))
+
+            result = self._format_tooltip_table(rows)
+            self._tooltip_cache[cache_key] = result
+            return result
+
+        self._tooltip_cache[cache_key] = ""
+        return ""
+
+    def _get_service_tooltip(self, name: str, vdom: str = "root") -> str:
+        """サービスオブジェクト名からツールチップ用の詳細情報を取得（表形式）"""
+        # キャッシュチェック
+        cache_key = ("service", vdom, name)
+        if cache_key in self._tooltip_cache:
+            return self._tooltip_cache[cache_key]
+
+        # 特殊なサービス名
+        name_lower = name.lower()
+        if name_lower == "all":
+            rows = [("項目", "値")]
+            rows.append(("タイプ", "特殊サービス"))
+            rows.append(("値", "すべてのサービス"))
+            result = self._format_tooltip_table(rows)
+            self._tooltip_cache[cache_key] = result
+            return result
+        if name_lower in ("http", "https", "ssh", "telnet", "ftp", "dns", "smtp", "ping", "icmp"):
+            rows = [("項目", "値")]
+            rows.append(("タイプ", "組み込みサービス"))
+            rows.append(("サービス名", name.upper()))
+            result = self._format_tooltip_table(rows)
+            self._tooltip_cache[cache_key] = result
+            return result
+
+        # サービスオブジェクトを検索
+        svc = self._service_lookup.get((vdom, name))
+        if svc:
+            rows = [("項目", "値")]
+            rows.append(("プロトコル", svc.protocol.upper() if svc.protocol else "-"))
+            if svc.port:
+                rows.append(("ポート", svc.port))
+            if svc.description:
+                rows.append(("説明", svc.description))
+
+            result = self._format_tooltip_table(rows)
+            self._tooltip_cache[cache_key] = result
+            return result
+
+        # サービスグループを検索
+        grp = self._service_group_lookup.get((vdom, name))
+        if grp:
+            rows = [("項目", "値")]
+            rows.append(("タイプ", "サービスグループ"))
+            members = ", ".join(grp.members[:10])
+            if len(grp.members) > 10:
+                members += f" ... (他{len(grp.members) - 10}件)"
+            rows.append(("メンバー", members))
+            if grp.description:
+                rows.append(("説明", grp.description))
+
+            result = self._format_tooltip_table(rows)
+            self._tooltip_cache[cache_key] = result
+            return result
+
+        self._tooltip_cache[cache_key] = ""
+        return ""
+
+    def _with_tooltip(self, text: str, tooltip: str) -> str:
+        """ツールチップ付きのHTML要素を生成"""
+        if not tooltip:
+            return self.escape(text)
+        return f'<span class="has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(text)}</span>'
+
+    def _interface_with_tooltip(self, name: str, vdom: str = "root") -> str:
+        """インターフェース名をツールチップ付きで表示"""
+        tooltip = self._get_interface_tooltip(name, vdom)
+        return self._with_tooltip(name, tooltip)
+
+    def _address_with_tooltip(self, name: str, vdom: str = "root") -> str:
+        """アドレス名をツールチップ付きで表示"""
+        tooltip = self._get_address_tooltip(name, vdom)
+        return self._with_tooltip(name, tooltip)
+
+    def _service_with_tooltip(self, name: str, vdom: str = "root") -> str:
+        """サービス名をツールチップ付きで表示"""
+        tooltip = self._get_service_tooltip(name, vdom)
+        return self._with_tooltip(name, tooltip)
+
+    def _interfaces_to_lines_with_tooltip(self, interfaces: List[str], vdom: str = "root") -> str:
+        """インターフェースリストをツールチップ付きで改行表示"""
+        if not interfaces:
+            return "-"
+        lines = [self._interface_with_tooltip(iface, vdom) for iface in interfaces]
+        return "<br>".join(lines)
+
+    def _addresses_to_lines_with_tooltip(self, addresses: List[str], vdom: str = "root") -> str:
+        """アドレスリストをツールチップ付きで改行表示"""
+        if not addresses:
+            return "-"
+        lines = []
+        for addr in addresses:
+            # Internet Serviceの場合は特別な表示
+            if self._is_internet_service(addr):
+                # Internet Serviceをバッジ形式で表示（キャッシュ使用）
+                isdb_id = addr.strip()
+                if not isdb_id.isdigit():
+                    parts = isdb_id.split("-")
+                    for part in reversed(parts):
+                        if part.isdigit():
+                            isdb_id = part
+                            break
+
+                app_name = self._isdb_cache.get(isdb_id) or self._isdb_cache.get(str(isdb_id))
+                display_name = app_name if app_name else f"Internet Service ({isdb_id})"
+                tooltip = self._get_internet_service_tooltip(addr)
+                lines.append(f'<span class="badge bg-info has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(display_name)}</span>')
+            else:
+                lines.append(self._address_with_tooltip(addr, vdom))
+        return "<br>".join(lines)
+
+    def _services_to_badges_with_tooltip(self, services: List[str], vdom: str = "root") -> str:
+        """サービスをツールチップ付きBootstrapバッジで表示"""
+        if not services:
+            return '<span class="badge bg-secondary">-</span>'
+        badges = []
+        for svc in services:
+            color = self.SERVICE_COLORS.get(svc.lower(), "secondary")
+            tooltip = self._get_service_tooltip(svc, vdom)
+            if tooltip:
+                badges.append(f'<span class="badge bg-{color} has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(svc)}</span>')
+            else:
+                badges.append(f'<span class="badge bg-{color}">{self.escape(svc)}</span>')
+        return " ".join(badges)
+
+    def _get_security_profile_tooltip(self, profile_str: str, vdom: str = "root") -> str:
+        """セキュリティプロファイル名からツールチップ用の詳細情報を取得
+
+        Args:
+            profile_str: "type:name" 形式のプロファイル文字列（例: "av:default", "ips:sensor1"）
+            vdom: VDOM名
+
+        Returns:
+            ツールチップ用の文字列
+        """
+        # キャッシュチェック
+        cache_key = ("security_profile", vdom, profile_str)
+        if cache_key in self._tooltip_cache:
+            return self._tooltip_cache[cache_key]
+
+        # プロファイル文字列をパース
+        if ":" in profile_str:
+            profile_type, profile_name = profile_str.split(":", 1)
+        else:
+            profile_type = profile_str.lower()
+            profile_name = profile_str
+
+        profile_type_lower = profile_type.lower()
+
+        # プロファイルタイプのフレンドリー名マッピング
+        type_names = {
+            "av": "アンチウイルス",
+            "antivirus": "アンチウイルス",
+            "webfilter": "Webフィルタ",
+            "web-filter": "Webフィルタ",
+            "application": "アプリケーションコントロール",
+            "app-ctrl": "アプリケーションコントロール",
+            "ips": "IPS（侵入防止）",
+            "ssl": "SSLインスペクション",
+            "ssl-ssh-profile": "SSLインスペクション",
+            "dlp": "DLP（情報漏洩防止）",
+            "emailfilter": "メールフィルタ",
+            "dnsfilter": "DNSフィルタ",
+            "dns": "DNSフィルタ",
+        }
+        type_friendly = type_names.get(profile_type_lower, profile_type)
+
+        # 辞書から詳細を検索
+        key = (vdom, profile_type_lower, profile_name)
+        profile = self._security_profile_lookup.get(key)
+
+        rows = [("項目", "値")]
+        rows.append(("タイプ", type_friendly))
+        rows.append(("名前", profile_name))
+
+        if profile is None:
+            # プロファイルが見つからない場合、基本情報のみを返す
+            result = self._format_tooltip_table(rows)
+            self._tooltip_cache[cache_key] = result
+            return result
+
+        # プロファイルタイプに応じた詳細情報を生成
+        if hasattr(profile, 'scan_mode') and profile.scan_mode:
+            # アンチウイルス
+            rows.append(("スキャンモード", profile.scan_mode))
+            if hasattr(profile, 'protocols') and profile.protocols:
+                protocols_str = ', '.join(profile.protocols[:3])
+                if len(profile.protocols) > 3:
+                    protocols_str += f" ... (他{len(profile.protocols) - 3}件)"
+                rows.append(("対象プロトコル", protocols_str))
+            if hasattr(profile, 'action') and profile.action:
+                rows.append(("アクション", profile.action))
+        elif hasattr(profile, 'categories') and profile.categories:
+            # Webフィルタ / アプリコントロール
+            cat_count = len(profile.categories)
+            rows.append(("カテゴリ", f"{cat_count}件設定"))
+            if hasattr(profile, 'action') and profile.action:
+                rows.append(("アクション", profile.action))
+        elif hasattr(profile, 'signatures'):
+            # IPS
+            sig_count = len(profile.signatures) if profile.signatures else 0
+            rows.append(("シグネチャ", f"{sig_count}件"))
+            if hasattr(profile, 'action') and profile.action:
+                rows.append(("アクション", profile.action))
+        elif hasattr(profile, 'mode') and profile.mode:
+            # SSLインスペクション
+            rows.append(("モード", profile.mode))
+
+        result = self._format_tooltip_table(rows)
+        self._tooltip_cache[cache_key] = result
+        return result
+
+    def _security_profiles_to_badges_with_tooltip(self, profiles: List[str], vdom: str = "root") -> str:
+        """セキュリティプロファイルをツールチップ付きBootstrapバッジで表示"""
+        if not profiles:
+            return "-"
+
+        badges = []
+        for profile in profiles:
+            # プロファイルタイプを取得してカラーを決定
+            if ":" in profile:
+                profile_type = profile.lower().split(":")[0]
+            else:
+                profile_type = profile.lower()
+
+            color = self.SECURITY_PROFILE_COLORS.get(profile_type, "secondary")
+            tooltip = self._get_security_profile_tooltip(profile, vdom)
+
+            badge_html = f'<span class="badge badge-outline badge-outline-{color} has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(profile)}</span>'
+            badges.append(badge_html)
+
+        return " ".join(badges)
+
     def _get_vdom_label(self) -> str:
         """デバイスタイプに応じたラベルを返す（VDOM/vsys）"""
         if self.config.device_info.device_type == DeviceType.PALOALTO:
@@ -165,8 +668,13 @@ class HTMLExporter:
         # 1. グローバル設定セクション
         toc.append('                <li><a href="#global">1. グローバル設定</a>')
         toc.append('                    <ul>')
-        for i, (key, title, _) in enumerate(self.GLOBAL_SECTIONS, 1):
-            toc.append(f'                        <li><a href="#global-{key}">1.{i} {title}</a></li>')
+        section_num = 1
+        for key, title, _ in self.GLOBAL_SECTIONS:
+            # クラスタ概要はクラスタ構成時のみ表示
+            if key == 'cluster_overview' and not self.is_cluster:
+                continue
+            toc.append(f'                        <li><a href="#global-{key}">1.{section_num} {title}</a></li>')
+            section_num += 1
         toc.append('                    </ul>')
         toc.append('                </li>')
 
@@ -192,10 +700,15 @@ class HTMLExporter:
         <section id="global" class="vdom-section global-section">
             <h2>1. グローバル設定</h2>''')
 
-        for i, (key, title, method_name) in enumerate(self.GLOBAL_SECTIONS, 1):
+        section_num = 1
+        for key, title, method_name in self.GLOBAL_SECTIONS:
+            # クラスタ概要はクラスタ構成時のみ表示
+            if key == 'cluster_overview' and not self.is_cluster:
+                continue
             method = getattr(self, method_name)
-            section_html = method(section_num=f"1.{i}", section_id=f"global-{key}")
+            section_html = method(section_num=f"1.{section_num}", section_id=f"global-{key}")
             sections_html.append(section_html)
+            section_num += 1
 
         sections_html.append('        </section>')
 
@@ -235,6 +748,7 @@ class HTMLExporter:
         # JavaScript（PDF用の場合は削除）
         script_tag = '' if self.for_pdf else f'''    <script>
 {load_search_js()}
+{load_tooltip_js()}
     </script>'''
 
         return f'''<!DOCTYPE html>
@@ -448,11 +962,20 @@ class HTMLExporter:
         # ルーティング
         route_rows = ""
         for route in routes:
+            gateway_display = route.gateway or ""
+            # blackhole/discard ルートはゲートウェイが空になるため、明示して記載する
+            if not gateway_display and getattr(route, "route_type", "") in ("blackhole", "blackhole6"):
+                gateway_display = "blackhole"
+
+            interface_display = route.interface or "-"
+            name_display = route.name or "-"
+            destination_display = route.destination or "-"
+
             route_rows += f'''<tr>
-                <td>{self.escape(route.name)}</td>
-                <td><code>{self.escape(route.destination)}</code></td>
-                <td><code>{self.escape(route.gateway)}</code></td>
-                <td>{self.escape(route.interface)}</td>
+                <td>{self.escape(name_display)}</td>
+                <td><code>{self.escape(destination_display)}</code></td>
+                <td><code>{self.escape(gateway_display) if gateway_display else '-'}</code></td>
+                <td>{self.escape(interface_display)}</td>
             </tr>'''
 
         # DHCP
@@ -590,41 +1113,69 @@ class HTMLExporter:
         # VDOMでフィルタリング
         firewall_policies = self._filter_by_vdom(self.config.firewall_policies, vdom) if vdom else self.config.firewall_policies
         local_in_policies = self._filter_by_vdom(self.config.local_in_policies, vdom) if vdom else self.config.local_in_policies
+        current_vdom = vdom or "root"
 
-        policy_rows = [
-            f'''<tr>
+        policy_rows = []
+        for idx, policy in enumerate(firewall_policies, 1):
+            # 宛先アドレスの表示（Internet Service名がある場合はそれも含める）
+            destination_display = self._addresses_to_lines_with_tooltip(policy.destination_address, current_vdom)
+            if policy.internet_service_name:
+                # Internet Service名を追加
+                internet_services = []
+                for is_name in policy.internet_service_name:
+                    tooltip = self._get_internet_service_tooltip(is_name)
+                    # "Google-Web"のような形式からサービス名を抽出
+                    service_name = is_name
+                    if "-" in is_name:
+                        parts = is_name.split("-", 1)
+                        if len(parts) > 1:
+                            service_name = parts[1]
+                    internet_services.append(f'<span class="badge bg-info has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(service_name)}</span>')
+                
+                if destination_display and destination_display != "-":
+                    destination_display += "<br>" + " ".join(internet_services)
+                else:
+                    destination_display = " ".join(internet_services)
+            
+            policy_rows.append(f'''<tr class="policy-row">
                 <td>{idx}</td>
                 <td>{self.escape(policy.policy_id)}</td>
                 <td>{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
-                <td>{self._list_to_lines(policy.source_interface)}</td>
-                <td>{self._list_to_lines(policy.destination_interface)}</td>
-                <td>{self._list_to_lines(policy.source_address)}</td>
-                <td>{self._list_to_lines(policy.destination_address)}</td>
-                <td>{self._services_to_badges(policy.service)}</td>
+                <td>{self._interfaces_to_lines_with_tooltip(policy.source_interface, current_vdom)}</td>
+                <td>{self._interfaces_to_lines_with_tooltip(policy.destination_interface, current_vdom)}</td>
+                <td>{self._addresses_to_lines_with_tooltip(policy.source_address, current_vdom)}</td>
+                <td>{destination_display}</td>
+                <td>{self._services_to_badges_with_tooltip(policy.service, current_vdom)}</td>
                 <td class="{self._get_action_class(policy.action)}">{self.escape(policy.action.value)}</td>
                 <td>{"有効" if policy.nat_enabled else "無効"}</td>
-                <td>{self._security_profiles_to_badges(policy.security_profiles)}</td>
+                <td>{self._security_profiles_to_badges_with_tooltip(policy.security_profiles, current_vdom)}</td>
                 <td>{"有効" if policy.log_enabled else "無効"}</td>
                 <td>{self.escape(policy.description)}</td>
-            </tr>'''
-            for idx, policy in enumerate(firewall_policies, 1)
-        ]
+            </tr>''')
 
         # Local-in ポリシー
-        local_in_rows = [
-            f'''<tr>
+        local_in_rows = []
+        for idx, policy in enumerate(local_in_policies, 1):
+            # source_interfaceは文字列の場合とリストの場合がある
+            source_if_display = ""
+            if isinstance(policy.source_interface, list):
+                source_if_display = self._interfaces_to_lines_with_tooltip(policy.source_interface, current_vdom)
+            elif policy.source_interface:
+                source_if_display = self._interface_with_tooltip(policy.source_interface, current_vdom)
+            else:
+                source_if_display = "-"
+            
+            local_in_rows.append(f'''<tr class="policy-row">
                 <td>{idx}</td>
                 <td>{self.escape(policy.policy_id)}</td>
                 <td>{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
-                <td>{self.escape(policy.source_interface)}</td>
-                <td>{self._list_to_lines(policy.source_address)}</td>
-                <td>{self._list_to_lines(policy.destination_address)}</td>
-                <td>{self._services_to_badges(policy.service)}</td>
+                <td>{source_if_display}</td>
+                <td>{self._addresses_to_lines_with_tooltip(policy.source_address, current_vdom)}</td>
+                <td>{self._addresses_to_lines_with_tooltip(policy.destination_address, current_vdom)}</td>
+                <td>{self._services_to_badges_with_tooltip(policy.service, current_vdom)}</td>
                 <td class="{self._get_action_class(policy.action)}">{self.escape(policy.action.value)}</td>
                 <td>{self.escape(policy.description)}</td>
-            </tr>'''
-            for idx, policy in enumerate(local_in_policies, 1)
-        ]
+            </tr>''')
 
         return f'''
             <div id="{section_id}" class="subsection">
@@ -637,16 +1188,48 @@ class HTMLExporter:
                 <h4>ポリシー一覧</h4>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover table-bordered">
-                        <tr><th>No</th><th>ID</th><th>ポリシー名</th><th>送信元IF</th><th>宛先IF</th><th>送信元アドレス</th><th>宛先アドレス</th><th>サービス</th><th>アクション</th><th>NAT</th><th>セキュリティプロファイル</th><th>ログ</th><th>備考</th></tr>
-                        {''.join(policy_rows) if policy_rows else '<tr><td colspan="13">ポリシー設定なし</td></tr>'}
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>ID</th>
+                                <th>ポリシー名</th>
+                                <th>送信元IF</th>
+                                <th>宛先IF</th>
+                                <th>送信元アドレス</th>
+                                <th>宛先アドレス</th>
+                                <th>サービス</th>
+                                <th>アクション</th>
+                                <th>NAT</th>
+                                <th>セキュリティプロファイル</th>
+                                <th>ログ</th>
+                                <th>備考</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {''.join(policy_rows) if policy_rows else '<tr><td colspan="13">ポリシー設定なし</td></tr>'}
+                        </tbody>
                     </table>
                 </div>
 
                 <h4>Local-in ポリシー</h4>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover table-bordered">
-                        <tr><th>No</th><th>ID</th><th>ポリシー名</th><th>送信元IF</th><th>送信元アドレス</th><th>宛先アドレス</th><th>サービス</th><th>アクション</th><th>備考</th></tr>
-                        {''.join(local_in_rows) if local_in_rows else '<tr><td colspan="9">Local-in ポリシー設定なし</td></tr>'}
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>ID</th>
+                                <th>ポリシー名</th>
+                                <th>送信元IF</th>
+                                <th>送信元アドレス</th>
+                                <th>宛先アドレス</th>
+                                <th>サービス</th>
+                                <th>アクション</th>
+                                <th>備考</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {''.join(local_in_rows) if local_in_rows else '<tr><td colspan="9">Local-in ポリシー設定なし</td></tr>'}
+                        </tbody>
                     </table>
                 </div>
             </div>'''
@@ -660,6 +1243,7 @@ class HTMLExporter:
         elif action == PolicyAction.DROP:
             return 'drop'
         return ''
+
 
     def _generate_nat_section(self, section_num: str = "2.4", section_id: str = "vdom-root-nat", vdom: str = None) -> str:
         """NAT設定セクション（VDOM単位）"""
@@ -927,7 +1511,80 @@ class HTMLExporter:
                 </div>
             </div>'''
 
-    def _generate_ha_section(self, section_num: str = "1.3", section_id: str = "global-ha") -> str:
+    def _generate_cluster_overview_section(self, section_num: str = "1.1", section_id: str = "global-cluster_overview") -> str:
+        """クラスタ概要セクション（HAクラスタ時のみ表示）"""
+        if not self.is_cluster or self.cluster_config is None:
+            return ""  # クラスタ構成でない場合は何も出力しない
+
+        cluster_info = self.cluster_config.cluster_info
+        differences = self.cluster_config.config_differences
+
+        # メンバー一覧テーブル
+        member_rows = ""
+        for member in cluster_info.members:
+            role_class = "primary" if member.role == HARole.PRIMARY else "secondary"
+            role_badge = f'<span class="badge bg-{"success" if member.role == HARole.PRIMARY else "info"}">{member.role.value}</span>'
+            member_rows += f'''<tr>
+                <td>{role_badge}</td>
+                <td><strong>{self.escape(member.hostname)}</strong></td>
+                <td>{self.escape(member.priority)}</td>
+                <td><code>{self.escape(member.serial_number) if member.serial_number else "-"}</code></td>
+                <td>{self.escape(Path(member.source_file).name)}</td>
+            </tr>'''
+
+        # 設定差分テーブル
+        diff_rows = ""
+        if differences:
+            for diff in differences:
+                diff_rows += f'''<tr>
+                    <td>{self.escape(diff.section)}</td>
+                    <td>{self.escape(diff.item)}</td>
+                    <td><code>{self.escape(diff.primary_value)}</code></td>
+                    <td><code>{self.escape(diff.secondary_value)}</code></td>
+                    <td>{self.escape(diff.description)}</td>
+                </tr>'''
+
+        diff_section = ""
+        if diff_rows:
+            diff_section = f'''
+                <h4>設定差分</h4>
+                <div class="warning-box">
+                    <strong>注意:</strong> Primary/Secondary間で以下の設定差分が検出されました。
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered">
+                        <tr><th>セクション</th><th>項目</th><th>Primary</th><th>Secondary</th><th>備考</th></tr>
+                        {diff_rows}
+                    </table>
+                </div>'''
+
+        return f'''
+            <div id="{section_id}" class="subsection">
+                <h3>{section_num} クラスタ概要</h3>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h4>クラスタ情報</h4>
+                        <table class="table table-sm table-bordered">
+                            <tr><td>クラスタ名</td><td><strong>{self.escape(cluster_info.cluster_name)}</strong></td></tr>
+                            <tr><td>グループID</td><td>{self.escape(cluster_info.group_id)}</td></tr>
+                            <tr><td>HAモード</td><td>{self.escape(cluster_info.ha_mode.value)}</td></tr>
+                            <tr><td>メンバー数</td><td>{cluster_info.get_member_count()}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <h4>クラスタメンバー</h4>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered">
+                        <tr><th>役割</th><th>ホスト名</th><th>優先度</th><th>シリアル番号</th><th>設定ファイル</th></tr>
+                        {member_rows if member_rows else '<tr><td colspan="5">メンバー情報なし</td></tr>'}
+                    </table>
+                </div>
+                {diff_section}
+            </div>'''
+
+    def _generate_ha_section(self, section_num: str = "1.4", section_id: str = "global-ha") -> str:
         """HA設定セクション（グローバル）"""
         ha = self.config.ha
 
@@ -937,6 +1594,54 @@ class HTMLExporter:
                 <h3>{section_num} HA設定</h3>
                 <p>HA設定なし（スタンドアロン）</p>
             </div>'''
+
+        # ハートビートインターフェース
+        hb_rows = ""
+        if ha.heartbeat_interfaces_detail:
+            for hb in ha.heartbeat_interfaces_detail:
+                hb_rows += f'''<tr>
+                    <td>{self.escape(hb.interface)}</td>
+                    <td>{self.escape(hb.priority) if hb.priority else "-"}</td>
+                </tr>'''
+        else:
+            # 詳細情報がない場合はシンプルなリスト表示
+            for iface in ha.heartbeat_interfaces:
+                hb_rows += f'''<tr>
+                    <td>{self.escape(iface)}</td>
+                    <td>-</td>
+                </tr>'''
+
+        hb_section = ""
+        if hb_rows:
+            hb_section = f'''
+                <h4>ハートビートインターフェース</h4>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <tr><th>インターフェース</th><th>優先度</th></tr>
+                        {hb_rows}
+                    </table>
+                </div>'''
+
+        # HA管理インターフェース
+        mgmt_rows = ""
+        if ha.ha_mgmt_interfaces:
+            for mgmt in ha.ha_mgmt_interfaces:
+                mgmt_rows += f'''<tr>
+                    <td>{self.escape(mgmt.id)}</td>
+                    <td>{self.escape(mgmt.interface)}</td>
+                    <td><code>{self.escape(mgmt.gateway)}</code></td>
+                </tr>'''
+
+        mgmt_section = ""
+        if mgmt_rows:
+            mgmt_section = f'''
+                <h4>HA管理インターフェース</h4>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <tr><th>ID</th><th>インターフェース</th><th>ゲートウェイ</th></tr>
+                        {mgmt_rows}
+                    </table>
+                </div>'''
 
         return f'''
             <div id="{section_id}" class="subsection">
@@ -948,6 +1653,7 @@ class HTMLExporter:
                         <table class="table table-sm table-bordered">
                             <tr><td>HAモード</td><td><strong>{self.escape(ha.mode.value)}</strong></td></tr>
                             <tr><td>グループID</td><td>{self.escape(ha.group_id)}</td></tr>
+                            <tr><td>グループ名</td><td>{self.escape(ha.group_name) if ha.group_name else "-"}</td></tr>
                             <tr><td>優先度</td><td>{self.escape(ha.priority)}</td></tr>
                             <tr><td>プリエンプト</td><td>{'有効' if ha.preempt else '無効'}</td></tr>
                         </table>
@@ -959,10 +1665,23 @@ class HTMLExporter:
                             <tr><td>HAインターフェース</td><td>{self.escape(self._list_to_str(ha.ha_interfaces))}</td></tr>
                         </table>
                     </div>
+                    <div class="info-card">
+                        <h4>同期・セキュリティ</h4>
+                        <table class="table table-sm table-bordered">
+                            <tr><td>セッション同期</td><td>{'有効' if ha.session_sync else '無効'}</td></tr>
+                            <tr><td>セッションピックアップ</td><td>{'有効' if ha.session_pickup else '無効'}</td></tr>
+                            <tr><td>ハートビート間隔</td><td>{self._with_default(ha.hb_interval, 'ha_hb_interval')}</td></tr>
+                            <tr><td>ハートビート損失閾値</td><td>{self._with_default(ha.hb_lost_threshold, 'ha_hb_lost_threshold')}</td></tr>
+                            <tr><td>暗号化</td><td>{'有効' if ha.encryption else '無効'}</td></tr>
+                            <tr><td>認証</td><td>{'有効' if ha.authentication else '無効'}</td></tr>
+                        </table>
+                    </div>
                 </div>
+                {hb_section}
+                {mgmt_section}
             </div>'''
 
-    def _generate_logging_section(self, section_num: str = "1.4", section_id: str = "global-logging") -> str:
+    def _generate_logging_section(self, section_num: str = "1.5", section_id: str = "global-logging") -> str:
         """ログ・監視設定セクション（グローバル）"""
         logging = self.config.logging
 

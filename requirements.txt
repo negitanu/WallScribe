@@ -18,3 +18,7 @@ defusedxml>=0.7.1
 
 # PDF output
 weasyprint>=62.0
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0

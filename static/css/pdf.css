@@ -4,10 +4,15 @@
  * Bootstrap互換 + PDF最適化
  */
 
+/* Bootstrapの `text-align: var(--bs-body-text-align)` がWeasyPrintで警告になるため補完 */
+:root {
+    --bs-body-text-align: left;
+}
+
 /* ベースフォントサイズを小さく設定 */
 body {
     font-size: 9pt;
-    line-height: 1.4;
+    line-height: 1.35;
     background: white;
     color: black;
 }
@@ -54,6 +59,7 @@ section {
     page-break-after: auto;
     padding: 10px 8px;
     box-sizing: border-box;
+    border-radius: 6px;
 }
 
 /* VDOM Section */
@@ -167,6 +173,11 @@ td,
     background-color: rgba(0, 0, 0, 0.02);
 }
 
+/* table-striped を付けていない表にも、わずかに縞を入れて視線誘導（配色は維持） */
+table tbody > tr:nth-of-type(even) > * {
+    background-color: rgba(0, 0, 0, 0.01);
+}
+
 /* Bootstrap table-sm のPDF対応 */
 .table-sm th,
 .table-sm td {
@@ -209,7 +220,8 @@ nav.toc {
 }
 
 nav.toc ul {
-    columns: 1;
+    columns: 2;
+    column-gap: 24px;
 }
 
 nav.toc h2 {
@@ -220,6 +232,7 @@ nav.toc h2 {
 nav.toc li {
     font-size: 8.5pt;
     padding: 3px 0;
+    break-inside: avoid;
 }
 
 /* ヘッダーとフッターの調整 */

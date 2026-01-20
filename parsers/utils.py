@@ -7,6 +7,7 @@ FortiGate と Palo Alto パーサーで共通して使用する関数
 
 import csv
 import os
+import ipaddress
 from typing import Any, Dict, List, Optional, Union
 
 # アプリケーションIDマッピングのキャッシュ
@@ -107,13 +108,41 @@ def ip_to_cidr(ip_subnet: Union[str, List]) -> str:
     if isinstance(ip_subnet, list):
         ip_subnet = " ".join(str(x) for x in ip_subnet)
 
-    ip_subnet = str(ip_subnet)
+    ip_subnet = str(ip_subnet).strip()
+    if not ip_subnet:
+        return ""
     if "/" in ip_subnet:
         return ip_subnet
 
     parts = ip_subnet.strip().split()
     if len(parts) == 2:
         ip_address, subnet_mask = parts
+        # IPv4/IPv6: "address prefixlen" 形式（例: "2001:db8::1 64" / "192.168.1.1 24"）
+        if subnet_mask.isdigit():
+            try:
+                prefix_len = int(subnet_mask)
+                if ":" in ip_address:
+                    if 0 <= prefix_len <= 128:
+                        return f"{ip_address}/{prefix_len}"
+                else:
+                    if 0 <= prefix_len <= 32:
+                        return f"{ip_address}/{prefix_len}"
+            except ValueError:
+                pass
+
+        # IPv6: "address netmask" 形式（例: "2001:db8::1 ffff:ffff:ffff:ffff::"）
+        # FortiOS/PANでは通常prefixlenだが、入力揺れ対策として対応しておく
+        if ":" in ip_address and ":" in subnet_mask:
+            try:
+                mask_int = int(ipaddress.IPv6Address(subnet_mask))
+                ones = bin(mask_int).count("1")
+                # 先頭から1が連続するマスクか検証
+                expected = ((1 << ones) - 1) << (128 - ones) if ones > 0 else 0
+                if mask_int == expected and 0 <= ones <= 128:
+                    return f"{ip_address}/{ones}"
+            except (ipaddress.AddressValueError, ValueError):
+                pass
+
         try:
             octets = [int(x) for x in subnet_mask.split(".")]
             if len(octets) == 4:

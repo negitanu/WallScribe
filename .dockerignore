@@ -25,6 +25,8 @@ env/
 htmlcov/
 .tox/
 .test/
+tests/
+pytest.ini
 
 # ドキュメント
 *.md
@@ -47,6 +49,8 @@ docker-compose*.yml
 .env
 .env.local
 .claude/
+Makefile
+LICENSE
 
 # アップロードファイル（コンテナ内で生成）
 uploads/*

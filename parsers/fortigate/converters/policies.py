@@ -53,6 +53,7 @@ def _add_policies_from_config(
                     destination_interface=to_list(policy_data.get("dstintf", [])),
                     source_address=to_list(policy_data.get("srcaddr", [])),
                     destination_address=to_list(policy_data.get("dstaddr", [])),
+                    internet_service_name=to_list(policy_data.get("internet-service-name", [])),
                     service=to_list(policy_data.get("service", [])),
                     action=action,
                     nat_enabled=policy_data.get("nat", "") == "enable",
@@ -67,12 +68,18 @@ def _add_policies_from_config(
 
 
 def _parse_action(action_str: str) -> PolicyAction:
-    """アクション文字列をPolicyActionに変換"""
+    """アクション文字列をPolicyActionに変換
+
+    仕様: action が未定義（キーなし/空）なら拒否(deny)として扱う。
+    """
+    action_str = (action_str or "").strip()
+    if not action_str or action_str == "unset":
+        return PolicyAction.DENY
     if action_str == "accept":
         return PolicyAction.ALLOW
-    elif action_str == "deny":
+    if action_str == "deny":
         return PolicyAction.DENY
-    elif action_str == "drop":
+    if action_str == "drop":
         return PolicyAction.DROP
     return PolicyAction.UNKNOWN
 

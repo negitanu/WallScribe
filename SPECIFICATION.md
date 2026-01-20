@@ -1,7 +1,7 @@
 # ファイアウォール パラメータシート生成ツール 仕様書
 
 **バージョン 1.0**  
-**最終更新日: 2026-01-17**
+**最終更新日: 2026-01-20**
 
 ## 1. 概要
 
@@ -18,9 +18,9 @@ FortiGate および Palo Alto Networks PA series ファイアウォールの設�
 
 ### 1.3 出力形式
 
-- **HTML**: スタイル付きの見やすいレポート（印刷対応）
+- **HTML**: スタイル付きの見やすいレポート（印刷対応、インタラクティブツールチップ付き）
 - **PDF**: 印刷に最適化されたPDF形式（章がページをまたがない）
-- **Excel (.xlsx)**: 編集可能なスプレッドシート形式（オプション）
+- **Excel (.xlsx)**: 編集可能なスプレッドシート形式
 
 ---
 
@@ -90,6 +90,7 @@ FortiGate および Palo Alto Networks PA series ファイアウォールの設�
 | 項目                           | FortiGate                         | Palo Alto                    | 説明           |
 | ------------------------------ | --------------------------------- | ---------------------------- | -------------- |
 | セキュリティポリシー           | `firewall policy`                 | `security/rules`             | FW ルール      |
+| Internet Service               | `internet-service-name`           | -                            | FortiGate 固有 |
 | NAT ポリシー                   | `firewall vip`, `firewall ippool` | `nat/rules`                  | SNAT/DNAT 設定 |
 | Local-in ポリシー              | `firewall local-in-policy`        | -                            | FortiGate 固有 |
 | アプリケーションオーバーライド | -                                 | `application-override/rules` | PA 固有        |
@@ -124,6 +125,15 @@ FortiGateのアプリケーションコントロールプロファイルでは�
 | risk | リスクレベル（1-5） |
 | description | 説明 |
 
+##### Internet Service対応
+
+FortiGateのファイアウォールポリシーで使用されるInternet Service（ISDB）に対応しています。
+`internet-service-name`で指定されたサービス名を、`static/data/appid.csv`から解決し、アプリケーション名として表示します。
+
+- Internet Service名はバッジ形式で表示
+- ツールチップでサービス名、ISDB ID、アプリケーション名を表示
+- 通常のアドレスオブジェクトと区別して表示
+
 #### カテゴリ 8: 高可用性（HA）設定
 
 | 項目                 | FortiGate          | Palo Alto                      | 説明               |
@@ -149,7 +159,7 @@ FortiGateのアプリケーションコントロールプロファイルでは�
 
 #### 3.1.1 レイアウト構成
 
-```
+```text
 [ヘッダー]
   - ドキュメントタイトル
   - 機器名、OSバージョン、作成日
@@ -179,7 +189,8 @@ FortiGateのアプリケーションコントロールプロファイルでは�
   - サービスグループ（オブジェクト名、メンバー、VDOM）
 
 [セクション5: ファイアウォールポリシー]
-  - ポリシー一覧（No、ID、ポリシー名、送信元IF、宛先IF、送信元アドレス、宛先アドレス、サービス、アクション、NAT、セキュリティプロファイル、ログ、備考）
+  - ポリシー一覧（No、ID、ポリシー名、送信元IF、宛先IF、送信元アドレス、宛先アドレス、Internet Service、サービス、アクション、NAT、セキュリティプロファイル、ログ、備考）
+  - インタラクティブツールチップ（インターフェース、アドレス、サービス、セキュリティプロファイル、Internet Serviceの詳細情報を表示）
   - Local-in ポリシー（No、ID、ポリシー名、送信元IF、送信元アドレス、宛先アドレス、サービス、アクション、備考）
 
 [セクション6: NAT設定]
@@ -207,7 +218,6 @@ FortiGateのアプリケーションコントロールプロファイルでは�
   - ログ転送（サーバーIPアドレス、ポート、転送ログ種別、状態）
   - 集中管理（FortiAnalyzer/Panoramaサーバー）
   - SNMP（SNMP有効化、バージョン、コミュニティ名/ユーザー名、ホスト、トラップ送信先IPアドレス）
-
 [フッター]
   - ファイル名、生成情報
 ```
@@ -224,6 +234,26 @@ FortiGateのアプリケーションコントロールプロファイルでは�
   - Trust 系: 緑背景
   - Untrust 系: 赤背景
   - DMZ 系: 黄背景
+
+#### 3.1.3 インタラクティブツールチップ機能
+
+HTML出力では、以下のオブジェクトにマウスオーバーで詳細情報を表示するツールチップ機能を提供します：
+
+- **インターフェース**: IPアドレス、サブネットマスク、ゾーン、役割、許可アクセス
+- **アドレスオブジェクト**: タイプ、値、CIDR表記、説明
+- **サービスオブジェクト**: プロトコル、ポート範囲、説明
+- **セキュリティプロファイル**: タイプ、名前、設定内容
+- **Internet Service**: サービス名、ISDB ID、アプリケーション名
+
+ツールチップは表の境界を越えて表示され、画面端で自動的に位置調整されます。
+
+#### 3.1.4 CIDR表記への自動変換
+
+IPアドレスとサブネットマスクの組み合わせを、自動的にCIDR表記（例: `192.168.1.0/24`）に変換します。
+
+- アドレスオブジェクト（subnetタイプ）
+- インターフェースのIPアドレス
+- ルーティング情報の宛先ネットワーク
 
 ### 3.2 PDF 出力
 
@@ -254,25 +284,32 @@ HTML出力をベースに、WeasyPrintを使用してPDF形式で出力します
 - **フォントサイズ最適化**: 折り返しを減らすため、ベース9pt、テーブル7ptに調整
 - **文字化け対策**: Dockerイメージに`fonts-noto-cjk`パッケージをインストール
 
-#### 3.2.4 レイアウト
+#### 3.2.5 レイアウト
 
 HTML出力と同じレイアウト構成を維持し、印刷に最適化されたスタイルを適用します。
 
-### 3.3 Excel 出力（オプション）
+### 3.3 Excel 出力
 
 #### 3.3.1 シート構成
 
 | シート名         | 内容                             |
 | ---------------- | -------------------------------- |
-| 概要             | 機器基本情報                     |
+| 機器概要         | 機器基本情報                     |
 | システム設定     | 管理設定、NTP、DNS 等            |
 | インターフェース | ネットワークインターフェース一覧 |
 | ルーティング     | スタティックルート一覧           |
 | オブジェクト     | アドレス/サービスオブジェクト    |
-| ポリシー         | ファイアウォールポリシー         |
-| VPN              | VPN 設定                         |
-| HA               | 高可用性設定                     |
-| ログ             | ログ・監視設定                   |
+| ファイアウォールポリシー | ファイアウォールポリシー         |
+| NAT設定          | NAT設定                          |
+| VPN設定          | VPN 設定                         |
+| HA設定           | 高可用性設定                     |
+| ログ・監視設定   | ログ・監視設定                   |
+
+#### 3.3.2 機能
+
+- 自動列幅調整（日本語文字対応）
+- セル結合による見やすいレイアウト
+- セクション指定による部分出力対応
 
 ---
 
@@ -280,7 +317,7 @@ HTML出力と同じレイアウト構成を維持し、印刷に最適化され�
 
 ### 4.1 モジュール構成
 
-```
+```text
 gen-parameter-sheet/
 ├── main.py                    # エントリーポイント（CLI）
 ├── app.py                     # Web アプリケーション（Flask）
@@ -291,12 +328,16 @@ gen-parameter-sheet/
 ├── parsers/                   # パーサーモジュール
 │   ├── __init__.py
 │   ├── base.py               # 基底パーサークラス
-│   ├── fortigate.py          # FortiGate用パーサー
+│   ├── cluster.py            # HAクラスタ構成パーサー（複数ファイル統合）
+│   ├── fortigate/            # FortiGate用パーサー（パッケージ）
+│   │   ├── __init__.py
+│   │   └── converters/       # 変換ロジック（device/network/objects/policies/...）
 │   └── paloalto.py           # Palo Alto用パーサー
 │
 ├── models/                    # データモデル
 │   ├── __init__.py
-│   └── config.py             # 設定データ構造の定義
+│   ├── config.py             # 設定データ構造の定義
+│   └── cluster.py            # HAクラスタ統合データモデル
 │
 ├── exporters/                 # 出力モジュール
 │   ├── __init__.py
@@ -306,7 +347,6 @@ gen-parameter-sheet/
 │
 ├── web/                       # Web インターフェース
 │   ├── __init__.py
-│   ├── routes.py             # ルーティング定義
 │   └── templates/            # Web UI テンプレート
 │       ├── index.html        # メインページ
 │       ├── result.html       # 結果表示ページ
@@ -320,13 +360,12 @@ gen-parameter-sheet/
 │   └── data/
 │       └── appid.csv         # アプリケーションIDマッピングデータ
 │
-├── templates/                 # パラメータシート用テンプレート
-│   └── parameter_sheet.html  # メインテンプレート
-│
 └── tests/                     # テストコード
     ├── __init__.py
-    ├── test_fortigate.py
-    └── test_paloalto.py
+    ├── test_parsers.py
+    ├── test_exporters.py
+    ├── test_app.py
+    └── ...（他）
 ```
 
 ### 4.2 クラス設計
@@ -367,7 +406,7 @@ class ConfigModel:
 
 ### 4.3 処理フロー
 
-```
+```text
 1. ファイル読み込み
    ↓
 2. ファイル形式判定（.conf / .xml）
@@ -376,7 +415,7 @@ class ConfigModel:
    ↓
 4. 統一データモデルに変換
    ↓
-5. 指定形式で出力（HTML / Excel）
+5. 指定形式で出力（HTML / PDF / Excel）
 ```
 
 ---
@@ -394,7 +433,8 @@ python main.py <input_file> [options]
 | オプション  | 短縮形 | 説明                  | デフォルト      |
 | ----------- | ------ | --------------------- | --------------- |
 | `--output`  | `-o`   | 出力ファイルパス      | `./output.html` |
-| `--format`  | `-f`   | 出力形式 (html/pdf/excel) | `html`          |
+| `--format`  | `-f`   | 出力形式 (html/excel) | `html`          |
+| `--ha-mode` |        | HAモード (auto/single/cluster) | `auto` |
 | `--verbose` | `-v`   | 詳細ログ出力          | `false`         |
 | `--help`    | `-h`   | ヘルプ表示            | -               |
 | `--version` |        | バージョン表示        | -               |
@@ -405,11 +445,11 @@ python main.py <input_file> [options]
 # FortiGate設定からHTML生成
 python main.py fortigate.conf -o fortigate_param.html
 
-# Palo Alto設定からPDF生成
-python main.py pa440.xml -f pdf -o pa440_param.pdf
-
 # Palo Alto設定からExcel生成
 python main.py pa440.xml -f excel -o pa440_param.xlsx
+
+# HA構成（複数ファイル）をクラスタとして処理（自動判定）
+python main.py primary.conf secondary.conf --ha-mode auto -o ha_cluster.html
 
 # 詳細ログ付きで実行
 python main.py config.conf -v
@@ -427,7 +467,7 @@ python main.py config.conf -v
 
 #### 6.2.1 メインページ（アップロード画面）
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  [Logo] パラメータシート生成ツール                          │
 ├─────────────────────────────────────────────────────────────┤
@@ -436,13 +476,16 @@ python main.py config.conf -v
 │  │                                                       │  │
 │  │     設定ファイルをドラッグ＆ドロップ                  │  │
 │  │            または                                     │  │
-│  │        [ファイルを選択]                               │  │
+│  │        [ファイルを選択（複数可）]                     │  │
 │  │                                                       │  │
 │  │     対応形式: .conf (FortiGate), .xml (Palo Alto)     │  │
 │  │                                                       │  │
 │  └───────────────────────────────────────────────────────┘  │
 │                                                             │
-│  出力形式:  ○ HTML (推奨)   ○ Excel                        │
+│  選択済みファイル: primary.conf / secondary.conf ...         │
+│  HA構成オプション: ○ auto (推奨) ○ cluster ○ single          │
+│                                                             │
+│  出力形式:  ○ HTML (推奨)   ○ PDF   ○ Excel               │
 │                                                             │
 │              [パラメータシートを生成]                       │
 │                                                             │
@@ -451,7 +494,7 @@ python main.py config.conf -v
 
 #### 6.2.2 結果ページ（ダウンロード画面）
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  [Logo] パラメータシート生成ツール                          │
 ├─────────────────────────────────────────────────────────────┤
@@ -477,22 +520,28 @@ python main.py config.conf -v
 | メソッド | パス                   | 説明                             |
 | -------- | ---------------------- | -------------------------------- |
 | GET      | `/`                    | メインページ表示                 |
-| POST     | `/upload`              | ファイルアップロード・変換処理   |
+| POST     | `/upload`              | ファイルアップロード・変換処理（同期） |
+| POST     | `/upload_async`        | ファイルアップロード・変換処理（非同期・複数ファイル/HA対応） |
 | GET      | `/download/<file_id>`  | 生成ファイルのダウンロード       |
 | GET      | `/preview/<file_id>`   | 生成ファイルのプレビュー表示     |
-| GET      | `/api/status/<job_id>` | 変換ジョブのステータス確認       |
-| DELETE   | `/api/cleanup`         | 一時ファイルのクリーンアップ     |
+| GET      | `/api/status/<file_id>` | 生成結果のサマリー取得（メタデータ） |
+| GET      | `/api/progress/<file_id>` | 生成中の進捗取得（非同期用）     |
 
 ### 6.4 ファイルアップロード仕様
 
 #### 6.4.1 リクエスト
 
 ```http
-POST /upload HTTP/1.1
+POST /upload_async HTTP/1.1
 Content-Type: multipart/form-data
 
 ------WebKitFormBoundary
-Content-Disposition: form-data; name="config_file"; filename="fortigate.conf"
+Content-Disposition: form-data; name="config_files[]"; filename="primary.conf"
+Content-Type: application/octet-stream
+
+[ファイル内容]
+------WebKitFormBoundary
+Content-Disposition: form-data; name="config_files[]"; filename="secondary.conf"
 Content-Type: application/octet-stream
 
 [ファイル内容]
@@ -500,26 +549,38 @@ Content-Type: application/octet-stream
 Content-Disposition: form-data; name="output_format"
 
 html
+------WebKitFormBoundary
+Content-Disposition: form-data; name="ha_mode"
+
+auto
 ------WebKitFormBoundary--
 ```
 
-#### 6.4.2 レスポンス（成功時）
+#### 6.4.2 レスポンス（成功時・非同期受付）
 
 ```json
 {
   "success": true,
   "file_id": "abc123",
-  "filename": "fortigate_param.html",
-  "device_type": "FortiGate",
-  "hostname": "FW-PRIMARY",
-  "version": "7.6.2",
-  "summary": {
-    "policies": 120,
-    "objects": 45,
-    "interfaces": 12
+  "file_count": 2,
+  "progress_url": "/api/progress/abc123",
+  "result_url": "/result/abc123"
+}
+```
+
+#### 6.4.3 進捗取得（非同期）
+
+```json
+{
+  "success": true,
+  "file_id": "abc123",
+  "status": "processing",
+  "progress": {
+    "percent": 35,
+    "message": "設定ファイルを解析しています...",
+    "stage": "parsing"
   },
-  "download_url": "/download/abc123",
-  "preview_url": "/preview/abc123"
+  "result_url": "/result/abc123"
 }
 ```
 
@@ -544,24 +605,23 @@ html
 | ------------------ | ------------------------- |
 | 最大ファイルサイズ | 50MB                      |
 | 許可拡張子         | `.conf`, `.xml`           |
-| 同時アップロード数 | 1 ファイル                |
+| 同時アップロード数 | 複数ファイル（HA構成を想定、合計サイズは最大ファイルサイズに従う） |
 | 保持期間           | 1 時間（自動削除）        |
 
-#### 6.5.2 セキュリティ対策
+#### 6.5.2 セキュリティ対策（現状実装）
 
 - アップロードファイルのサニタイズ
 - ファイル名のランダム化（UUID 使用）
 - 一時ファイルの自動クリーンアップ
-- CSRF トークン検証
-- Rate Limiting（1 分あたり 10 リクエスト）
-- Content-Type 検証
+- パストラバーサル対策（パス正規化と検証）
+- UUID形式チェック（download/preview/status/progress）
 
 ### 6.6 UI/UX 要件
 
 #### 6.6.1 ドラッグ＆ドロップ
 
 - ファイルをドロップエリアにドラッグすると視覚的フィードバック
-- ドロップ後に自動アップロード開始
+- ドロップ後にファイル選択として反映（その後「生成」ボタンで送信）
 - 進捗表示（プログレスバー）
 
 #### 6.6.2 レスポンシブデザイン
@@ -571,7 +631,7 @@ html
 
 #### 6.6.3 処理中の表示
 
-```
+```text
 ┌───────────────────────────────────────────────────┐
 │                                                   │
 │          ⏳ パラメータシートを生成中...           │
@@ -591,7 +651,6 @@ html
 | `UNSUPPORTED_FORMAT`| 非対応ファイル形式           | 対応形式: .conf, .xml                      |
 | `PARSE_ERROR`       | パースエラー                 | 設定ファイルの解析に失敗しました           |
 | `INTERNAL_ERROR`    | サーバー内部エラー           | 予期しないエラーが発生しました             |
-| `RATE_LIMIT`        | レート制限                   | しばらく待ってから再試行してください       |
 
 ### 6.8 Web サーバー起動
 
@@ -626,7 +685,7 @@ gunicorn -w 4 -b 0.0.0.0:8080 app:app
 
 ### 7.2 依存パッケージ
 
-```
+```text
 # requirements.txt
 flask>=2.0.0         # Web フレームワーク
 openpyxl>=3.0.0      # Excel出力用
@@ -655,7 +714,7 @@ gunicorn>=20.0.0     # 本番用WSGIサーバー（オプション）
 
 ### 8.2 ログ出力
 
-```
+```text
 [INFO] ファイル読み込み: fortigate.conf
 [INFO] FortiGate設定ファイルを検出
 [INFO] FortiOS 7.6.2 を検出
@@ -706,9 +765,12 @@ gunicorn>=20.0.0     # 本番用WSGIサーバー（オプション）
 
 ### 10.2 Phase 2
 
-- [ ] Excel 出力対応
+- [x] Excel 出力対応
 - [x] PDF 出力対応
-- [ ] 複数ファイルの一括処理
+- [x] Internet Service対応
+- [x] CIDR表記への自動変換
+- [x] インタラクティブツールチップ機能
+- [x] 複数ファイルのHAクラスタ処理（Web/CLI）
 - [ ] 差分比較機能
 - [ ] バッチ処理（複数ファイル同時変換）
 
@@ -737,7 +799,17 @@ gunicorn>=20.0.0     # 本番用WSGIサーバー（オプション）
 
 | バージョン | 日付       | 変更内容                           |
 | ---------- | ---------- | ---------------------------------- |
-| 1.0        | 2026-01-17 | 初版リリース                       |
+| 1.0        | 2026-01-20 | 現状版（v1.0）                     |
+|            |            | - HTML / PDF / Excel 出力 |
+|            |            | - Web: 非同期生成＋進捗表示（`/upload_async` + `/api/progress/<file_id>`） |
+|            |            | - Web/CLI: 複数ファイル（HAクラスタ）対応（`ha_mode=auto/cluster/single`） |
+|            |            | - FortiGate: IPv6（interface/route/address）対応 |
+|            |            | - ルーティング: blackhole/discard対応 |
+|            |            | - Excel出力機能実装（openpyxl使用） |
+|            |            | - Internet Service対応（FortiGateのinternet-service-name） |
+|            |            | - CIDR表記への自動変換（アドレス、インターフェース、ルート） |
+|            |            | - インタラクティブツールチップ機能（インターフェース、アドレス、サービス、セキュリティプロファイル、Internet Service） |
+|            |            | - テストスイートの充実（pytest使用） |
 |            |            | - FortiGate / Palo Alto設定ファイルパーサー実装 |
 |            |            | - HTML / PDF出力機能実装 |
 |            |            | - Web インターフェース実装（ファイルアップロード・ダウンロード） |
@@ -752,3 +824,6 @@ gunicorn>=20.0.0     # 本番用WSGIサーバー（オプション）
 |            |            | - PDF出力: A3横向き対応、フォントサイズ最適化（9pt/7pt）、日本語フォント対応 |
 |            |            | - Docker: マルチステージビルド、日本語フォント対応、タイムゾーン設定、複数ワーカー対応 |
 |            |            | - アプリケーションID解決機能（static/data/appid.csv によるマッピング） |
+|            |            | - Internet Service 対応、CIDR表記への自動変換、インタラクティブツールチップ |
+|            |            | - FortiGate: IPv6 対応、ルーティング: blackhole/discard 対応 |
+|            |            | - pytest によるテスト、Docker 対応 |

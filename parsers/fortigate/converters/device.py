@@ -109,8 +109,10 @@ def convert_system_settings(
             if isinstance(iface_data, dict):
                 allowaccess = iface_data.get("allowaccess", "")
                 if allowaccess and "https" in str(allowaccess).lower():
-                    ip = iface_data.get("ip", "")
-                    if ip:
+                    ip4 = iface_data.get("ip", "")
+                    ip6 = iface_data.get("ip6-address", "") or iface_data.get("ip6", "")
+                    if ip4:
+                        ip = ip4
                         config_model.system_settings.management_interface = iface_data.get("_name", iface_name)
                         ip_parts = ip.split() if isinstance(ip, str) else ip
                         if ip_parts:
@@ -120,4 +122,8 @@ def convert_system_settings(
                             config_model.system_settings.allowed_protocols = allowaccess.split()
                         elif isinstance(allowaccess, list):
                             config_model.system_settings.allowed_protocols = allowaccess
+                    elif ip6:
+                        # IPv6管理IPはCIDR形式のまま保持（prefixlenが分かるため）
+                        config_model.system_settings.management_interface = iface_data.get("_name", iface_name)
+                        config_model.system_settings.management_ip = ip_to_cidr(ip6)
                     break

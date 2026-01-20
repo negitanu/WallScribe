@@ -20,14 +20,22 @@ FortiGate および Palo Alto Networks ファイアウォールの設定ファ�
 
 ## 出力形式
 
-- **HTML**: スタイル付きの見やすいレポート（印刷対応）
+- **HTML**: スタイル付きの見やすいレポート（印刷対応、インタラクティブツールチップ付き）
 - **PDF**: 印刷に最適化されたPDF形式（A3横向き）
+- **Excel**: 編集可能なスプレッドシート形式
 
 ## インストール
 
 ### 必要環境
 
+#### ローカル環境（Python直接実行）
+
 - Python 3.8 以上
+
+#### Docker環境
+
+- Docker 20.10 以上
+- Docker Compose 2.0 以上
 
 ### セットアップ
 
@@ -53,12 +61,20 @@ pip install -r requirements.txt
 # FortiGate設定からHTML生成
 python main.py fortigate.conf -o output.html
 
-# Palo Alto設定からPDF生成
-python main.py pa440.xml -f pdf -o output.pdf
+# FortiGate設定からExcel生成
+python main.py fortigate.conf -f excel -o output.xlsx
+
+# HA構成（複数ファイル）をクラスタとしてHTML生成（自動判定）
+python main.py primary.conf secondary.conf --ha-mode auto -o ha_cluster.html
 
 # 詳細ログ付きで実行
 python main.py config.conf -v
 ```
+
+補足:
+
+- **CLIの出力形式は `html` / `excel`** です（PDFはWebインターフェースから生成します）
+- 複数ファイル指定時は、HA情報（group-id / mode / priority 等）をもとにクラスタ判定します
 
 ### Webインターフェース
 
@@ -70,9 +86,16 @@ python app.py
 gunicorn -w 4 -b 0.0.0.0:8080 app:app
 ```
 
-ブラウザで http://localhost:8080 にアクセスし、設定ファイルをアップロードしてください。
+ブラウザで `http://localhost:8080` にアクセスし、設定ファイルをアップロードしてください。
+
+Webインターフェースの特徴:
+
+- **生成中の進捗表示**（% とステータスメッセージ）
+- **複数ファイル選択（HA構成）**: 2つ以上の設定ファイルを選択し、`HAモード（自動/クラスタ/単一）` を指定可能
 
 ### Docker
+
+#### 基本的な使い方
 
 ```bash
 # ビルド
@@ -81,31 +104,125 @@ docker-compose build
 # 起動
 docker-compose up -d
 
+# ログ確認
+docker-compose logs -f
+
+# 停止
+docker-compose down
+
 # アクセス
-# http://localhost:8080
+# http://localhost:80 (ポート80で公開)
+```
+
+#### 環境変数の設定
+
+`docker-compose.yml`で環境変数を設定できます。`.env`ファイルを作成して設定することも可能です：
+
+```bash
+# .envファイルの例
+FLASK_ENV=production
+SECRET_KEY=your-secret-key-here
+MAX_CONTENT_LENGTH=52428800
+CLEANUP_INTERVAL=3600
+TZ=Asia/Tokyo
+```
+
+#### ボリュームマウント
+
+アップロードファイルを永続化する場合、`docker-compose.yml`で既に設定されています：
+
+```yaml
+volumes:
+  - ./uploads:/app/uploads
+```
+
+#### Makefileを使用した操作
+
+```bash
+# ビルド
+make build
+
+# 起動
+make up
+
+# 停止
+make down
+
+# ログ確認
+make logs
+
+# 再起動
+make restart
+```
+
+#### 開発環境での使用
+
+開発時にコードをホットリロードする場合、`docker-compose.yml`のコメントアウトされたボリュームマウントを有効化してください：
+
+```yaml
+volumes:
+  - ./uploads:/app/uploads
+  # 開発時のみ: コードをマウントしてホットリロード
+  - ./app.py:/app/app.py
+  - ./parsers:/app/parsers
+  - ./models:/app/models
+  - ./exporters:/app/exporters
+  - ./web:/app/web
+  - ./static:/app/static
+```
+
+#### トラブルシューティング
+
+**ポートが既に使用されている場合：**
+
+```bash
+# docker-compose.ymlでポートを変更
+ports:
+  - "8080:8080"  # 左側を変更
+```
+
+**コンテナが起動しない場合：**
+
+```bash
+# ログを確認
+docker-compose logs
+
+# コンテナを再ビルド
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+**アップロードファイルの権限エラー：**
+
+```bash
+# アップロードディレクトリの権限を確認
+chmod 755 uploads
 ```
 
 ## ディレクトリ構成
 
-```
+```text
 gen-parameter-sheet/
 ├── main.py                # エントリーポイント（CLI）
 ├── app.py                 # Webアプリケーション（Flask）
 ├── parsers/               # パーサーモジュール
 │   ├── base.py           # 基底パーサークラス
+│   ├── cluster.py        # HAクラスタ構成パーサー（複数ファイル統合）
 │   ├── fortigate/        # FortiGate用パーサー
 │   ├── paloalto.py       # Palo Alto用パーサー
 │   └── utils.py          # ユーティリティ関数
 ├── models/                # データモデル
-│   └── config.py         # 設定データ構造の定義
+│   ├── config.py         # 設定データ構造の定義
+│   └── cluster.py        # HAクラスタ統合データモデル
 ├── exporters/             # 出力モジュール
 │   ├── html.py           # HTML出力
-│   └── pdf.py            # PDF出力
-├── templates/             # HTMLテンプレート
+│   ├── pdf.py            # PDF出力
+│   └── excel.py          # Excel出力
 ├── static/                # 静的ファイル
 │   └── data/
 │       └── appid.csv     # アプリケーションIDマッピング
 └── web/                   # Webインターフェース
+    └── templates/         # Web UI テンプレート（index/result/error）
 ```
 
 ## データファイル
@@ -135,15 +252,48 @@ info = get_app_info('12753')
 # => {'app_name': 'Skype', 'category': 'Collaboration', 'risk': '2', ...}
 ```
 
+## 主な機能
+
+### インタラクティブツールチップ
+
+HTML出力では、以下のオブジェクトにマウスオーバーで詳細情報を表示します：
+
+- インターフェース、アドレスオブジェクト、サービスオブジェクト
+- セキュリティプロファイル、Internet Service
+
+### CIDR表記への自動変換
+
+IPアドレスとサブネットマスクを自動的にCIDR表記（例: `192.168.1.0/24`）に変換します。
+
+### IPv6対応（主にFortiGate）
+
+- インターフェース: `ip6-address`
+- ルーティング: `router static6`
+- アドレス/グループ: `firewall address6` / `firewall addrgrp6`
+
+### ルーティングのblackhole/discard対応
+
+- FortiGate: `set blackhole enable` を検出して `blackhole` ルートとして出力
+- Palo Alto: `<nexthop><discard/></nexthop>` を検出して `blackhole` ルートとして出力
+
+### HAクラスタ（複数ファイル）対応
+
+- 複数ファイルからHAクラスタ判定（group-id / HAモード / priority など）
+- HTML/Excelで **クラスタ概要（メンバー/差分）** を出力
+
+### Internet Service対応
+
+FortiGateのInternet Service（ISDB）に対応し、サービス名を自動解決して表示します。
+
 ## 抽出項目
 
 パラメータシートには以下の情報が含まれます：
 
 1. **機器概要**: ホスト名、モデル名、OSバージョン、動作モード
 2. **システム設定**: 管理IP、DNS、NTP、管理者アカウント
-3. **ネットワーク設定**: インターフェース、ルーティング、DHCP
-4. **オブジェクト定義**: アドレス、サービス、グループ
-5. **ファイアウォールポリシー**: セキュリティルール、Local-inポリシー
+3. **ネットワーク設定**: インターフェース、ルーティング、DHCP（CIDR表記）
+4. **オブジェクト定義**: アドレス、サービス、グループ（CIDR表記）
+5. **ファイアウォールポリシー**: セキュリティルール、Internet Service、Local-inポリシー
 6. **NAT設定**: SNAT、DNAT、VIP
 7. **VPN設定**: IPsec VPN、SSL-VPN
 8. **セキュリティプロファイル**: AV、Webフィルタ、アプリケーションコントロール、IPS
@@ -156,9 +306,32 @@ info = get_app_info('12753')
 |--------|------|--------------|
 | `FLASK_ENV` | 実行環境 | `production` |
 | `FLASK_PORT` | リッスンポート | `8080` |
+| `SECRET_KEY` | セッション暗号化キー | ランダム生成 |
 | `UPLOAD_FOLDER` | アップロード先 | `./uploads` |
 | `MAX_CONTENT_LENGTH` | 最大アップロードサイズ | `52428800` (50MB) |
+| `CLEANUP_INTERVAL` | クリーンアップ間隔(秒) | `3600` |
 | `TZ` | タイムゾーン | `Asia/Tokyo` |
+
+## テスト
+
+```bash
+# すべてのテストを実行
+pytest -v
+
+# カバレッジ付きで実行
+pytest --cov=. --cov-report=html -v
+
+# 特定のテストファイルを実行
+pytest tests/test_parsers.py -v
+```
+
+テストスイートには以下が含まれます：
+
+- パーサーのテスト（FortiGate、Palo Alto）
+- エクスポーターのテスト（HTML、PDF、Excel）
+- データモデルのテスト
+- ユーティリティ関数のテスト
+- Webアプリケーションのテスト
 
 ## 詳細仕様
 

@@ -1,36 +1,94 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>エラー - パラメータシート生成ツール</title>
+    <!-- Bootstrap 5 (Local) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <!-- Bootstrap Icons (Local) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}">
+    <!-- Custom Styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>パラメータシート生成ツール</h1>
-            <p class="subtitle">FortiGate / Palo Alto 設定ファイルからパラメータシートを自動生成</p>
+    <!-- Animated Background Grid -->
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-error"></div>
+
+    <div class="container py-4">
+        <!-- Header -->
+        <header class="text-center mb-5 position-relative">
+            <div class="header-badge mb-3">
+                <span class="badge-icon"><i class="bi bi-shield-lock"></i></span>
+                <span class="badge-text">Firewall Config Parser</span>
+            </div>
+            <h1 class="display-5 fw-bold mb-3">
+                <span class="text-gradient">パラメータシート</span>
+                <br>
+                <span class="text-secondary-emphasis">生成ツール</span>
+            </h1>
+            <p class="lead text-body-secondary mb-0">
+                <span class="font-mono text-info-emphasis">FortiGate</span>
+                <span class="mx-2 text-body-tertiary">/</span>
+                <span class="font-mono text-warning-emphasis">Palo Alto</span>
+                <span class="ms-2">設定ファイルから自動生成</span>
+            </p>
+            <div class="header-line mt-4"></div>
         </header>
 
         <main>
-            <div class="error-page">
-                <div class="error-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
+            <!-- Error Card -->
+            <section class="error-section">
+                <div class="card card-glass border-danger-subtle">
+                    <div class="card-body p-5 text-center">
+                        <!-- Error Icon with Animation -->
+                        <div class="error-icon-wrapper mb-4">
+                            <div class="error-icon-bg"></div>
+                            <div class="error-icon">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                        </div>
+
+                        <!-- Error Code -->
+                        <div class="error-code mb-3">
+                            <span class="badge bg-danger-subtle text-danger font-mono fs-5 px-3 py-2">
+                                Error {{ error.code }}
+                            </span>
+                        </div>
+
+                        <!-- Error Message -->
+                        <h3 class="text-danger mb-3">エラーが発生しました</h3>
+                        <p class="text-body-secondary mb-4 fs-5">{{ error.message }}</p>
+
+                        <!-- Action Button -->
+                        <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4">
+                            <i class="bi bi-house-door me-2"></i>トップページに戻る
+                        </a>
+
+                        <!-- Help Text -->
+                        <div class="mt-4 pt-4 border-top border-secondary">
+                            <p class="text-body-tertiary small mb-0">
+                                <i class="bi bi-info-circle me-1"></i>
+                                問題が解決しない場合は、設定ファイルの形式をご確認ください
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <h2>エラー {{ error.code }}</h2>
-                <p class="error-message">{{ error.message }}</p>
-                <a href="{{ url_for('index') }}" class="btn btn-primary">トップページに戻る</a>
-            </div>
+            </section>
         </main>
 
-        <footer>
-            <p>Firewall Parameter Sheet Generator v1.0.0</p>
+        <!-- Footer -->
+        <footer class="text-center mt-5 py-4">
+            <p class="text-body-tertiary small mb-0 font-mono">
+                <i class="bi bi-terminal me-1"></i>
+                Firewall Parameter Sheet Generator
+                <span class="text-body-secondary">v1.0.0</span>
+            </p>
         </footer>
     </div>
+
+    <!-- Bootstrap JS (Local) -->
+    <script src="{{ url_for('static', filename='js/vendor/bootstrap.bundle.min.js') }}"></script>
 </body>
 </html>

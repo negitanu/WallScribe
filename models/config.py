@@ -188,6 +188,7 @@ class FirewallPolicy:
     destination_interface: List[str] = field(default_factory=list)
     source_address: List[str] = field(default_factory=list)
     destination_address: List[str] = field(default_factory=list)
+    internet_service_name: List[str] = field(default_factory=list)  # Internet Service名のリスト
     service: List[str] = field(default_factory=list)
     application: List[str] = field(default_factory=list)
     action: PolicyAction = PolicyAction.UNKNOWN
@@ -371,6 +372,21 @@ class SecurityProfiles:
 
 
 @dataclass
+class HAHeartbeatInterface:
+    """HAハートビートインターフェース"""
+    interface: str = ""
+    priority: str = ""
+
+
+@dataclass
+class HAManagementInterface:
+    """HA管理インターフェース"""
+    id: str = ""
+    interface: str = ""
+    gateway: str = ""
+
+
+@dataclass
 class HASettings:
     """高可用性設定"""
     mode: HAMode = HAMode.STANDALONE
@@ -380,8 +396,16 @@ class HASettings:
     monitor_interfaces: List[str] = field(default_factory=list)
     ha_interfaces: List[str] = field(default_factory=list)
     heartbeat_interfaces: List[str] = field(default_factory=list)
+    heartbeat_interfaces_detail: List[HAHeartbeatInterface] = field(default_factory=list)
+    ha_mgmt_interfaces: List[HAManagementInterface] = field(default_factory=list)
     preempt: bool = False
     session_sync: bool = True
+    session_pickup: bool = False
+    hb_interval: str = ""
+    hb_lost_threshold: str = ""
+    encryption: bool = False
+    authentication: bool = False
+    password: str = ""  # ハッシュ化されたパスワード（表示用）
 
 
 @dataclass

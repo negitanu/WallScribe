@@ -54,21 +54,24 @@ class CacheManager:
 
 
 def load_isdb() -> Dict[str, str]:
-    """ISDBのCSVを読み込み、ID→アプリケーション名のマッピングを返す"""
+    """ISDBのCSVを読み込み、ID→アプリケーション名のマッピングを返す
+    
+    appid.csvファイルを使用して、app_id→app_nameのマッピングを返す
+    """
     cache = CacheManager()
     cached = cache.get('isdb')
     if cached is not None:
         return cached
 
     isdb_data: Dict[str, str] = {}
-    isdb_path = STATIC_DIR / "data" / "isdb.csv"
+    isdb_path = STATIC_DIR / "data" / "appid.csv"
 
     try:
         with open(isdb_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                isdb_id = row.get('ID', '')
-                app_name = row.get('Select-application-ID', '')
+                isdb_id = row.get('app_id', '')
+                app_name = row.get('app_name', '')
                 if isdb_id and app_name:
                     isdb_data[isdb_id] = app_name
         logger.debug(f"ISDBをキャッシュに読み込みました: {len(isdb_data)}件")
@@ -127,6 +130,25 @@ def load_search_js() -> str:
 
     cache.set('search_js', js_content)
     logger.debug("検索JSをキャッシュに読み込みました")
+    return js_content
+
+
+def load_tooltip_js() -> str:
+    """ツールチップ機能のJavaScriptを読み込み"""
+    cache = CacheManager()
+    cached = cache.get('tooltip_js')
+    if cached is not None:
+        return cached
+
+    js_path = STATIC_DIR / "js" / "tooltip.js"
+    try:
+        js_content = js_path.read_text(encoding='utf-8')
+    except FileNotFoundError:
+        logger.warning(f"ツールチップJSファイルが見つかりません: {js_path}")
+        js_content = '// Tooltip functionality not available'
+
+    cache.set('tooltip_js', js_content)
+    logger.debug("ツールチップJSをキャッシュに読み込みました")
     return js_content
 
 

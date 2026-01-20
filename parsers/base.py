@@ -6,12 +6,40 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 import logging
 
 from models.config import ConfigModel, DeviceType
 
 logger = logging.getLogger(__name__)
+
+
+def detect_encoding(data: bytes) -> Tuple[str, str]:
+    """バイトデータのエンコーディングを検出
+
+    Args:
+        data: バイトデータ
+
+    Returns:
+        Tuple[str, str]: (デコードされた文字列, 使用したエンコーディング名)
+
+    Raises:
+        UnicodeDecodeError: すべてのエンコーディングで失敗した場合
+    """
+    # 試行するエンコーディングの順序
+    encodings = ['utf-8', 'utf-8-sig', 'cp932', 'latin-1']
+
+    for encoding in encodings:
+        try:
+            return data.decode(encoding), encoding
+        except UnicodeDecodeError:
+            continue
+
+    # すべて失敗した場合（latin-1は通常失敗しないが念のため）
+    raise UnicodeDecodeError(
+        'all', data, 0, len(data),
+        f'すべてのエンコーディング({", ".join(encodings)})でデコードに失敗しました'
+    )
 
 
 class BaseConfigParser(ABC):
