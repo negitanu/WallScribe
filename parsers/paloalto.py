@@ -616,9 +616,13 @@ class PaloAltoParser(BaseConfigParser):
         # IPsec tunnels
         ipsec_tunnels = network.findall('tunnel/ipsec/entry')
         for tunnel_entry in ipsec_tunnels:
+            # IKEゲートウェイのentry要素からname属性を取得
+            ike_gw_entry = tunnel_entry.find('auto-key/ike-gateway/entry')
+            phase1_name = ike_gw_entry.get('name', '') if ike_gw_entry is not None else ''
+
             p2 = IPSecPhase2(
                 name=tunnel_entry.get('name', ''),
-                phase1_name=self._get_text(tunnel_entry, 'auto-key/ike-gateway/entry')
+                phase1_name=phase1_name
             )
             self.config_model.vpn.ipsec_phase2.append(p2)
 
@@ -834,27 +838,115 @@ class PaloAltoParser(BaseConfigParser):
         if self.device is None:
             return
 
-        # Syslog
-        shared = self.device.find('deviceconfig/setting')
-        if shared is not None:
-            syslog_entries = shared.findall('logging/logging-service-setting/syslog/entry')
-            for entry in syslog_entries:
-                server = SyslogServer(
-                    server=self._get_text(entry, 'server'),
-                    port=self._get_text(entry, 'port', '514'),
-                    status="enabled"
-                )
-                self.config_model.logging.syslog_servers.append(server)
+        # Syslog - 複数のパスをサポート
+        syslog_paths = [
+            # deviceconfig/setting 配下
+            ('deviceconfig/setting', 'logging/logging-service-setting/syslog/entry'),
+            # shared/log-settings 配下（PANOSの一般的な場所）
+            ('..', 'shared/log-settings/syslog/entry'),
+        ]
+
+        for base_path, syslog_path in syslog_paths:
+            base_elem = self.device.find(base_path) if base_path != '..' else self.root
+            if base_elem is not None:
+                syslog_entries = base_elem.findall(syslog_path)
+                for entry in syslog_entries:
+                    server_addr = self._get_text(entry, 'server')
+                    # 重複チェック
+                    if server_addr and not any(s.server == server_addr for s in self.config_model.logging.syslog_servers):
+                        server = SyslogServer(
+                            server=server_addr,
+                            port=self._get_text(entry, 'port', '514'),
+                            facility=self._get_text(entry, 'facility', ''),
+                            status="enabled"
+                        )
+                        self.config_model.logging.syslog_servers.append(server)
+
+        # vsys配下のlog-settings/syslogも確認
+        vsys_entries = self.device.findall('.//vsys/entry')
+        for vsys in vsys_entries:
+            syslog_profiles = vsys.findall('log-settings/syslog/entry')
+            for entry in syslog_profiles:
+                # syslog profileのserver設定を取得
+                server_entries = entry.findall('server/entry')
+                for server_entry in server_entries:
+                    server_addr = server_entry.get('name', '')
+                    if server_addr and not any(s.server == server_addr for s in self.config_model.logging.syslog_servers):
+                        server = SyslogServer(
+                            server=server_addr,
+                            port=self._get_text(server_entry, 'port', '514'),
+                            facility=self._get_text(server_entry, 'facility', ''),
+                            status="enabled"
+                        )
+                        self.config_model.logging.syslog_servers.append(server)
 
         # SNMP
         snmp_config = self.device.find('deviceconfig/system/snmp-setting')
         if snmp_config is not None:
+            # SNMP有効化状態
+            snmp_enabled = snmp_config.get('enabled', 'no') == 'yes'
+
+            # SNMP v2c コミュニティ設定
             v2c = snmp_config.find('access-setting/version/v2c')
             if v2c is not None:
                 for entry in v2c.findall('entry'):
+                    community_name = entry.get('name', '')
+                    
+                    # ホスト設定を取得
+                    hosts = []
+                    host_elem = entry.find('host')
+                    if host_elem is not None:
+                        host_text = host_elem.text
+                        if host_text:
+                            hosts = [host_text.strip()]
+
+                    # トラップ送信先を取得
+                    trap_hosts = []
+                    trap_servers = snmp_config.find('trap-server')
+                    if trap_servers is not None:
+                        for trap_entry in trap_servers.findall('entry'):
+                            trap_host = self._get_text(trap_entry, 'server')
+                            if trap_host:
+                                trap_hosts.append(trap_host)
+
                     snmp = SNMPSettings(
-                        community=entry.get('name', ''),
+                        enabled=snmp_enabled,
+                        community=community_name,
+                        hosts=hosts,
+                        trap_hosts=trap_hosts,
                         version="v2c"
+                    )
+                    self.config_model.logging.snmp.append(snmp)
+
+            # SNMP v3 ユーザー設定
+            v3 = snmp_config.find('access-setting/version/v3')
+            if v3 is not None:
+                for entry in v3.findall('entry'):
+                    username = entry.get('name', '')
+                    
+                    # ホスト設定を取得
+                    hosts = []
+                    host_elem = entry.find('host')
+                    if host_elem is not None:
+                        host_text = host_elem.text
+                        if host_text:
+                            hosts = [host_text.strip()]
+
+                    # トラップ送信先を取得
+                    trap_hosts = []
+                    trap_servers = snmp_config.find('trap-server')
+                    if trap_servers is not None:
+                        for trap_entry in trap_servers.findall('entry'):
+                            trap_host = self._get_text(trap_entry, 'server')
+                            if trap_host:
+                                trap_hosts.append(trap_host)
+
+                    snmp = SNMPSettings(
+                        enabled=snmp_enabled,
+                        username=username,
+                        hosts=hosts,
+                        trap_hosts=trap_hosts,
+                        version="v3"
                     )
                     self.config_model.logging.snmp.append(snmp)
 

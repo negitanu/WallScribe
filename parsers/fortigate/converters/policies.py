@@ -57,7 +57,7 @@ def _add_policies_from_config(
                     service=to_list(policy_data.get("service", [])),
                     action=action,
                     nat_enabled=policy_data.get("nat", "") == "enable",
-                    log_enabled=policy_data.get("logtraffic", "") in ("enable", "all"),
+                    log_enabled=policy_data.get("logtraffic", "") in ("enable", "all", "utm"),
                     security_profiles=security_profiles,
                     vdom=vdom,
                     enabled=policy_data.get("status", "") != "disable",
@@ -173,6 +173,7 @@ def _add_nat_from_config(
     """NAT設定を追加"""
     _add_vip_nat(config_model, config, vdom)
     _add_ippool_nat(config_model, config, vdom)
+    _add_central_snat(config_model, config, vdom)
 
 
 def _add_vip_nat(
@@ -219,12 +220,73 @@ def _add_ippool_nat(
             if isinstance(pool_data, dict):
                 start_ip = pool_data.get("startip", "")
                 end_ip = pool_data.get("endip", "")
+
+                # translated_source の構築
+                if start_ip and end_ip and start_ip != end_ip:
+                    translated_source = f"{start_ip}-{end_ip}"
+                elif start_ip:
+                    translated_source = start_ip
+                else:
+                    translated_source = ""
+
                 nat = NATPolicy(
                     name=pool_data.get("_name", pool_name),
                     nat_type="ippool",
-                    translated_source=f"{start_ip}-{end_ip}" if start_ip else "",
+                    pool_type=pool_data.get("type", "overload"),
+                    translated_source=translated_source,
                     interface=pool_data.get("associated-interface", ""),
                     vdom=vdom,
                     description=pool_data.get("comments", "")
+                )
+                config_model.nat_policies.append(nat)
+
+
+def _add_central_snat(
+    config_model: ConfigModel,
+    config: Dict,
+    vdom: str
+) -> None:
+    """Central SNAT Map を追加"""
+    central_snat = get_nested(config, "firewall central-snat-map", default={})
+    if isinstance(central_snat, dict):
+        for snat_id, snat_data in central_snat.items():
+            if isinstance(snat_data, dict):
+                # 送信元アドレス
+                orig_addr = snat_data.get("orig-addr", "")
+                if isinstance(orig_addr, list):
+                    orig_addr = ", ".join(orig_addr)
+
+                # 宛先アドレス
+                dst_addr = snat_data.get("dst-addr", "")
+                if isinstance(dst_addr, list):
+                    dst_addr = ", ".join(dst_addr)
+
+                # NAT IP Pool
+                nat_ippool = snat_data.get("nat-ippool", "")
+                if isinstance(nat_ippool, list):
+                    nat_ippool = ", ".join(nat_ippool)
+
+                # インターフェース
+                srcintf = snat_data.get("srcintf", "")
+                if isinstance(srcintf, list):
+                    srcintf = ", ".join(srcintf)
+                dstintf = snat_data.get("dstintf", "")
+                if isinstance(dstintf, list):
+                    dstintf = ", ".join(dstintf)
+
+                # プロトコル番号（0=all, 6=TCP, 17=UDP など）
+                protocol = snat_data.get("protocol", "0")
+
+                nat = NATPolicy(
+                    name=snat_data.get("_name", snat_id),
+                    nat_type="central-snat",
+                    original_source=orig_addr,
+                    original_destination=dst_addr,
+                    nat_ippool=nat_ippool,
+                    interface=f"{srcintf} -> {dstintf}" if srcintf or dstintf else "",
+                    protocol=str(protocol),
+                    vdom=vdom,
+                    enabled=snat_data.get("status", "") != "disable",
+                    description=snat_data.get("comments", "")
                 )
                 config_model.nat_policies.append(nat)
