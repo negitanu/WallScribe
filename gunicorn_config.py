@@ -28,7 +28,7 @@ loglevel = os.environ.get('LOG_LEVEL', 'info')
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
 # プロセス名
-proc_name = 'gen-parameter-sheet'
+proc_name = 'WallScribe'
 
 # サーバーメカニズム
 daemon = False

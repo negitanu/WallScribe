@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 FROM python:3.14-slim
 
 # メタデータ
-LABEL maintainer="gen-parameter-sheet"
+LABEL maintainer="WallScribe"
 LABEL description="ファイアウォール パラメータシート生成ツール"
 
 # WeasyPrint実行時に必要なランタイムライブラリと日本語フォント、タイムゾーンデータをインストール

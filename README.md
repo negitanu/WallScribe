@@ -42,7 +42,7 @@ FortiGate および Palo Alto Networks ファイアウォールの設定ファ�
 ```bash
 # リポジトリのクローン
 git clone <repository-url>
-cd gen-parameter-sheet
+cd WallScribe
 
 # 仮想環境の作成と有効化
 python -m venv .venv
@@ -202,7 +202,7 @@ chmod 755 uploads
 ## ディレクトリ構成
 
 ```text
-gen-parameter-sheet/
+WallScribe/
 ├── main.py                # エントリーポイント（CLI）
 ├── app.py                 # Webアプリケーション（Flask）
 ├── parsers/               # パーサーモジュール

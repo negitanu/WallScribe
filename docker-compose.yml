@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: gen-parameter-sheet
+    container_name: WallScribe
     ports:
       - "80:8080"
     environment:

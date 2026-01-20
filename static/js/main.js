@@ -38,23 +38,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const presetRadios = document.querySelectorAll('input[name="output_preset"]');
     const sectionCheckboxes = document.querySelectorAll('input[name="sections"]');
 
+    function applyPresetFromCurrentSelection() {
+        const current = document.querySelector('input[name="output_preset"]:checked');
+        if (!current) return;
+        const preset = current.value;
+
+        if (preset === 'custom') {
+            // カスタムの場合はグリッドを有効化
+            sectionsGrid.classList.remove('disabled');
+            return;
+        }
+
+        // プリセット選択時はグリッドを無効化
+        sectionsGrid.classList.add('disabled');
+
+        // チェックボックスをプリセットに合わせて設定
+        const selectedSections = presets[preset] || [];
+        sectionCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectedSections.includes(checkbox.value);
+        });
+    }
+
     presetRadios.forEach(radio => {
         radio.addEventListener('change', function() {
-            const preset = this.value;
-
-            if (preset === 'custom') {
-                // カスタムの場合はグリッドを有効化
-                sectionsGrid.classList.remove('disabled');
-            } else {
-                // プリセット選択時はグリッドを無効化
-                sectionsGrid.classList.add('disabled');
-
-                // チェックボックスをプリセットに合わせて設定
-                const selectedSections = presets[preset] || [];
-                sectionCheckboxes.forEach(checkbox => {
-                    checkbox.checked = selectedSections.includes(checkbox.value);
-                });
-            }
+            applyPresetFromCurrentSelection();
         });
     });
 
@@ -69,8 +76,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 初期状態：通常プリセットでグリッドを無効化
-    sectionsGrid.classList.add('disabled');
+    // 初期状態：現在選択されているプリセットを適用
+    applyPresetFromCurrentSelection();
 
     // ドラッグ＆ドロップイベント
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {

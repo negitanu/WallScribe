@@ -7,7 +7,7 @@
 
 ### 1.1 目的
 
-FortiGate および Palo Alto Networks PA series ファイアウォールの設定ファイルから、統一フォーマットのパラメータシートを自動生成するツール。
+#FortiGate と #PA-Series ファイアウォールの設定ファイルから、統一フォーマットのパラメータシートを自動生成するツール。
 
 ### 1.2 対象機器
 
@@ -318,7 +318,9 @@ HTML出力と同じレイアウト構成を維持し、印刷に最適化され�
 ### 4.1 モジュール構成
 
 ```text
-gen-parameter-sheet/
+WallScribe/
+```text
+WallScribe/
 ├── main.py                    # エントリーポイント（CLI）
 ├── app.py                     # Web アプリケーション（Flask）
 ├── SPECIFICATION.md           # 本仕様書

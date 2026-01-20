@@ -172,7 +172,9 @@ class FortiGateParser(BaseConfigParser):
             # パターン1: FG33E1-7.4.8-FW-build2795-250523 のような形式
             # パターン2: FGT60F-7.2.5-FW-build1517 のような形式
             # パターン3: FG-XXX-7.4.8-FW-build2795 のような形式
-            match = re.search(r'^(FG|FGT)([A-Z0-9]+)-(\d+\.\d+\.\d+)-FW', config_version_part)
+            # NOTE: (FG|FGT) の順だと "FGT" に対して "FG" が先にマッチし、
+            #       model_code が "T60F" のように崩れるため、長い方を先に置く。
+            match = re.search(r'^(FGT|FG)([A-Z0-9]+)-(\d+\.\d+\.\d+)-FW', config_version_part)
             if match:
                 prefix = match.group(1)  # FG または FGT
                 model_code = match.group(2)  # 33E1, 60F など
@@ -191,11 +193,17 @@ class FortiGateParser(BaseConfigParser):
             else:
                 # フォールバック: より柔軟なパターンマッチング
                 # FG33E1-7.4.8 のような形式を直接抽出
-                fallback_match = re.search(r'(FG[A-Z0-9]+|FGT[A-Z0-9]+)-(\d+\.\d+\.\d+)', config_version_part)
+                fallback_match = re.search(r'(FGT[A-Z0-9]+|FG[A-Z0-9]+)-(\d+\.\d+\.\d+)', config_version_part)
                 if fallback_match:
                     model_code_full = fallback_match.group(1)  # FG33E1 または FGT60F
                     os_version = fallback_match.group(2)
-                    model_name = self._format_model_name(model_code_full[:2], model_code_full[2:])
+                    if model_code_full.startswith("FGT"):
+                        prefix = "FGT"
+                        model_code = model_code_full[3:]
+                    else:
+                        prefix = "FG"
+                        model_code = model_code_full[2:]
+                    model_name = self._format_model_name(prefix, model_code)
                     self.raw_config["header"]["model"] = model_name
                     self.raw_config["header"]["version"] = os_version
 

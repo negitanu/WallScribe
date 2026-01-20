@@ -266,6 +266,17 @@ footer {
     border: 1px solid #ccc;
 }
 
+/* バッジ（セキュリティプロファイルなど）が切れないように高さを確保 */
+.badge,
+.badge-outline {
+    display: inline-block;
+    white-space: nowrap;
+    font-size: 7pt;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 999px;
+}
+
 /* サマリーボックスと警告ボックスの調整 */
 .summary-box, .warning-box {
     padding: 8px;

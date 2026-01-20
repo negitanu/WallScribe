@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>パラメータシート生成ツール</title>
+    <title>WallScribe</title>
     <!-- Bootstrap 5 (Local) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <!-- Bootstrap Icons (Local) -->
@@ -21,18 +21,16 @@
         <header class="text-center mb-5 position-relative">
             <div class="header-badge mb-3">
                 <span class="badge-icon"><i class="bi bi-shield-lock"></i></span>
-                <span class="badge-text">Firewall Config Parser</span>
+                <span class="badge-text">Every Rule, Revealed.</span>
             </div>
             <h1 class="display-5 fw-bold mb-3">
-                <span class="text-gradient">パラメータシート</span>
+                <span class="text-gradient">WallScribe</span>
                 <br>
-                <span class="text-secondary-emphasis">生成ツール</span>
             </h1>
             <p class="lead text-body-secondary mb-0">
-                <span class="font-mono text-info-emphasis">FortiGate</span>
+                <span class="font-mono text-info-emphasis">#FortiGate</span>
                 <span class="mx-2 text-body-tertiary">/</span>
-                <span class="font-mono text-warning-emphasis">Palo Alto</span>
-                <span class="ms-2">設定ファイルから自動生成</span>
+                <span class="font-mono text-warning-emphasis">#PA-Series</span>
             </p>
             <div class="header-line mt-4"></div>
         </header>
@@ -151,14 +149,14 @@
                                 <div class="options-body">
                                     <!-- Presets -->
                                     <div class="btn-group w-100 mb-3" role="group" aria-label="Output preset selection">
-                                        <input type="radio" class="btn-check" name="output_preset" id="presetNormal" value="normal" checked>
+                                        <input type="radio" class="btn-check" name="output_preset" id="presetNormal" value="normal">
                                         <label class="btn btn-outline-secondary" for="presetNormal">
-                                            <i class="bi bi-check2-circle me-1"></i>通常
-                                            <span class="badge bg-success-subtle text-success ms-1">推奨</span>
+                                            <i class="bi bi-check2-circle me-1"></i>簡易
                                         </label>
-                                        <input type="radio" class="btn-check" name="output_preset" id="presetDetailed" value="detailed">
+                                        <input type="radio" class="btn-check" name="output_preset" id="presetDetailed" value="detailed" checked>
                                         <label class="btn btn-outline-secondary" for="presetDetailed">
                                             <i class="bi bi-list-ul me-1"></i>詳細（すべて）
+                                            <span class="badge bg-success-subtle text-success ms-1">推奨</span>
                                         </label>
                                         <input type="radio" class="btn-check" name="output_preset" id="presetCustom" value="custom">
                                         <label class="btn btn-outline-secondary" for="presetCustom">
@@ -311,8 +309,8 @@
         <footer class="text-center mt-5 py-4">
             <p class="text-body-tertiary small mb-0 font-mono">
                 <i class="bi bi-terminal me-1"></i>
-                Firewall Parameter Sheet Generator
-                <span class="text-body-secondary">v1.0.0</span>
+                WallScribe – Firewall Parameter Sheet Generator
+                <span class="text-body-secondary">v1.0</span>
             </p>
         </footer>
     </div>
