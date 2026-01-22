@@ -348,4 +348,4 @@ pytest tests/test_parsers.py -v
 
 ## ライセンス
 
-MIT License
+Apache 2.0 License - 詳細は [LICENSE](LICENSE) を参照してください。
