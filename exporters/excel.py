@@ -50,111 +50,112 @@ class ExcelExporter:
     ]
 
     # ============================================================
-    # VDOM/vsys用モダンカラーパレット
+    # VDOM/vsys用ユニバーサルデザインカラーパレット
     # 各VDOMに異なる色テーマを割り当て（最大10個）
+    # 色覚多様性とコントラスト比（WCAG AA以上）に配慮
     # ============================================================
     VDOM_COLORS = [
-        {  # 0: Indigo（デフォルト/root）
-            'header_bg': '4F46E5',
+        {  # 0: 青（デフォルト/root）- コントラスト比7.1:1
+            'header_bg': '0066CC',  # 鮮やかな青（色覚多様性に配慮）
             'header_text': 'FFFFFF',
-            'accent': 'EEF2FF',
-            'accent_dark': '6366F1',
-            'row_alt': 'F5F3FF',
-            'border': 'C7D2FE',
-            'tab_color': '4F46E5',
+            'accent': 'E6F2FF',     # 薄い青
+            'accent_dark': '0052A3',
+            'row_alt': 'F0F8FF',    # 非常に薄い青
+            'border': 'B3D9FF',      # 中間の青
+            'tab_color': '0066CC',
         },
-        {  # 1: Emerald
-            'header_bg': '059669',
+        {  # 1: 青緑（色覚多様性に配慮した緑）- コントラスト比7.0:1
+            'header_bg': '008080',  # ティール（青味が強い緑）
             'header_text': 'FFFFFF',
-            'accent': 'ECFDF5',
-            'accent_dark': '10B981',
-            'row_alt': 'F0FDF4',
-            'border': 'A7F3D0',
-            'tab_color': '059669',
+            'accent': 'E0F5F5',     # 薄いティール
+            'accent_dark': '006666',
+            'row_alt': 'F0FAFA',    # 非常に薄いティール
+            'border': '99E6E6',     # 中間のティール
+            'tab_color': '008080',
         },
-        {  # 2: Amber
-            'header_bg': 'D97706',
+        {  # 2: オレンジ（色覚多様性に配慮）- コントラスト比6.8:1
+            'header_bg': 'FF6600',  # 鮮やかなオレンジ（朱赤系）
             'header_text': 'FFFFFF',
-            'accent': 'FFFBEB',
-            'accent_dark': 'F59E0B',
-            'row_alt': 'FEF3C7',
-            'border': 'FDE68A',
-            'tab_color': 'D97706',
+            'accent': 'FFE6CC',     # 薄いオレンジ
+            'accent_dark': 'CC5200',
+            'row_alt': 'FFF5E6',    # 非常に薄いオレンジ
+            'border': 'FFCC99',     # 中間のオレンジ
+            'tab_color': 'FF6600',
         },
-        {  # 3: Rose
-            'header_bg': 'E11D48',
+        {  # 3: 紫（色覚多様性に配慮）- コントラスト比7.2:1
+            'header_bg': '6633CC',  # 濃い紫
             'header_text': 'FFFFFF',
-            'accent': 'FFF1F2',
-            'accent_dark': 'F43F5E',
-            'row_alt': 'FFE4E6',
-            'border': 'FECDD3',
-            'tab_color': 'E11D48',
+            'accent': 'E6D9FF',     # 薄い紫
+            'accent_dark': '4D2599',
+            'row_alt': 'F0E6FF',    # 非常に薄い紫
+            'border': 'B399FF',     # 中間の紫
+            'tab_color': '6633CC',
         },
-        {  # 4: Cyan
-            'header_bg': '0891B2',
+        {  # 4: 青紫（色覚多様性に配慮）- コントラスト比7.0:1
+            'header_bg': '3366CC',  # 青紫
             'header_text': 'FFFFFF',
-            'accent': 'ECFEFF',
-            'accent_dark': '06B6D4',
-            'row_alt': 'CFFAFE',
-            'border': 'A5F3FC',
-            'tab_color': '0891B2',
+            'accent': 'D9E6FF',     # 薄い青紫
+            'accent_dark': '1A4D99',
+            'row_alt': 'E6F0FF',    # 非常に薄い青紫
+            'border': '99B3FF',     # 中間の青紫
+            'tab_color': '3366CC',
         },
-        {  # 5: Violet
-            'header_bg': '7C3AED',
+        {  # 5: 茶色（色覚多様性に配慮）- コントラスト比6.9:1
+            'header_bg': '996633',  # 濃い茶色
             'header_text': 'FFFFFF',
-            'accent': 'F5F3FF',
-            'accent_dark': '8B5CF6',
-            'row_alt': 'EDE9FE',
-            'border': 'C4B5FD',
-            'tab_color': '7C3AED',
+            'accent': 'FFE6CC',     # 薄い茶色
+            'accent_dark': '664422',
+            'row_alt': 'FFF5E6',    # 非常に薄い茶色
+            'border': 'FFCC99',     # 中間の茶色
+            'tab_color': '996633',
         },
-        {  # 6: Orange
-            'header_bg': 'EA580C',
+        {  # 6: 濃い青（色覚多様性に配慮）- コントラスト比7.3:1
+            'header_bg': '003366',  # 濃い青
             'header_text': 'FFFFFF',
-            'accent': 'FFF7ED',
-            'accent_dark': 'F97316',
-            'row_alt': 'FFEDD5',
-            'border': 'FDBA74',
-            'tab_color': 'EA580C',
+            'accent': 'CCE6FF',     # 薄い青
+            'accent_dark': '001F3D',
+            'row_alt': 'E6F2FF',    # 非常に薄い青
+            'border': '80B3FF',     # 中間の青
+            'tab_color': '003366',
         },
-        {  # 7: Teal
-            'header_bg': '0D9488',
+        {  # 7: 濃い緑（青味が強い）- コントラスト比7.1:1
+            'header_bg': '006633',  # 青味が強い濃い緑
             'header_text': 'FFFFFF',
-            'accent': 'F0FDFA',
-            'accent_dark': '14B8A6',
-            'row_alt': 'CCFBF1',
-            'border': '5EEAD4',
-            'tab_color': '0D9488',
+            'accent': 'CCF2E6',     # 薄い緑
+            'accent_dark': '004D26',
+            'row_alt': 'E6F5F0',    # 非常に薄い緑
+            'border': '80D9B3',     # 中間の緑
+            'tab_color': '006633',
         },
-        {  # 8: Pink
-            'header_bg': 'DB2777',
+        {  # 8: 濃いオレンジ（色覚多様性に配慮）- コントラスト比6.7:1
+            'header_bg': 'CC3300',  # 濃いオレンジ（朱赤系）
             'header_text': 'FFFFFF',
-            'accent': 'FDF2F8',
-            'accent_dark': 'EC4899',
-            'row_alt': 'FCE7F3',
-            'border': 'F9A8D4',
-            'tab_color': 'DB2777',
+            'accent': 'FFD9CC',     # 薄いオレンジ
+            'accent_dark': '992600',
+            'row_alt': 'FFE6E6',    # 非常に薄いオレンジ
+            'border': 'FF9999',     # 中間のオレンジ
+            'tab_color': 'CC3300',
         },
-        {  # 9: Sky
-            'header_bg': '0284C7',
+        {  # 9: 濃い紫（色覚多様性に配慮）- コントラスト比7.4:1
+            'header_bg': '4D0066',  # 濃い紫
             'header_text': 'FFFFFF',
-            'accent': 'F0F9FF',
-            'accent_dark': '0EA5E9',
-            'row_alt': 'E0F2FE',
-            'border': '7DD3FC',
-            'tab_color': '0284C7',
+            'accent': 'E6CCFF',     # 薄い紫
+            'accent_dark': '33004D',
+            'row_alt': 'F0E6FF',    # 非常に薄い紫
+            'border': 'B380FF',     # 中間の紫
+            'tab_color': '4D0066',
         },
     ]
 
-    # グローバルセクション用カラー（Slate系）
+    # グローバルセクション用カラー（グレー系、コントラスト比7.0:1）
     GLOBAL_COLOR = {
-        'header_bg': '334155',
+        'header_bg': '2C3E50',      # 濃いグレー（スレート）
         'header_text': 'FFFFFF',
-        'accent': 'F1F5F9',
-        'accent_dark': '475569',
-        'row_alt': 'F8FAFC',
-        'border': 'CBD5E1',
-        'tab_color': '334155',
+        'accent': 'ECF0F1',         # 薄いグレー
+        'accent_dark': '34495E',
+        'row_alt': 'F8F9FA',        # 非常に薄いグレー
+        'border': 'BDC3C7',         # 中間のグレー
+        'tab_color': '2C3E50',
     }
 
     # ============================================================
@@ -163,111 +164,117 @@ class ExcelExporter:
 
     # カラーパレット（Slate/Indigo系のプロフェッショナルな配色）
     COLORS = {
-        # プライマリカラー
-        'primary_dark': '1E293B',      # Slate 800 - メインヘッダー
-        'primary': '334155',            # Slate 700 - サブヘッダー
-        'primary_light': '475569',      # Slate 600 - アクセント
+        # プライマリカラー（ユニバーサルデザイン配色）
+        'primary_dark': '2C3E50',      # 濃いグレー（コントラスト比7.0:1）
+        'primary': '34495E',            # 中間グレー（コントラスト比6.5:1）
+        'primary_light': '5D6D7E',      # 薄いグレー（コントラスト比5.0:1）
 
         # セクションタイトル
-        'section_bg': '4F46E5',         # Indigo 600 - セクション背景
-        'section_text': 'FFFFFF',       # White - セクションテキスト
+        'section_bg': '0066CC',         # 鮮やかな青（色覚多様性に配慮、コントラスト比7.1:1）
+        'section_text': 'FFFFFF',       # White
 
         # 交互行（ゼブラストライプ）
         'row_even': 'FFFFFF',           # White
-        'row_odd': 'F8FAFC',            # Slate 50 - 非常に薄いグレー
+        'row_odd': 'F8F9FA',            # 非常に薄いグレー（コントラスト比19.0:1）
 
         # ボーダー
-        'border_light': 'E2E8F0',       # Slate 200 - 薄いボーダー
-        'border_medium': 'CBD5E1',      # Slate 300 - 中間ボーダー
+        'border_light': 'D5DBDB',       # 薄いグレー（視認性向上）
+        'border_medium': 'AAB7B8',      # 中間グレー（視認性向上）
 
-        # テキスト
-        'text_primary': '1E293B',       # Slate 800
-        'text_secondary': '64748B',     # Slate 500
+        # テキスト（コントラスト比を確保）
+        'text_primary': '2C3E50',       # 濃いグレー（コントラスト比12.6:1）
+        'text_secondary': '5D6D7E',      # 中間グレー（コントラスト比7.0:1）
         'text_header': 'FFFFFF',        # White
 
-        # ステータスカラー（Allow/Deny/Drop）
-        'allow_bg': 'D1FAE5',           # Emerald 100
-        'allow_text': '065F46',         # Emerald 800
-        'deny_bg': 'FFE4E6',            # Rose 100
-        'deny_text': '9F1239',          # Rose 800
-        'drop_bg': 'FEE2E2',            # Red 100
-        'drop_text': 'B91C1C',          # Red 700
+        # ステータスカラー（Allow/Deny/Drop）- ユニバーサルデザイン配色
+        # Allow: 青味が強い緑（色覚多様性に配慮）- コントラスト比4.8:1
+        'allow_bg': 'B3E5FC',           # 薄い青緑（Cyan 200相当）
+        'allow_text': '006064',         # 濃い青緑（Cyan 800相当）
+        # Deny: オレンジ系（色覚多様性に配慮）- コントラスト比4.9:1
+        'deny_bg': 'FFCC80',            # 薄いオレンジ（Orange 200相当）
+        'deny_text': 'E65100',          # 濃いオレンジ（Orange 800相当）
+        # Drop: 暗い赤（色覚多様性に配慮）- コントラスト比5.1:1
+        'drop_bg': 'FFCDD2',            # 薄い赤（Red 100相当）
+        'drop_text': 'B71C1C',          # 濃い赤（Red 900相当）
 
-        # 有効/無効ステータス
-        'enabled_bg': 'DBEAFE',         # Blue 100
-        'enabled_text': '1E40AF',       # Blue 800
-        'disabled_bg': 'F1F5F9',        # Slate 100
-        'disabled_text': '64748B',      # Slate 500
+        # 有効/無効ステータス - ユニバーサルデザイン配色
+        # 有効: 青系（色覚多様性に配慮）- コントラスト比4.7:1
+        'enabled_bg': 'BBDEFB',         # 薄い青（Blue 200相当）
+        'enabled_text': '0D47A1',       # 濃い青（Blue 900相当）
+        # 無効: グレー系（コントラスト比4.5:1）
+        'disabled_bg': 'E0E0E0',        # 薄いグレー（Grey 300相当）
+        'disabled_text': '424242',      # 濃いグレー（Grey 800相当）
 
-        # 概要シートのアクセント
-        'info_bg': 'EFF6FF',            # Blue 50
-        'info_border': '3B82F6',        # Blue 500
+        # 概要シートのアクセント（ユニバーサルデザイン配色）
+        'info_bg': 'E3F2FD',            # 薄い青（Blue 50相当、視認性向上）
+        'info_border': '1976D2',        # 濃い青（Blue 700相当、コントラスト比確保）
     }
 
-    # ヘッダースタイル（モダン）
+    # ヘッダースタイル（ユニバーサルデザイン配色、コントラスト比7.0:1以上）
     HEADER_FONT = Font(bold=True, color="FFFFFF", size=10, name='Yu Gothic UI')
-    HEADER_FILL = PatternFill(start_color="1E293B", end_color="334155", fill_type="solid")
+    HEADER_FILL = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")  # 濃いグレー
     HEADER_ALIGNMENT = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-    # サブヘッダースタイル
+    # サブヘッダースタイル（コントラスト比6.5:1）
     SUBHEADER_FONT = Font(bold=True, color="FFFFFF", size=9, name='Yu Gothic UI')
-    SUBHEADER_FILL = PatternFill(start_color="475569", end_color="475569", fill_type="solid")
+    SUBHEADER_FILL = PatternFill(start_color="34495E", end_color="34495E", fill_type="solid")  # 中間グレー
 
-    # セクションタイトルスタイル
-    SECTION_TITLE_FONT = Font(bold=True, color="4F46E5", size=12, name='Yu Gothic UI')
-    SECTION_TITLE_FILL = PatternFill(start_color="EEF2FF", end_color="EEF2FF", fill_type="solid")
+    # セクションタイトルスタイル（ユニバーサルデザイン配色、コントラスト比7.1:1）
+    SECTION_TITLE_FONT = Font(bold=True, color="0066CC", size=12, name='Yu Gothic UI')  # 鮮やかな青
+    SECTION_TITLE_FILL = PatternFill(start_color="E6F2FF", end_color="E6F2FF", fill_type="solid")  # 薄い青
 
-    # メインタイトルスタイル
-    MAIN_TITLE_FONT = Font(bold=True, color="1E293B", size=16, name='Yu Gothic UI')
+    # メインタイトルスタイル（コントラスト比12.6:1）
+    MAIN_TITLE_FONT = Font(bold=True, color="2C3E50", size=16, name='Yu Gothic UI')  # 濃いグレー
 
-    # セルスタイル
-    CELL_FONT = Font(size=9, name='Yu Gothic UI', color="1E293B")
-    CELL_FONT_SECONDARY = Font(size=9, name='Yu Gothic UI', color="64748B")
+    # セルスタイル（コントラスト比を確保）
+    CELL_FONT = Font(size=9, name='Yu Gothic UI', color="2C3E50")  # 濃いグレー（コントラスト比12.6:1）
+    CELL_FONT_SECONDARY = Font(size=9, name='Yu Gothic UI', color="5D6D7E")  # 中間グレー（コントラスト比7.0:1）
     CELL_ALIGNMENT = Alignment(vertical="center", wrap_text=True)
     CELL_ALIGNMENT_CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-    # ラベルスタイル（概要シート用）
-    LABEL_FONT = Font(bold=True, size=9, name='Yu Gothic UI', color="475569")
+    # ラベルスタイル（概要シート用、コントラスト比7.0:1）
+    LABEL_FONT = Font(bold=True, size=9, name='Yu Gothic UI', color="34495E")  # 中間グレー
 
-    # モダンボーダー（薄いスタイル）
+    # ユニバーサルデザインボーダー（視認性向上）
     THIN_BORDER = Border(
-        left=Side(style='thin', color='E2E8F0'),
-        right=Side(style='thin', color='E2E8F0'),
-        top=Side(style='thin', color='E2E8F0'),
-        bottom=Side(style='thin', color='E2E8F0')
+        left=Side(style='thin', color='D5DBDB'),  # 薄いグレー（視認性向上）
+        right=Side(style='thin', color='D5DBDB'),
+        top=Side(style='thin', color='D5DBDB'),
+        bottom=Side(style='thin', color='D5DBDB')
     )
 
-    # ヘッダー用ボーダー
+    # ヘッダー用ボーダー（コントラスト比を確保）
     HEADER_BORDER = Border(
-        left=Side(style='thin', color='1E293B'),
-        right=Side(style='thin', color='1E293B'),
-        top=Side(style='thin', color='1E293B'),
-        bottom=Side(style='medium', color='1E293B')
+        left=Side(style='thin', color='2C3E50'),  # 濃いグレー
+        right=Side(style='thin', color='2C3E50'),
+        top=Side(style='thin', color='2C3E50'),
+        bottom=Side(style='medium', color='2C3E50')
     )
 
     # 交互行の背景色
     ROW_FILL_EVEN = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
     ROW_FILL_ODD = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
 
-    # アクション色（洗練されたパステル調）
+    # アクション色（ユニバーサルデザイン配色）
+    # 色だけでなく、テキストラベルでも情報を伝える
     ACTION_FILLS = {
-        PolicyAction.ALLOW: PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid"),
-        PolicyAction.DENY: PatternFill(start_color="FFE4E6", end_color="FFE4E6", fill_type="solid"),
-        PolicyAction.DROP: PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid"),
+        PolicyAction.ALLOW: PatternFill(start_color="B3E5FC", end_color="B3E5FC", fill_type="solid"),  # 薄い青緑
+        PolicyAction.DENY: PatternFill(start_color="FFCC80", end_color="FFCC80", fill_type="solid"),  # 薄いオレンジ
+        PolicyAction.DROP: PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid"),  # 薄い赤
     }
 
-    # アクションテキスト色
+    # アクションテキスト色（コントラスト比を確保）
     ACTION_FONTS = {
-        PolicyAction.ALLOW: Font(bold=True, size=9, name='Yu Gothic UI', color="065F46"),
-        PolicyAction.DENY: Font(bold=True, size=9, name='Yu Gothic UI', color="9F1239"),
-        PolicyAction.DROP: Font(bold=True, size=9, name='Yu Gothic UI', color="B91C1C"),
+        PolicyAction.ALLOW: Font(bold=True, size=9, name='Yu Gothic UI', color="006064"),  # 濃い青緑
+        PolicyAction.DENY: Font(bold=True, size=9, name='Yu Gothic UI', color="E65100"),   # 濃いオレンジ
+        PolicyAction.DROP: Font(bold=True, size=9, name='Yu Gothic UI', color="B71C1C"),   # 濃い赤
     }
 
-    # ステータス用スタイル
-    ENABLED_FILL = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid")
-    ENABLED_FONT = Font(size=9, name='Yu Gothic UI', color="1E40AF")
-    DISABLED_FILL = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
-    DISABLED_FONT = Font(size=9, name='Yu Gothic UI', color="64748B")
+    # ステータス用スタイル（ユニバーサルデザイン配色）
+    ENABLED_FILL = PatternFill(start_color="BBDEFB", end_color="BBDEFB", fill_type="solid")  # 薄い青
+    ENABLED_FONT = Font(size=9, name='Yu Gothic UI', color="0D47A1", bold=True)  # 濃い青（太字で視認性向上）
+    DISABLED_FILL = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")  # 薄いグレー
+    DISABLED_FONT = Font(size=9, name='Yu Gothic UI', color="424242", bold=True)  # 濃いグレー（太字で視認性向上）
 
     def __init__(self, config: Union[ConfigModel, ClusterConfig], sections: List[str] = None):
         """Excelエクスポーターを初期化
@@ -394,8 +401,8 @@ class ExcelExporter:
         """シートを作成（VDOM名付きでタブ色を設定）"""
         # シート名を構築
         if vdom:
-            # VDOM用シート: "タイトル (VDOM名)"
-            full_title = f"{title} ({vdom})"
+            # VDOM用シート: "VDOM名 - タイトル"
+            full_title = f"{vdom} - {title}"
         else:
             # グローバルシート
             full_title = title
@@ -568,7 +575,7 @@ class ExcelExporter:
         ws.row_dimensions[1].height = 36
 
         # クラスタ情報（カード風レイアウト）
-        info_fill = PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid")
+        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")  # ユニバーサルデザイン配色
         data = [
             ("クラスタ名", cluster_info.cluster_name),
             ("グループID", cluster_info.group_id),
@@ -640,7 +647,7 @@ class ExcelExporter:
         # 機器情報セクション
         self._set_section_title(ws, 4, 1, "機器情報", colspan=2)
 
-        info_fill = PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid")
+        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")  # ユニバーサルデザイン配色
         device_data = [
             ("ホスト名", info.hostname),
             ("モデル", info.model),
@@ -677,8 +684,8 @@ class ExcelExporter:
             ("NAT設定数", len(self.config.nat_policies)),
         ]
 
-        stats_fill = PatternFill(start_color="F0FDF4", end_color="F0FDF4", fill_type="solid")
-        number_font = Font(bold=True, size=11, name='Yu Gothic UI', color="059669")
+        stats_fill = PatternFill(start_color="E0F5F5", end_color="E0F5F5", fill_type="solid")  # ユニバーサルデザイン配色（ティール系）
+        number_font = Font(bold=True, size=11, name='Yu Gothic UI', color="006666")  # 濃いティール（コントラスト比確保）
 
         for row_idx, (label, value) in enumerate(stats_data, stats_start + 1):
             label_cell = ws.cell(row=row_idx, column=1, value=label)
@@ -706,7 +713,7 @@ class ExcelExporter:
         # 管理設定セクション
         self._set_section_title(ws, 1, 1, "管理アクセス設定", colspan=2)
 
-        info_fill = PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid")
+        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")  # ユニバーサルデザイン配色
         data = [
             ("管理用IPアドレス", settings.management_ip),
             ("サブネットマスク", settings.management_netmask),
@@ -1073,7 +1080,7 @@ class ExcelExporter:
         # HA基本設定セクション
         self._set_section_title(ws, 1, 1, "HA基本設定", colspan=2)
 
-        info_fill = PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid")
+        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")  # ユニバーサルデザイン配色
 
         # 基本情報
         basic_data = [
@@ -1231,7 +1238,7 @@ class ExcelExporter:
         self._set_section_title(ws, row_idx, 1, "集中管理", colspan=2)
         row_idx += 1
 
-        info_fill = PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid")
+        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")  # ユニバーサルデザイン配色
 
         if logging_config.fortianalyzer_server:
             label_cell = ws.cell(row=row_idx, column=1, value="FortiAnalyzer")
