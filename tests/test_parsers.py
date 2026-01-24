@@ -76,7 +76,7 @@ class TestFortiGateParser:
 
         assert config.device_info.device_type == DeviceType.FORTIGATE
         assert config.device_info.hostname == "FW-TEST-01"
-        assert config.device_info.model == "FortiGate-60F"
+        assert config.device_info.model == "FortiGate 60F"
         assert config.device_info.os_version == "7.2.5"
 
     def test_parse_model_compact_code(self):
@@ -89,7 +89,7 @@ end
         parser = FortiGateParser()
         config = parser.parse_content(config_content, "test.conf")
 
-        assert config.device_info.model == "FortiGate-3301E"
+        assert config.device_info.model == "FortiGate 3301E"
 
     def test_parse_interfaces(self, sample_fortigate_config):
         """インターフェースのパース"""

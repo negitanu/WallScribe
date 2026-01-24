@@ -3,13 +3,17 @@
 """
 PDFエクスポーター
 HTMLExporterを再利用してHTMLを生成し、WeasyPrintでPDFに変換
+
+パフォーマンス最適化:
+- CSSオブジェクトのキャッシュ（WeasyPrintのCSS解析は重いため）
+- FontConfigurationの再利用
+- Bootstrap除外による軽量CSS使用
 """
 
 from pathlib import Path
 from typing import List, Optional, Union
 from datetime import datetime
 import logging
-import re
 
 from weasyprint import HTML, CSS
 from weasyprint.text.fonts import FontConfiguration
@@ -23,8 +27,9 @@ logger = logging.getLogger(__name__)
 # 静的ファイルのベースパス
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
-# グローバルキャッシュ（クラス変数として保持）
+# グローバルキャッシュ（パフォーマンス最適化）
 _pdf_css_cache: Optional[str] = None
+_pdf_css_object_cache: Optional[CSS] = None  # パース済みCSSオブジェクト
 _font_config_cache: Optional[FontConfiguration] = None
 
 
@@ -60,15 +65,20 @@ class PDFExporter:
 
         Returns:
             str: 出力ファイルパス
+
+        パフォーマンス最適化:
+        - CSSオブジェクトをキャッシュして再利用（解析コスト削減）
+        - FontConfigurationを再利用
+        - presentational_hints=Falseで高速化
         """
-        # HTMLを生成（PDF用に最適化）
+        # HTMLを生成（PDF用に最適化、Bootstrap除外で軽量）
         html_content = self.html_exporter.export()
 
-        # PDF用のCSSを取得（キャッシュから）
-        pdf_css = self._get_pdf_css()
+        # PDF用のCSSオブジェクトを取得（パース済みをキャッシュから）
+        pdf_css_obj = self._get_pdf_css_object()
 
-        # 動的なヘッダーCSSを生成
-        header_css = self._generate_header_css()
+        # 動的なヘッダーCSS（ホスト名・日付が変わるためキャッシュ不可）
+        header_css = CSS(string=self._generate_header_css())
 
         try:
             # FontConfigurationを再利用（キャッシュから）
@@ -80,7 +90,7 @@ class PDFExporter:
             # PDFを生成（最適化オプション付き）
             html_doc.write_pdf(
                 output_path,
-                stylesheets=[CSS(string=pdf_css), CSS(string=header_css)],
+                stylesheets=[pdf_css_obj, header_css],
                 font_config=font_config,
                 optimize_images=True,  # 画像最適化
                 presentational_hints=False,  # HTML属性からのスタイル推論を無効化（高速化）
@@ -120,9 +130,9 @@ class PDFExporter:
 
     @staticmethod
     def _get_pdf_css() -> str:
-        """PDF用のCSSを返す（キャッシュから読み込み）"""
+        """PDF用のCSS文字列を返す（キャッシュから読み込み）"""
         global _pdf_css_cache
-        
+
         if _pdf_css_cache is None:
             css_path = STATIC_DIR / "css" / "pdf.css"
             try:
@@ -131,8 +141,24 @@ class PDFExporter:
             except FileNotFoundError:
                 logger.warning(f"PDF用CSSファイルが見つかりません: {css_path}")
                 _pdf_css_cache = PDFExporter._get_fallback_pdf_css()
-        
+
         return _pdf_css_cache
+
+    @staticmethod
+    def _get_pdf_css_object() -> CSS:
+        """PDF用のパース済みCSSオブジェクトを返す（キャッシュから再利用）
+
+        WeasyPrintのCSS解析は重い処理のため、一度パースしたCSSオブジェクトを
+        キャッシュして再利用することで、2回目以降のPDF生成を高速化します。
+        """
+        global _pdf_css_object_cache
+
+        if _pdf_css_object_cache is None:
+            css_string = PDFExporter._get_pdf_css()
+            _pdf_css_object_cache = CSS(string=css_string)
+            logger.debug("PDF用CSSオブジェクトをキャッシュに作成しました")
+
+        return _pdf_css_object_cache
 
     @staticmethod
     def _get_font_config() -> FontConfiguration:

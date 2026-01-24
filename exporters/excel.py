@@ -596,23 +596,26 @@ class ExcelExporter:
 
         # クラスタメンバー一覧
         member_start = len(data) + 5
-        self._set_section_title(ws, member_start, 1, "クラスタメンバー", colspan=5)
+        self._set_section_title(ws, member_start, 1, "クラスタメンバー", colspan=8)
 
-        member_headers = ["役割", "ホスト名", "優先度", "シリアル番号", "設定ファイル"]
+        member_headers = ["役割", "ホスト名", "モデル", "OSバージョン", "優先度", "HA管理IP", "シリアル番号", "設定ファイル"]
         self._set_header_row(ws, member_headers, member_start + 1)
 
         for row_idx, member in enumerate(cluster_info.members, member_start + 2):
             self._set_cell(ws, row_idx, 1, member.role.value, center=True)
             self._set_cell(ws, row_idx, 2, member.hostname)
-            self._set_cell(ws, row_idx, 3, member.priority, center=True)
-            self._set_cell(ws, row_idx, 4, member.serial_number or "-")
-            self._set_cell(ws, row_idx, 5, Path(member.source_file).name if member.source_file else "-")
+            self._set_cell(ws, row_idx, 3, member.model or "-")
+            self._set_cell(ws, row_idx, 4, member.os_version or "-", center=True)
+            self._set_cell(ws, row_idx, 5, member.priority if member.priority else "-", center=True)
+            self._set_cell(ws, row_idx, 6, member.ha_mgmt_ip or "-")
+            self._set_cell(ws, row_idx, 7, member.serial_number or "-")
+            self._set_cell(ws, row_idx, 8, Path(member.source_file).name if member.source_file else "-")
 
         # 設定差分
         differences = self.cluster_config.config_differences
         if differences:
             diff_start = member_start + len(cluster_info.members) + 4
-            self._set_section_title(ws, diff_start, 1, "設定差分", colspan=5)
+            self._set_section_title(ws, diff_start, 1, "設定差分（メンバー間の相違点）", colspan=5)
 
             diff_headers = ["セクション", "項目", "Primary", "Secondary", "備考"]
             self._set_header_row(ws, diff_headers, diff_start + 1)
@@ -1087,8 +1090,9 @@ class ExcelExporter:
             ("HAモード", ha.mode.value, False),
             ("グループID", ha.group_id, False),
             ("グループ名", ha.group_name or "-", False),
-            ("優先度", ha.priority, False),
+            ("優先度", ha.priority if ha.priority else "-", False),
             ("プリエンプト", ha.preempt, True),
+            ("HA管理ステータス", ha.ha_mgmt_status, True),
         ]
 
         row_idx = 2
@@ -1309,30 +1313,209 @@ class ExcelExporter:
         self._auto_column_width(ws)
 
     def _create_routes_sheet_for_vdom(self, vdom: str):
-        """指定VDOMのルーティングシートを作成"""
+        """指定VDOMのルーティングシートを作成（スタティック、OSPF、BGP、ポリシールート）"""
         routes = self._filter_by_vdom(self.config.routes, vdom)
-        if not routes:
+        ospf_list = self._filter_by_vdom(self.config.routing.ospf, vdom)
+        ospf6_list = self._filter_by_vdom(self.config.routing.ospf6, vdom)
+        bgp_list = self._filter_by_vdom(self.config.routing.bgp, vdom)
+        policy_routes = self._filter_by_vdom(self.config.routing.policy_routes, vdom)
+
+        if not any([routes, ospf_list, ospf6_list, bgp_list, policy_routes]):
             return
 
         ws = self._create_sheet("ルート", vdom)
+        row_idx = 1
 
-        headers = ["ルート名", "宛先ネットワーク", "ゲートウェイ", "インターフェース",
-                   "ディスタンス", "タイプ"]
-        self._set_header_row(ws, headers)
+        # スタティックルート
+        if routes:
+            self._set_section_title(ws, row_idx, 1, "スタティックルート", colspan=6)
+            headers = ["ルート名", "宛先ネットワーク", "ゲートウェイ", "インターフェース",
+                       "ディスタンス", "タイプ"]
+            self._set_header_row(ws, headers, row_idx + 1)
+            row_idx += 2
 
-        for row_idx, route in enumerate(routes, 2):
-            gateway_display = route.gateway
-            if not gateway_display and getattr(route, "route_type", "") in ("blackhole", "blackhole6"):
-                gateway_display = "blackhole"
+            for route in routes:
+                gateway_display = route.gateway
+                if not gateway_display and getattr(route, "route_type", "") in ("blackhole", "blackhole6"):
+                    gateway_display = "blackhole"
 
-            self._set_cell(ws, row_idx, 1, route.name)
-            self._set_cell(ws, row_idx, 2, route.destination)
-            self._set_cell(ws, row_idx, 3, gateway_display)
-            self._set_cell(ws, row_idx, 4, route.interface or "-")
-            self._set_cell(ws, row_idx, 5, route.distance, center=True)
-            self._set_cell(ws, row_idx, 6, route.route_type, center=True)
+                self._set_cell(ws, row_idx, 1, route.name)
+                self._set_cell(ws, row_idx, 2, route.destination)
+                self._set_cell(ws, row_idx, 3, gateway_display)
+                self._set_cell(ws, row_idx, 4, route.interface or "-")
+                self._set_cell(ws, row_idx, 5, route.distance, center=True)
+                self._set_cell(ws, row_idx, 6, route.route_type, center=True)
+                row_idx += 1
+            row_idx += 1
+
+        # OSPF設定
+        for ospf in ospf_list:
+            row_idx = self._add_ospf_section(ws, row_idx, ospf, "OSPF")
+
+        # OSPFv6設定
+        for ospf6 in ospf6_list:
+            row_idx = self._add_ospf_section(ws, row_idx, ospf6, "OSPFv3")
+
+        # BGP設定
+        for bgp in bgp_list:
+            row_idx = self._add_bgp_section(ws, row_idx, bgp)
+
+        # ポリシールート
+        if policy_routes:
+            self._set_section_title(ws, row_idx, 1, "ポリシールート", colspan=8)
+            headers = ["Seq", "送信元", "宛先", "プロトコル", "入力IF", "出力IF", "ゲートウェイ", "状態"]
+            self._set_header_row(ws, headers, row_idx + 1)
+            row_idx += 2
+
+            for pr in policy_routes:
+                self._set_cell(ws, row_idx, 1, pr.seq_num, center=True)
+                self._set_cell(ws, row_idx, 2, pr.src or "any")
+                self._set_cell(ws, row_idx, 3, pr.dst or "any")
+                self._set_cell(ws, row_idx, 4, pr.protocol or "any", center=True)
+                self._set_cell(ws, row_idx, 5, pr.input_device or "-")
+                self._set_cell(ws, row_idx, 6, pr.output_device or "-")
+                self._set_cell(ws, row_idx, 7, pr.gateway or "-")
+                self._set_status_cell(ws, row_idx, 8, pr.status)
+                row_idx += 1
 
         self._auto_column_width(ws)
+
+    def _add_ospf_section(self, ws, row_idx: int, ospf, title: str) -> int:
+        """OSPFセクションを追加"""
+        self._set_section_title(ws, row_idx, 1, f"{title}設定", colspan=4)
+        row_idx += 1
+
+        # 基本設定
+        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+        basic_data = [
+            ("Router ID", ospf.router_id or "-"),
+            ("デフォルトルート生成", "有効" if ospf.default_information_originate else "無効"),
+            ("デフォルトメトリック", ospf.default_metric or "-"),
+            ("ディスタンス", ospf.distance or "-"),
+        ]
+        for label, value in basic_data:
+            label_cell = ws.cell(row=row_idx, column=1, value=label)
+            label_cell.font = self.LABEL_FONT
+            label_cell.fill = info_fill
+            label_cell.border = self.THIN_BORDER
+            value_cell = ws.cell(row=row_idx, column=2, value=value)
+            value_cell.font = self.CELL_FONT
+            value_cell.fill = info_fill
+            value_cell.border = self.THIN_BORDER
+            row_idx += 1
+        row_idx += 1
+
+        # エリア
+        if ospf.areas:
+            self._set_section_title(ws, row_idx, 1, f"{title}エリア", colspan=4)
+            headers = ["エリアID", "タイプ", "認証", "ネットワーク"]
+            self._set_header_row(ws, headers, row_idx + 1)
+            row_idx += 2
+            for area in ospf.areas:
+                self._set_cell(ws, row_idx, 1, area.area_id)
+                self._set_cell(ws, row_idx, 2, area.area_type, center=True)
+                self._set_cell(ws, row_idx, 3, area.authentication or "-", center=True)
+                self._set_cell(ws, row_idx, 4, ", ".join(area.networks) if area.networks else "-")
+                row_idx += 1
+            row_idx += 1
+
+        # インターフェース
+        if ospf.interfaces:
+            self._set_section_title(ws, row_idx, 1, f"{title}インターフェース", colspan=6)
+            headers = ["名前", "インターフェース", "エリア", "コスト", "優先度", "パッシブ"]
+            self._set_header_row(ws, headers, row_idx + 1)
+            row_idx += 2
+            for iface in ospf.interfaces:
+                self._set_cell(ws, row_idx, 1, iface.name)
+                self._set_cell(ws, row_idx, 2, iface.interface)
+                self._set_cell(ws, row_idx, 3, iface.area)
+                self._set_cell(ws, row_idx, 4, iface.cost or "-", center=True)
+                self._set_cell(ws, row_idx, 5, iface.priority or "-", center=True)
+                self._set_status_cell(ws, row_idx, 6, iface.passive)
+                row_idx += 1
+            row_idx += 1
+
+        # 再配布
+        if ospf.redistributes:
+            self._set_section_title(ws, row_idx, 1, f"{title}再配布", colspan=4)
+            headers = ["プロトコル", "状態", "メトリック", "ルートマップ"]
+            self._set_header_row(ws, headers, row_idx + 1)
+            row_idx += 2
+            for redist in ospf.redistributes:
+                self._set_cell(ws, row_idx, 1, redist.protocol)
+                self._set_status_cell(ws, row_idx, 2, redist.status)
+                self._set_cell(ws, row_idx, 3, redist.metric or "-", center=True)
+                self._set_cell(ws, row_idx, 4, redist.routemap or "-")
+                row_idx += 1
+            row_idx += 1
+
+        return row_idx
+
+    def _add_bgp_section(self, ws, row_idx: int, bgp) -> int:
+        """BGPセクションを追加"""
+        self._set_section_title(ws, row_idx, 1, "BGP設定", colspan=4)
+        row_idx += 1
+
+        # 基本設定
+        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+        basic_data = [
+            ("AS番号", bgp.as_number or "-"),
+            ("Router ID", bgp.router_id or "-"),
+        ]
+        for label, value in basic_data:
+            label_cell = ws.cell(row=row_idx, column=1, value=label)
+            label_cell.font = self.LABEL_FONT
+            label_cell.fill = info_fill
+            label_cell.border = self.THIN_BORDER
+            value_cell = ws.cell(row=row_idx, column=2, value=value)
+            value_cell.font = self.CELL_FONT
+            value_cell.fill = info_fill
+            value_cell.border = self.THIN_BORDER
+            row_idx += 1
+        row_idx += 1
+
+        # ネイバー
+        if bgp.neighbors:
+            self._set_section_title(ws, row_idx, 1, "BGPネイバー", colspan=6)
+            headers = ["ネイバーIP", "リモートAS", "説明", "Next-Hop-Self", "ルートマップ(IN)", "ルートマップ(OUT)"]
+            self._set_header_row(ws, headers, row_idx + 1)
+            row_idx += 2
+            for neighbor in bgp.neighbors:
+                self._set_cell(ws, row_idx, 1, neighbor.ip)
+                self._set_cell(ws, row_idx, 2, neighbor.remote_as, center=True)
+                self._set_cell(ws, row_idx, 3, neighbor.description or "-")
+                self._set_status_cell(ws, row_idx, 4, neighbor.next_hop_self)
+                self._set_cell(ws, row_idx, 5, neighbor.route_map_in or "-")
+                self._set_cell(ws, row_idx, 6, neighbor.route_map_out or "-")
+                row_idx += 1
+            row_idx += 1
+
+        # ネットワーク
+        if bgp.networks:
+            self._set_section_title(ws, row_idx, 1, "BGPネットワーク", colspan=2)
+            headers = ["プレフィックス", "ルートマップ"]
+            self._set_header_row(ws, headers, row_idx + 1)
+            row_idx += 2
+            for network in bgp.networks:
+                self._set_cell(ws, row_idx, 1, network.prefix)
+                self._set_cell(ws, row_idx, 2, network.route_map or "-")
+                row_idx += 1
+            row_idx += 1
+
+        # 再配布
+        if bgp.redistributes:
+            self._set_section_title(ws, row_idx, 1, "BGP再配布", colspan=3)
+            headers = ["プロトコル", "状態", "ルートマップ"]
+            self._set_header_row(ws, headers, row_idx + 1)
+            row_idx += 2
+            for redist in bgp.redistributes:
+                self._set_cell(ws, row_idx, 1, redist.protocol)
+                self._set_status_cell(ws, row_idx, 2, redist.status)
+                self._set_cell(ws, row_idx, 3, redist.route_map or "-")
+                row_idx += 1
+            row_idx += 1
+
+        return row_idx
 
     def _create_objects_sheet_for_vdom(self, vdom: str):
         """指定VDOMのオブジェクト定義シートを作成"""

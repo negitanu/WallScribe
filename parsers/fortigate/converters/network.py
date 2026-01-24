@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-ネットワーク設定コンバーター（インターフェース、ルート、DHCP）
+ネットワーク設定コンバーター（インターフェース、ルート、DHCP、OSPF、BGP）
 """
 
-from typing import Dict
+from typing import Dict, List, Any
 
-from models.config import ConfigModel, Interface, Route, DHCPServer
+from models.config import (
+    ConfigModel, Interface, Route, DHCPServer,
+    OSPFSettings, OSPFArea, OSPFInterface, OSPFRedistribute,
+    BGPSettings, BGPNeighbor, BGPNetwork, BGPRedistribute,
+    PolicyRoute
+)
 from parsers.utils import get_nested, ip_to_cidr
 
 
@@ -201,3 +206,285 @@ def _add_dhcp_from_config(
                                 dhcp.exclude_ips.append(start)
 
                 config_model.dhcp_servers.append(dhcp)
+
+
+def convert_ospf(
+    config_model: ConfigModel,
+    parsed_config: Dict
+) -> None:
+    """OSPF設定を変換
+
+    Args:
+        config_model: 変換先のConfigModel
+        parsed_config: パース済み設定データ
+    """
+    # Global OSPF
+    global_cfg = parsed_config.get("global", {})
+    router_ospf = get_nested(global_cfg, "router ospf", default={})
+    if router_ospf:
+        ospf = _parse_ospf_config(router_ospf, "root")
+        if ospf:
+            config_model.routing.ospf.append(ospf)
+
+    router_ospf6 = get_nested(global_cfg, "router ospf6", default={})
+    if router_ospf6:
+        ospf6 = _parse_ospf_config(router_ospf6, "root")
+        if ospf6:
+            config_model.routing.ospf6.append(ospf6)
+
+    # VDOM OSPF
+    for vdom_name, vdom_cfg in parsed_config.get("vdom", {}).items():
+        router_ospf = get_nested(vdom_cfg, "router ospf", default={})
+        if router_ospf:
+            ospf = _parse_ospf_config(router_ospf, vdom_name)
+            if ospf:
+                config_model.routing.ospf.append(ospf)
+
+        router_ospf6 = get_nested(vdom_cfg, "router ospf6", default={})
+        if router_ospf6:
+            ospf6 = _parse_ospf_config(router_ospf6, vdom_name)
+            if ospf6:
+                config_model.routing.ospf6.append(ospf6)
+
+
+def _parse_ospf_config(ospf_config: Dict, vdom: str) -> OSPFSettings:
+    """OSPF設定をパース"""
+    ospf = OSPFSettings(
+        router_id=ospf_config.get("router-id", ""),
+        default_information_originate=ospf_config.get("default-information-originate", "") == "enable",
+        default_metric=str(ospf_config.get("default-metric", "")),
+        distance=str(ospf_config.get("distance", "")),
+        vdom=vdom
+    )
+
+    # Areas
+    areas = ospf_config.get("area", {})
+    if isinstance(areas, dict):
+        for area_id, area_data in areas.items():
+            if isinstance(area_data, dict):
+                area = OSPFArea(
+                    area_id=area_data.get("_name", area_id),
+                    area_type=area_data.get("stub-type", "normal"),
+                    authentication=area_data.get("authentication", "")
+                )
+                ospf.areas.append(area)
+
+    # OSPF Interfaces
+    ospf_interfaces = ospf_config.get("ospf-interface", {})
+    if isinstance(ospf_interfaces, dict):
+        for iface_name, iface_data in ospf_interfaces.items():
+            if isinstance(iface_data, dict):
+                iface = OSPFInterface(
+                    name=iface_data.get("_name", iface_name),
+                    interface=iface_data.get("interface", ""),
+                    area=iface_data.get("area", "0.0.0.0"),
+                    cost=str(iface_data.get("cost", "")),
+                    priority=str(iface_data.get("priority", "")),
+                    hello_interval=str(iface_data.get("hello-interval", "")),
+                    dead_interval=str(iface_data.get("dead-interval", "")),
+                    network_type=iface_data.get("network-type", ""),
+                    authentication=iface_data.get("authentication", ""),
+                    passive=iface_data.get("passive", "") == "enable"
+                )
+                ospf.interfaces.append(iface)
+
+    # Networks
+    networks = ospf_config.get("network", {})
+    if isinstance(networks, dict):
+        for net_id, net_data in networks.items():
+            if isinstance(net_data, dict):
+                prefix = net_data.get("prefix", "")
+                if prefix:
+                    prefix = ip_to_cidr(prefix)
+                area_id = net_data.get("area", "0.0.0.0")
+                # Areaに紐づけてネットワークを追加
+                for area in ospf.areas:
+                    if area.area_id == area_id:
+                        area.networks.append(prefix)
+                        break
+                else:
+                    # 該当Areaがない場合は新規作成
+                    new_area = OSPFArea(area_id=area_id, networks=[prefix])
+                    ospf.areas.append(new_area)
+
+    # Redistributes
+    for proto in ["connected", "static", "bgp", "rip", "isis"]:
+        redistribute = ospf_config.get("redistribute", {}).get(proto, {}) if isinstance(ospf_config.get("redistribute"), dict) else {}
+        # 直接取得も試みる
+        if not redistribute:
+            redistribute_section = get_nested(ospf_config, f"redistribute {proto}", default={})
+            if redistribute_section:
+                redistribute = redistribute_section
+        if isinstance(redistribute, dict):
+            status = redistribute.get("status", "") == "enable"
+            if status or redistribute:
+                ospf.redistributes.append(OSPFRedistribute(
+                    protocol=proto,
+                    status=status,
+                    metric=str(redistribute.get("metric", "")),
+                    metric_type=str(redistribute.get("metric-type", "")),
+                    routemap=redistribute.get("routemap", "")
+                ))
+
+    # Passive interfaces
+    passive_iface = ospf_config.get("passive-interface", [])
+    if isinstance(passive_iface, str):
+        ospf.passive_interfaces = [passive_iface]
+    elif isinstance(passive_iface, list):
+        ospf.passive_interfaces = passive_iface
+
+    return ospf
+
+
+def convert_bgp(
+    config_model: ConfigModel,
+    parsed_config: Dict
+) -> None:
+    """BGP設定を変換
+
+    Args:
+        config_model: 変換先のConfigModel
+        parsed_config: パース済み設定データ
+    """
+    # Global BGP
+    global_cfg = parsed_config.get("global", {})
+    router_bgp = get_nested(global_cfg, "router bgp", default={})
+    if router_bgp:
+        bgp = _parse_bgp_config(router_bgp, "root")
+        if bgp:
+            config_model.routing.bgp.append(bgp)
+
+    # VDOM BGP
+    for vdom_name, vdom_cfg in parsed_config.get("vdom", {}).items():
+        router_bgp = get_nested(vdom_cfg, "router bgp", default={})
+        if router_bgp:
+            bgp = _parse_bgp_config(router_bgp, vdom_name)
+            if bgp:
+                config_model.routing.bgp.append(bgp)
+
+
+def _parse_bgp_config(bgp_config: Dict, vdom: str) -> BGPSettings:
+    """BGP設定をパース"""
+    bgp = BGPSettings(
+        as_number=str(bgp_config.get("as", "")),
+        router_id=bgp_config.get("router-id", ""),
+        vdom=vdom
+    )
+
+    # Neighbors
+    neighbors = bgp_config.get("neighbor", {})
+    if isinstance(neighbors, dict):
+        for neighbor_ip, neighbor_data in neighbors.items():
+            if isinstance(neighbor_data, dict):
+                neighbor = BGPNeighbor(
+                    ip=neighbor_data.get("_name", neighbor_ip),
+                    remote_as=str(neighbor_data.get("remote-as", "")),
+                    description=neighbor_data.get("description", ""),
+                    update_source=neighbor_data.get("update-source", ""),
+                    ebgp_multihop=str(neighbor_data.get("ebgp-multihop", "")),
+                    next_hop_self=neighbor_data.get("next-hop-self", "") == "enable",
+                    soft_reconfiguration=neighbor_data.get("soft-reconfiguration", "") == "enable",
+                    route_map_in=neighbor_data.get("route-map-in", ""),
+                    route_map_out=neighbor_data.get("route-map-out", ""),
+                    activate=neighbor_data.get("activate", "") != "disable",
+                    shutdown=neighbor_data.get("shutdown", "") == "enable"
+                )
+                bgp.neighbors.append(neighbor)
+
+    # Networks
+    networks = bgp_config.get("network", {})
+    if isinstance(networks, dict):
+        for net_id, net_data in networks.items():
+            if isinstance(net_data, dict):
+                prefix = net_data.get("prefix", "")
+                if prefix:
+                    prefix = ip_to_cidr(prefix)
+                network = BGPNetwork(
+                    prefix=prefix,
+                    route_map=net_data.get("route-map", "")
+                )
+                bgp.networks.append(network)
+
+    # Redistributes
+    for proto in ["connected", "static", "ospf", "rip", "isis"]:
+        redistribute = get_nested(bgp_config, f"redistribute {proto}", default={})
+        if isinstance(redistribute, dict):
+            status = redistribute.get("status", "") == "enable"
+            if status or redistribute:
+                bgp.redistributes.append(BGPRedistribute(
+                    protocol=proto,
+                    status=status,
+                    route_map=redistribute.get("route-map", "")
+                ))
+
+    return bgp
+
+
+def convert_policy_routes(
+    config_model: ConfigModel,
+    parsed_config: Dict
+) -> None:
+    """ポリシールートを変換
+
+    Args:
+        config_model: 変換先のConfigModel
+        parsed_config: パース済み設定データ
+    """
+    # Global Policy routes
+    global_cfg = parsed_config.get("global", {})
+    policy_route = get_nested(global_cfg, "router policy", default={})
+    _add_policy_routes(config_model, policy_route, "root")
+
+    # VDOM Policy routes
+    for vdom_name, vdom_cfg in parsed_config.get("vdom", {}).items():
+        policy_route = get_nested(vdom_cfg, "router policy", default={})
+        _add_policy_routes(config_model, policy_route, vdom_name)
+
+
+def _add_policy_routes(
+    config_model: ConfigModel,
+    policy_route: Dict,
+    vdom: str
+) -> None:
+    """ポリシールート設定を追加"""
+    if isinstance(policy_route, dict):
+        for route_id, route_data in policy_route.items():
+            if isinstance(route_data, dict):
+                # src/dstの処理
+                src = route_data.get("src", "")
+                if isinstance(src, list):
+                    src = " ".join(str(x) for x in src)
+                elif src:
+                    src = ip_to_cidr(src)
+
+                dst = route_data.get("dst", "")
+                if isinstance(dst, list):
+                    dst = " ".join(str(x) for x in dst)
+                elif dst:
+                    dst = ip_to_cidr(dst)
+
+                # input-device / output-device
+                input_dev = route_data.get("input-device", "")
+                if isinstance(input_dev, list):
+                    input_dev = ", ".join(input_dev)
+
+                output_dev = route_data.get("output-device", "")
+                if isinstance(output_dev, list):
+                    output_dev = ", ".join(output_dev)
+
+                policy = PolicyRoute(
+                    seq_num=route_data.get("_name", route_id),
+                    src=src,
+                    src_negate=route_data.get("src-negate", "") == "enable",
+                    dst=dst,
+                    dst_negate=route_data.get("dst-negate", "") == "enable",
+                    protocol=str(route_data.get("protocol", "")),
+                    input_device=input_dev,
+                    output_device=output_dev,
+                    gateway=route_data.get("gateway", ""),
+                    action=route_data.get("action", "permit"),
+                    status=route_data.get("status", "") != "disable",
+                    comments=route_data.get("comments", ""),
+                    vdom=vdom
+                )
+                config_model.routing.policy_routes.append(policy)

@@ -18,6 +18,9 @@ from .converters import (
     convert_interfaces,
     convert_routes,
     convert_dhcp,
+    convert_ospf,
+    convert_bgp,
+    convert_policy_routes,
     convert_objects,
     convert_policies,
     convert_local_in_policies,
@@ -219,28 +222,29 @@ class FortiGateParser(BaseConfigParser):
 
     def _format_model_name(self, prefix: str, model_code: str) -> str:
         """モデルコードから読みやすいモデル名に変換
-        
+
         Args:
             prefix: FG または FGT
             model_code: 33E1, 60F などのモデルコード
-        
+
         Returns:
-            フォーマットされたモデル名（例: FortiGate-3301E, FortiGate-60F）
+            フォーマットされたモデル名（例: FortiGate 3301E, FortiGate 60F）
+            ※Fortinetデータシート形式（スペース区切り）
         """
         if not model_code:
             return "FortiGate"
 
         # FortiOSのconfig-versionヘッダーでは、機種コードが省略形になることがある。
-        # 例: FG33E1 は FortiGate-3301E を指す（= 2桁数字 + 1文字 + 1桁数字 の並び）
+        # 例: FG33E1 は FortiGate 3301E を指す（= 2桁数字 + 1文字 + 1桁数字 の並び）
         compact_match = re.fullmatch(r'(\d{2})([A-Z])(\d)', model_code)
         if compact_match:
             two_digits, series_letter, last_digit = compact_match.groups()
             # 33E1 -> 3301E（文字の位置を末尾へ、数字は 2桁 + 0 + 1桁 の並び）
             model_suffix = f"{two_digits}0{last_digit}{series_letter}"
-            return f"FortiGate-{model_suffix}"
+            return f"FortiGate {model_suffix}"
 
         # それ以外（例: 60F, 100F, 1100E, 3000F など）は、そのまま表示名にする
-        return f"FortiGate-{model_code}"
+        return f"FortiGate {model_code}"
 
     def _parse_header(self) -> None:
         """ヘッダー情報をパース"""
@@ -356,6 +360,9 @@ class FortiGateParser(BaseConfigParser):
         convert_system_settings(self.config_model, self.parsed_config)
         convert_interfaces(self.config_model, self.parsed_config)
         convert_routes(self.config_model, self.parsed_config)
+        convert_ospf(self.config_model, self.parsed_config)
+        convert_bgp(self.config_model, self.parsed_config)
+        convert_policy_routes(self.config_model, self.parsed_config)
         convert_dhcp(self.config_model, self.parsed_config)
         convert_objects(self.config_model, self.parsed_config)
         convert_policies(self.config_model, self.parsed_config)

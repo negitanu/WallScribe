@@ -23,6 +23,13 @@ def convert_ha(
     Args:
         config_model: 変換先のConfigModel
         parsed_config: パース済み設定データ
+
+    Note:
+        FortiGate HA設定のデフォルト値（FortiOS 7.x）:
+        - priority: 128
+        - hb-interval: 2 (秒)
+        - hb-lost-threshold: 6
+        - override (preempt): disable
     """
     global_cfg = parsed_config.get("global", {})
     ha_config = get_nested(global_cfg, "system ha", default={})
@@ -41,27 +48,37 @@ def convert_ha(
         # HA管理インターフェースをパース
         ha_mgmt_interfaces = _parse_ha_mgmt_interfaces(ha_config)
 
+        # HA管理インターフェース有効化状態
+        ha_mgmt_status = ha_config.get("ha-mgmt-status", "") == "enable"
+
         # セッション同期設定
         session_pickup = ha_config.get("session-pickup", "") == "enable"
 
-        # ハートビート間隔と閾値
-        hb_interval = str(ha_config.get("hb-interval", ""))
-        hb_lost_threshold = str(ha_config.get("hb-lost-threshold", ""))
+        # ハートビート間隔と閾値（デフォルト値: 2秒, 6回）
+        hb_interval_raw = ha_config.get("hb-interval", "")
+        hb_lost_threshold_raw = ha_config.get("hb-lost-threshold", "")
+        hb_interval = str(hb_interval_raw) if hb_interval_raw else "2"
+        hb_lost_threshold = str(hb_lost_threshold_raw) if hb_lost_threshold_raw else "6"
 
         # 暗号化・認証設定
         encryption = ha_config.get("encryption", "") == "enable"
         authentication = ha_config.get("authentication", "") == "enable"
         password = ha_config.get("password", "")
 
+        # 優先度（デフォルト値: 128）
+        priority_raw = ha_config.get("priority", "")
+        priority = str(priority_raw) if priority_raw else "128"
+
         config_model.ha = HASettings(
             mode=mode,
             group_id=str(ha_config.get("group-id", "")),
             group_name=str(ha_config.get("group-name", "")),
-            priority=str(ha_config.get("priority", "")),
+            priority=priority,
             monitor_interfaces=monitor,
             heartbeat_interfaces=hb_interfaces,
             heartbeat_interfaces_detail=hb_interfaces_detail,
             ha_mgmt_interfaces=ha_mgmt_interfaces,
+            ha_mgmt_status=ha_mgmt_status,
             preempt=ha_config.get("override", "") == "enable",
             session_sync=True,  # FortiGateではデフォルト有効
             session_pickup=session_pickup,
@@ -124,6 +141,12 @@ def _parse_hbdev(hbdev: Any) -> Tuple[List[str], List[HAHeartbeatInterface]]:
 def _parse_ha_mgmt_interfaces(ha_config: Dict) -> List[HAManagementInterface]:
     """HA管理インターフェース設定をパース
 
+    FortiGateのha-mgmt-interfacesセクションをパース:
+    - id: エントリID（1, 2など、各HAメンバーに対応）
+    - interface: 管理インターフェース名（例: port1）
+    - dst: 管理IPアドレスとサブネットマスク（例: "10.0.0.10 255.255.255.0"）
+    - gateway: デフォルトゲートウェイ
+
     Args:
         ha_config: HA設定辞書
 
@@ -136,21 +159,81 @@ def _parse_ha_mgmt_interfaces(ha_config: Dict) -> List[HAManagementInterface]:
     if isinstance(ha_mgmt_interfaces, dict):
         for mgmt_id, mgmt_data in ha_mgmt_interfaces.items():
             if isinstance(mgmt_data, dict):
+                dst = _format_dst_address(mgmt_data.get("dst", ""))
                 result.append(HAManagementInterface(
                     id=str(mgmt_id),
                     interface=mgmt_data.get("interface", ""),
+                    dst=dst,
                     gateway=mgmt_data.get("gateway", "")
                 ))
     elif isinstance(ha_mgmt_interfaces, list):
         for idx, mgmt_data in enumerate(ha_mgmt_interfaces):
             if isinstance(mgmt_data, dict):
+                dst = _format_dst_address(mgmt_data.get("dst", ""))
                 result.append(HAManagementInterface(
                     id=str(idx + 1),
                     interface=mgmt_data.get("interface", ""),
+                    dst=dst,
                     gateway=mgmt_data.get("gateway", "")
                 ))
 
     return result
+
+
+def _format_dst_address(dst_value) -> str:
+    """dst値をCIDR形式のIPアドレスに変換
+
+    FortiGateのdst設定は以下の形式:
+    - "10.0.0.10 255.255.255.0" (IP + サブネットマスク)
+    - ["10.0.0.10", "255.255.255.0"] (リスト形式)
+
+    Returns:
+        CIDR形式のIPアドレス（例: "10.0.0.10/24"）または空文字
+    """
+    if not dst_value:
+        return ""
+
+    ip_addr = ""
+    netmask = ""
+
+    if isinstance(dst_value, list) and len(dst_value) >= 2:
+        ip_addr = dst_value[0]
+        netmask = dst_value[1]
+    elif isinstance(dst_value, str):
+        parts = dst_value.split()
+        if len(parts) >= 2:
+            ip_addr = parts[0]
+            netmask = parts[1]
+        elif len(parts) == 1:
+            return parts[0]  # IPアドレスのみの場合
+
+    if ip_addr and netmask:
+        # サブネットマスクをCIDRプレフィックスに変換
+        prefix = _netmask_to_cidr(netmask)
+        if prefix:
+            return f"{ip_addr}/{prefix}"
+        return ip_addr
+
+    return ""
+
+
+def _netmask_to_cidr(netmask: str) -> str:
+    """サブネットマスクをCIDRプレフィックス長に変換
+
+    Args:
+        netmask: サブネットマスク（例: "255.255.255.0"）
+
+    Returns:
+        プレフィックス長（例: "24"）または空文字
+    """
+    try:
+        octets = netmask.split(".")
+        if len(octets) != 4:
+            return ""
+        binary = "".join(format(int(octet), "08b") for octet in octets)
+        return str(binary.count("1"))
+    except (ValueError, AttributeError):
+        return ""
 
 
 def _parse_ha_mode(mode_str: str) -> HAMode:

@@ -26,6 +26,10 @@ class HAMemberInfo:
     role: HARole = HARole.UNKNOWN
     priority: str = ""
     serial_number: str = ""
+    model: str = ""  # 機種名
+    os_version: str = ""  # OSバージョン
+    ha_mgmt_ip: str = ""  # HA管理IP（ha-mgmt-interfacesのゲートウェイ）
+    ha_mgmt_interface: str = ""  # HA管理インターフェース名
     config: Optional[ConfigModel] = None
     source_file: str = ""
 

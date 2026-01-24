@@ -1,7 +1,7 @@
 # WallScribe 仕様書
 
 **バージョン 1.1**  
-**最終更新日: 2026-01-22**
+**最終更新日: 2026-01-23**
 
 ## 1. 概要
 
@@ -74,6 +74,9 @@
 | LAG インターフェース  | `system interface (lag)`  | `network/interface/aggregate-ethernet`         | リンクアグリゲーション |
 | ゾーン                | -                         | `zone`                                         | セキュリティゾーン     |
 | スタティックルート    | `router static`           | `virtual-router/routing-table/ip/static-route` | ルーティング設定       |
+| OSPF / OSPFv6         | `router ospf` / `router ospf6` | `network/virtual-router/protocol/ospf`      | 動的ルーティング（OSPF） |
+| BGP                   | `router bgp`              | `network/virtual-router/protocol/bgp`         | 動的ルーティング（BGP） |
+| ポリシールート        | `router policy`           | `network/virtual-router/routing-table/ip/route` | ポリシーベースルーティング |
 | DHCP サーバー         | `system dhcp server`      | `network/dhcp`                                 | DHCP 設定              |
 
 #### カテゴリ 4: オブジェクト定義
@@ -141,6 +144,7 @@ FortiGateのファイアウォールポリシーで使用されるInternet Servi
 | HA モード            | `system ha > mode` | `high-availability/group/mode` | A-P / A-A          |
 | グループ ID          | `group-id`         | `group-id`                     | HA グループ識別子  |
 | 優先度               | `priority`         | `election-option/priority`     | マスター選出優先度 |
+| HA管理ステータス     | `ha-mgmt-status`   | -                              | HA管理インターフェースの状態 |
 | 監視インターフェース | `monitor`          | `link-monitoring`              | 障害検知対象       |
 
 #### カテゴリ 9: ログ・監視設定
@@ -180,6 +184,9 @@ FortiGateのファイアウォールポリシーで使用されるInternet Servi
 [セクション3: ネットワーク設定]
   - インターフェース（物理・VLAN・LAG: 名前、タイプ、役割、IPアドレス、VLAN ID、ゾーン、VDOM、許可アクセス）
   - スタティックルート（名前、宛先ネットワーク、ゲートウェイ、デバイス、VDOM）
+  - OSPF/OSPFv6設定（Router ID、エリア設定、インターフェース設定、再配布設定）
+  - BGP設定（AS番号、Router ID、ネイバー設定、ネットワーク広告、再配布設定）
+  - ポリシールート（Seq、送信元、宛先、プロトコル、入力IF、出力IF、ゲートウェイ、状態）
   - DHCPサーバー（インターフェース、IP払い出し範囲、サブネットマスク、除外IP、ゲートウェイ、DNS、リース時間）
 
 [セクション4: オブジェクト定義]
@@ -211,7 +218,7 @@ FortiGateのファイアウォールポリシーで使用されるInternet Servi
   - SSLインスペクションプロファイル（プロファイル名、有効/無効、モード）
 
 [セクション9: HA設定]
-  - HA基本設定（HAモード、グループID、優先度、プリエンプト）
+  - HA基本設定（HAモード、グループID、優先度、プリエンプト、HA管理ステータス）
   - 監視設定（監視インターフェース、HAインターフェース）
 
 [セクション10: ログ・監視設定]
@@ -298,7 +305,7 @@ Excel出力は、**グローバル設定**と**VDOM/vsys単位の設定**に分�
 
 | シート名         | 内容                             |
 | ---------------- | -------------------------------- |
-| クラスタ概要     | HAクラスタ情報（クラスタ構成時のみ） |
+| クラスタ概要     | HAクラスタ情報（メンバー詳細: 役割、ホスト名、モデル、OSバージョン、優先度、HA管理IP、シリアル番号、設定ファイル）、設定差分 |
 | 機器概要         | 機器基本情報、設定統計           |
 | システム設定     | 管理設定、NTP、DNS、管理者アカウント等 |
 | HA設定           | 高可用性設定                     |
@@ -311,7 +318,7 @@ Excel出力は、**グローバル設定**と**VDOM/vsys単位の設定**に分�
 | シート名         | 内容                             |
 | ---------------- | -------------------------------- |
 | IF (VDOM名)      | ネットワークインターフェース一覧 |
-| ルート (VDOM名)  | スタティックルート一覧           |
+| ルート (VDOM名)  | スタティックルート、OSPF、OSPFv6、BGP、ポリシールート |
 | オブジェクト (VDOM名) | アドレス/サービスオブジェクト    |
 | ポリシー (VDOM名) | ファイアウォールポリシー、Local-inポリシー |
 | NAT (VDOM名)     | NAT設定                          |
@@ -833,8 +840,11 @@ gunicorn>=20.0.0     # 本番用WSGIサーバー（オプション）
 
 | バージョン | 日付       | 変更内容                           |
 | ---------- | ---------- | ---------------------------------- |
-| 1.1        | 2026-01-22 | 現状版（v1.1）                     |
-|            |            | Excel 出力時の見栄えを修正           |
+| 1.1        | 2026-01-23 | 現状版（v1.1）                     |
+|            |            | - Excel出力: クラスタメンバーシートに「モデル」「OSバージョン」「HA管理IP」列を追加 |
+|            |            | - Excel出力: ルーティングシートにOSPF、OSPFv6、BGP、ポリシールート対応を追加 |
+|            |            | - Excel出力: HA設定に「HA管理ステータス」を追加 |
+|            |            | - HTML出力: CSSスタイリングを改善（ユニバーサルデザイン、視認性向上） |
 | 1.0        | 2026-01-20 | 現状版（v1.0）                     |
 |            |            | - HTML / PDF / Excel 出力 |
 |            |            | - Web: 非同期生成＋進捗表示（`/upload_async` + `/api/progress/<file_id>`） |

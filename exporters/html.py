@@ -14,7 +14,7 @@ from models.config import (
 )
 from models.cluster import ClusterConfig, HARole
 from exporters.utils import (
-    STATIC_DIR, load_isdb, load_css, load_search_js, load_tooltip_js, HtmlFormatter
+    STATIC_DIR, load_isdb, load_css, load_css_for_pdf, load_search_js, load_tooltip_js, HtmlFormatter
 )
 
 logger = logging.getLogger(__name__)
@@ -101,6 +101,12 @@ class HTMLExporter:
         """リストが空の場合はデフォルト値を表示"""
         default = self.DEFAULTS.get(default_key, '-')
         return HtmlFormatter.list_with_default(items, default)
+
+    def _list_to_str(self, items: List[Any], separator: str = ", ") -> str:
+        """リストを文字列に変換"""
+        if not items:
+            return ""
+        return separator.join(str(item) for item in items)
 
     def _resolve_isdb_name(self, isdb_id: str) -> str:
         """ISDB IDからアプリケーション名を解決"""
@@ -751,6 +757,9 @@ class HTMLExporter:
 {load_tooltip_js()}
     </script>'''
 
+        # PDF用は軽量CSS（Bootstrap除外）を使用して高速化
+        css_content = load_css_for_pdf() if self.for_pdf else load_css()
+
         return f'''<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -758,7 +767,7 @@ class HTMLExporter:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{self.escape(device_info.device_type.value)} パラメータシート - {self.escape(device_info.hostname)}</title>
     <style>
-{load_css()}
+{css_content}
     </style>
 </head>
 <body>
@@ -936,6 +945,11 @@ class HTMLExporter:
         routes = self._filter_by_vdom(self.config.routes, vdom) if vdom else self.config.routes
         dhcp_servers = self._filter_by_vdom(self.config.dhcp_servers, vdom) if vdom else self.config.dhcp_servers
 
+        # ルーティング設定
+        ospf_settings = self._filter_by_vdom(self.config.routing.ospf, vdom) if vdom else self.config.routing.ospf
+        bgp_settings = self._filter_by_vdom(self.config.routing.bgp, vdom) if vdom else self.config.routing.bgp
+        policy_routes = self._filter_by_vdom(self.config.routing.policy_routes, vdom) if vdom else self.config.routing.policy_routes
+
         # インターフェース
         iface_rows = ""
         for iface in interfaces:
@@ -995,6 +1009,28 @@ class HTMLExporter:
                     </table>
                 </div>'''
 
+        # OSPF設定
+        ospf_html = self._generate_ospf_html(ospf_settings)
+
+        # BGP設定
+        bgp_html = self._generate_bgp_html(bgp_settings)
+
+        # ポリシールート
+        policy_route_rows = ""
+        for pr in policy_routes:
+            src_display = self._list_to_str(pr.src_addresses) if pr.src_addresses else "any"
+            dst_display = self._list_to_str(pr.dst_addresses) if pr.dst_addresses else "any"
+            gateway_display = pr.gateway or "-"
+            interface_display = pr.output_interface or "-"
+            policy_route_rows += f'''<tr>
+                <td>{self.escape(str(pr.sequence_number))}</td>
+                <td>{self.escape(pr.name) if pr.name else '-'}</td>
+                <td>{self.escape(src_display)}</td>
+                <td>{self.escape(dst_display)}</td>
+                <td>{self.escape(interface_display)}</td>
+                <td><code>{self.escape(gateway_display)}</code></td>
+            </tr>'''
+
         return f'''
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} ネットワーク設定</h3>
@@ -1019,7 +1055,190 @@ class HTMLExporter:
                 <div class="info-grid">
                     {dhcp_cards if dhcp_cards else '<p>DHCPサーバー設定なし</p>'}
                 </div>
+
+                {ospf_html}
+
+                {bgp_html}
+
+                <h4>ポリシールート</h4>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered">
+                        <tr><th>シーケンス</th><th>名前</th><th>送信元</th><th>宛先</th><th>出力インターフェース</th><th>ゲートウェイ</th></tr>
+                        {policy_route_rows if policy_route_rows else '<tr><td colspan="6">ポリシールート設定なし</td></tr>'}
+                    </table>
+                </div>
             </div>'''
+
+    def _generate_ospf_html(self, ospf_settings: list) -> str:
+        """OSPF設定のHTML生成"""
+        if not ospf_settings:
+            return '''
+                <h4>OSPF設定</h4>
+                <p>OSPF設定なし</p>
+            '''
+
+        ospf_html = '<h4>OSPF設定</h4>'
+
+        for ospf in ospf_settings:
+            # 基本情報
+            ospf_html += f'''
+                <div class="info-card mb-3">
+                    <h5>OSPF基本設定</h5>
+                    <table class="table table-sm table-bordered">
+                        <tr><td>ルーターID</td><td><code>{self.escape(ospf.router_id) if ospf.router_id else '-'}</code></td></tr>
+                        <tr><td>デフォルトルート配布</td><td>{'有効' if ospf.default_information_originate else '無効'}</td></tr>
+                        <tr><td>デフォルトメトリック</td><td>{self.escape(ospf.default_metric) if ospf.default_metric else '-'}</td></tr>
+                        <tr><td>距離</td><td>{self.escape(ospf.distance) if ospf.distance else '-'}</td></tr>
+                    </table>
+                </div>'''
+
+            # エリア
+            if ospf.areas:
+                area_rows = ""
+                for area in ospf.areas:
+                    area_rows += f'''<tr>
+                        <td>{self.escape(area.area_id)}</td>
+                        <td>{self.escape(area.area_type) if area.area_type else 'normal'}</td>
+                        <tr><td colspan="2">認証: {self.escape(area.authentication) if area.authentication else 'なし'}</td></tr>
+                    </tr>'''
+                ospf_html += f'''
+                    <div class="table-responsive">
+                        <h5>OSPFエリア</h5>
+                        <table class="table table-striped table-hover table-bordered">
+                            <tr><th>エリアID</th><th>タイプ</th></tr>
+                            {area_rows}
+                        </table>
+                    </div>'''
+
+            # インターフェース
+            if ospf.interfaces:
+                iface_rows = ""
+                for iface in ospf.interfaces:
+                    iface_rows += f'''<tr>
+                        <td>{self.escape(iface.name)}</td>
+                        <td>{self.escape(iface.area) if iface.area else '-'}</td>
+                        <td>{self.escape(str(iface.cost)) if iface.cost else '-'}</td>
+                        <td>{self.escape(str(iface.priority)) if iface.priority else '-'}</td>
+                        <td>{self.escape(iface.network_type) if iface.network_type else '-'}</td>
+                    </tr>'''
+                ospf_html += f'''
+                    <div class="table-responsive">
+                        <h5>OSPFインターフェース</h5>
+                        <table class="table table-striped table-hover table-bordered">
+                            <tr><th>インターフェース</th><th>エリア</th><th>コスト</th><th>優先度</th><th>ネットワークタイプ</th></tr>
+                            {iface_rows}
+                        </table>
+                    </div>'''
+
+            # 再配布
+            if ospf.redistributes:
+                redist_rows = ""
+                for redist in ospf.redistributes:
+                    redist_rows += f'''<tr>
+                        <td>{self.escape(redist.source)}</td>
+                        <td>{'有効' if redist.status else '無効'}</td>
+                        <td>{self.escape(str(redist.metric)) if redist.metric else '-'}</td>
+                        <td>{self.escape(redist.metric_type) if redist.metric_type else '-'}</td>
+                        <td>{self.escape(redist.routemap) if redist.routemap else '-'}</td>
+                    </tr>'''
+                ospf_html += f'''
+                    <div class="table-responsive">
+                        <h5>OSPF再配布</h5>
+                        <table class="table table-striped table-hover table-bordered">
+                            <tr><th>ソース</th><th>ステータス</th><th>メトリック</th><th>メトリックタイプ</th><th>ルートマップ</th></tr>
+                            {redist_rows}
+                        </table>
+                    </div>'''
+
+            # パッシブインターフェース
+            if ospf.passive_interfaces:
+                passive_list = ', '.join(ospf.passive_interfaces)
+                ospf_html += f'''
+                    <div class="info-card mb-3">
+                        <h5>パッシブインターフェース</h5>
+                        <p>{self.escape(passive_list)}</p>
+                    </div>'''
+
+        return ospf_html
+
+    def _generate_bgp_html(self, bgp_settings: list) -> str:
+        """BGP設定のHTML生成"""
+        if not bgp_settings:
+            return '''
+                <h4>BGP設定</h4>
+                <p>BGP設定なし</p>
+            '''
+
+        bgp_html = '<h4>BGP設定</h4>'
+
+        for bgp in bgp_settings:
+            # 基本情報
+            bgp_html += f'''
+                <div class="info-card mb-3">
+                    <h5>BGP基本設定</h5>
+                    <table class="table table-sm table-bordered">
+                        <tr><td>AS番号</td><td><code>{self.escape(bgp.as_number) if bgp.as_number else '-'}</code></td></tr>
+                        <tr><td>ルーターID</td><td><code>{self.escape(bgp.router_id) if bgp.router_id else '-'}</code></td></tr>
+                    </table>
+                </div>'''
+
+            # ネイバー
+            if bgp.neighbors:
+                neighbor_rows = ""
+                for neighbor in bgp.neighbors:
+                    neighbor_rows += f'''<tr>
+                        <td><code>{self.escape(neighbor.ip)}</code></td>
+                        <td>{self.escape(neighbor.remote_as)}</td>
+                        <td>{self.escape(neighbor.description) if neighbor.description else '-'}</td>
+                        <td>{'有効' if neighbor.activate else '無効'}</td>
+                        <td>{self.escape(neighbor.route_map_in) if neighbor.route_map_in else '-'}</td>
+                        <td>{self.escape(neighbor.route_map_out) if neighbor.route_map_out else '-'}</td>
+                    </tr>'''
+                bgp_html += f'''
+                    <div class="table-responsive">
+                        <h5>BGPネイバー</h5>
+                        <table class="table table-striped table-hover table-bordered">
+                            <tr><th>IPアドレス</th><th>リモートAS</th><th>説明</th><th>有効</th><th>ルートマップIn</th><th>ルートマップOut</th></tr>
+                            {neighbor_rows}
+                        </table>
+                    </div>'''
+
+            # ネットワーク
+            if bgp.networks:
+                network_rows = ""
+                for network in bgp.networks:
+                    network_rows += f'''<tr>
+                        <td><code>{self.escape(network.prefix)}</code></td>
+                        <td>{self.escape(network.route_map) if network.route_map else '-'}</td>
+                    </tr>'''
+                bgp_html += f'''
+                    <div class="table-responsive">
+                        <h5>BGPネットワーク</h5>
+                        <table class="table table-striped table-hover table-bordered">
+                            <tr><th>プレフィックス</th><th>ルートマップ</th></tr>
+                            {network_rows}
+                        </table>
+                    </div>'''
+
+            # 再配布
+            if bgp.redistributes:
+                redist_rows = ""
+                for redist in bgp.redistributes:
+                    redist_rows += f'''<tr>
+                        <td>{self.escape(redist.source)}</td>
+                        <td>{'有効' if redist.status else '無効'}</td>
+                        <td>{self.escape(redist.routemap) if redist.routemap else '-'}</td>
+                    </tr>'''
+                bgp_html += f'''
+                    <div class="table-responsive">
+                        <h5>BGP再配布</h5>
+                        <table class="table table-striped table-hover table-bordered">
+                            <tr><th>ソース</th><th>ステータス</th><th>ルートマップ</th></tr>
+                            {redist_rows}
+                        </table>
+                    </div>'''
+
+        return bgp_html
 
     def _get_zone_class(self, zone: str) -> str:
         """ゾーン名からCSSクラスを取得"""
@@ -1527,7 +1746,10 @@ class HTMLExporter:
             member_rows += f'''<tr>
                 <td>{role_badge}</td>
                 <td><strong>{self.escape(member.hostname)}</strong></td>
-                <td>{self.escape(member.priority)}</td>
+                <td>{self.escape(member.model) if member.model else "-"}</td>
+                <td>{self.escape(member.os_version) if member.os_version else "-"}</td>
+                <td>{self.escape(member.priority) if member.priority else "-"}</td>
+                <td><code>{self.escape(member.ha_mgmt_ip) if member.ha_mgmt_ip else "-"}</code></td>
                 <td><code>{self.escape(member.serial_number) if member.serial_number else "-"}</code></td>
                 <td>{self.escape(Path(member.source_file).name)}</td>
             </tr>'''
@@ -1577,8 +1799,8 @@ class HTMLExporter:
                 <h4>クラスタメンバー</h4>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover table-bordered">
-                        <tr><th>役割</th><th>ホスト名</th><th>優先度</th><th>シリアル番号</th><th>設定ファイル</th></tr>
-                        {member_rows if member_rows else '<tr><td colspan="5">メンバー情報なし</td></tr>'}
+                        <tr><th>役割</th><th>ホスト名</th><th>モデル</th><th>OS Ver</th><th>優先度</th><th>HA管理IP</th><th>シリアル番号</th><th>設定ファイル</th></tr>
+                        {member_rows if member_rows else '<tr><td colspan="8">メンバー情報なし</td></tr>'}
                     </table>
                 </div>
                 {diff_section}
@@ -1629,7 +1851,8 @@ class HTMLExporter:
                 mgmt_rows += f'''<tr>
                     <td>{self.escape(mgmt.id)}</td>
                     <td>{self.escape(mgmt.interface)}</td>
-                    <td><code>{self.escape(mgmt.gateway)}</code></td>
+                    <td><code>{self.escape(mgmt.dst) if mgmt.dst else '-'}</code></td>
+                    <td><code>{self.escape(mgmt.gateway) if mgmt.gateway else '-'}</code></td>
                 </tr>'''
 
         mgmt_section = ""
@@ -1638,7 +1861,7 @@ class HTMLExporter:
                 <h4>HA管理インターフェース</h4>
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered">
-                        <tr><th>ID</th><th>インターフェース</th><th>ゲートウェイ</th></tr>
+                        <tr><th>ID</th><th>インターフェース</th><th>管理IPアドレス</th><th>ゲートウェイ</th></tr>
                         {mgmt_rows}
                     </table>
                 </div>'''
@@ -1654,8 +1877,9 @@ class HTMLExporter:
                             <tr><td>HAモード</td><td><strong>{self.escape(ha.mode.value)}</strong></td></tr>
                             <tr><td>グループID</td><td>{self.escape(ha.group_id)}</td></tr>
                             <tr><td>グループ名</td><td>{self.escape(ha.group_name) if ha.group_name else "-"}</td></tr>
-                            <tr><td>優先度</td><td>{self.escape(ha.priority)}</td></tr>
+                            <tr><td>優先度</td><td>{self.escape(ha.priority) if ha.priority else "-"}</td></tr>
                             <tr><td>プリエンプト</td><td>{'有効' if ha.preempt else '無効'}</td></tr>
+                            <tr><td>HA管理ステータス</td><td>{'有効' if ha.ha_mgmt_status else '無効'}</td></tr>
                         </table>
                     </div>
                     <div class="info-card">
@@ -1709,12 +1933,21 @@ class HTMLExporter:
                 <td>{trap_hosts_display}</td>
             </tr>'''
 
-        # 集中管理
-        central_mgmt = ""
+        # 集中管理（表形式）
+        central_mgmt_rows = ""
         if logging.fortianalyzer_server:
-            central_mgmt = f"FortiAnalyzer: <code>{self.escape(logging.fortianalyzer_server)}</code> (状態: {self.escape(logging.fortianalyzer_status)})"
-        elif logging.panorama_server:
-            central_mgmt = f"Panorama: <code>{self.escape(logging.panorama_server)}</code>"
+            status_display = self.escape(logging.fortianalyzer_status) if logging.fortianalyzer_status else "-"
+            central_mgmt_rows += f'''<tr>
+                <td>FortiAnalyzer</td>
+                <td><code>{self.escape(logging.fortianalyzer_server)}</code></td>
+                <td>{status_display}</td>
+            </tr>'''
+        if logging.panorama_server:
+            central_mgmt_rows += f'''<tr>
+                <td>Panorama</td>
+                <td><code>{self.escape(logging.panorama_server)}</code></td>
+                <td>-</td>
+            </tr>'''
 
         return f'''
             <div id="{section_id}" class="subsection">
@@ -1729,7 +1962,12 @@ class HTMLExporter:
                 </div>
 
                 <h4>集中管理</h4>
-                <p>{central_mgmt if central_mgmt else '集中管理設定なし（FortiAnalyzer/Panorama未設定）'}</p>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered">
+                        <tr><th>管理システム</th><th>サーバーIPアドレス</th><th>状態</th></tr>
+                        {central_mgmt_rows if central_mgmt_rows else '<tr><td colspan="3">集中管理設定なし（FortiAnalyzer/Panorama未設定）</td></tr>'}
+                    </table>
+                </div>
 
                 <h4>SNMP</h4>
                 <div class="table-responsive">

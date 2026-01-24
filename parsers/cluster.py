@@ -36,6 +36,9 @@ def parse_ha_cluster(file_paths: List[str]) -> ClusterConfig:
         if config is None:
             return ClusterConfig(is_cluster=False)
 
+        # HA管理インターフェースからIPとインターフェース名を取得
+        ha_mgmt_ip, ha_mgmt_interface = _get_ha_mgmt_info(config)
+
         return ClusterConfig(
             primary_config=config,
             is_cluster=False,
@@ -48,6 +51,10 @@ def parse_ha_cluster(file_paths: List[str]) -> ClusterConfig:
                     role=HARole.PRIMARY,
                     priority=config.ha.priority,
                     serial_number=config.device_info.serial_number,
+                    model=config.device_info.model,
+                    os_version=config.device_info.os_version,
+                    ha_mgmt_ip=ha_mgmt_ip,
+                    ha_mgmt_interface=ha_mgmt_interface,
                     config=config,
                     source_file=file_paths[0]
                 )]
@@ -89,6 +96,9 @@ def parse_ha_cluster_from_contents(
         if config is None:
             return ClusterConfig(is_cluster=False)
 
+        # HA管理インターフェースからIPとインターフェース名を取得
+        ha_mgmt_ip, ha_mgmt_interface = _get_ha_mgmt_info(config)
+
         return ClusterConfig(
             primary_config=config,
             is_cluster=False,
@@ -101,6 +111,10 @@ def parse_ha_cluster_from_contents(
                     role=HARole.PRIMARY,
                     priority=config.ha.priority,
                     serial_number=config.device_info.serial_number,
+                    model=config.device_info.model,
+                    os_version=config.device_info.os_version,
+                    ha_mgmt_ip=ha_mgmt_ip,
+                    ha_mgmt_interface=ha_mgmt_interface,
                     config=config,
                     source_file=filename
                 )]
@@ -151,6 +165,38 @@ def _parse_single_content(content: str, filename: str) -> Optional[ConfigModel]:
         return None
 
 
+def _get_ha_mgmt_info(config: ConfigModel) -> Tuple[str, str]:
+    """HA管理インターフェースからIPアドレスとインターフェース名を取得
+
+    FortiGateのha-mgmt-interfacesには複数のエントリが含まれることがあり、
+    各エントリは各HAメンバーに対応しています。
+    単一ファイルの場合は、すべてのHA管理IPを結合して表示します。
+
+    Args:
+        config: ConfigModel
+
+    Returns:
+        (HA管理IP, HA管理インターフェース名)のタプル
+    """
+    if not config.ha.ha_mgmt_interfaces:
+        return "", ""
+
+    # すべてのHA管理IPとインターフェースを収集
+    ips = []
+    interfaces = set()
+    for mgmt in config.ha.ha_mgmt_interfaces:
+        if mgmt.dst:
+            ips.append(mgmt.dst)
+        if mgmt.interface:
+            interfaces.add(mgmt.interface)
+
+    # IPは改行で結合、インターフェースは一意なものを結合
+    ha_mgmt_ip = "\n".join(ips) if ips else ""
+    ha_mgmt_interface = ", ".join(sorted(interfaces)) if interfaces else ""
+
+    return ha_mgmt_ip, ha_mgmt_interface
+
+
 def _build_cluster_config(
     configs: List[Tuple[str, ConfigModel]]
 ) -> ClusterConfig:
@@ -171,6 +217,8 @@ def _build_cluster_config(
     if not is_ha_cluster:
         # HAクラスタではない場合、最初のファイルをプライマリとして扱う
         file_path, config = configs[0]
+        # HA管理インターフェースからIPとインターフェース名を取得
+        ha_mgmt_ip, ha_mgmt_interface = _get_ha_mgmt_info(config)
         return ClusterConfig(
             primary_config=config,
             is_cluster=False,
@@ -183,6 +231,10 @@ def _build_cluster_config(
                     role=HARole.PRIMARY,
                     priority=config.ha.priority,
                     serial_number=config.device_info.serial_number,
+                    model=config.device_info.model,
+                    os_version=config.device_info.os_version,
+                    ha_mgmt_ip=ha_mgmt_ip,
+                    ha_mgmt_interface=ha_mgmt_interface,
                     config=config,
                     source_file=file_path
                 )]
@@ -270,32 +322,65 @@ def _determine_ha_roles(
     Returns:
         List[HAMemberInfo]: メンバー情報のリスト
     """
-    members = []
+    # まず優先度でソートするための一時リストを作成
+    temp_members = []
 
     for file_path, config in configs:
-        members.append(HAMemberInfo(
-            hostname=config.device_info.hostname,
-            role=HARole.UNKNOWN,
-            priority=config.ha.priority,
-            serial_number=config.device_info.serial_number,
-            config=config,
-            source_file=file_path
-        ))
+        temp_members.append({
+            "file_path": file_path,
+            "config": config,
+            "priority": config.ha.priority,
+        })
 
     # 優先度でソート（降順：高い方がPrimary）
-    def get_priority(member: HAMemberInfo) -> int:
+    def get_priority(item: dict) -> int:
         try:
-            return int(member.priority)
+            return int(item["priority"])
         except (ValueError, TypeError):
             return 0
 
-    members.sort(key=get_priority, reverse=True)
+    temp_members.sort(key=get_priority, reverse=True)
 
-    # 役割を割り当て
-    if members:
-        members[0].role = HARole.PRIMARY
-        for i in range(1, len(members)):
-            members[i].role = HARole.SECONDARY
+    # ソート後、各メンバーにHA管理インターフェースのエントリを順番に割り当て
+    # FortiGateのha-mgmt-interfacesはID=1がprimary、ID=2がsecondaryに対応
+    members = []
+    for idx, item in enumerate(temp_members):
+        config = item["config"]
+        file_path = item["file_path"]
+
+        # HA管理インターフェースからIPとインターフェース名を取得
+        ha_mgmt_ip = ""
+        ha_mgmt_interface = ""
+        if config.ha.ha_mgmt_interfaces:
+            # IDが(idx + 1)のエントリを探す（1-indexed）
+            target_id = str(idx + 1)
+            matched_entry = None
+            for mgmt in config.ha.ha_mgmt_interfaces:
+                if mgmt.id == target_id:
+                    matched_entry = mgmt
+                    break
+            # 見つからない場合はインデックスで取得
+            if matched_entry is None and idx < len(config.ha.ha_mgmt_interfaces):
+                matched_entry = config.ha.ha_mgmt_interfaces[idx]
+            if matched_entry:
+                ha_mgmt_ip = matched_entry.dst  # 管理IPアドレス（dstフィールド）
+                ha_mgmt_interface = matched_entry.interface
+
+        # 役割を割り当て
+        role = HARole.PRIMARY if idx == 0 else HARole.SECONDARY
+
+        members.append(HAMemberInfo(
+            hostname=config.device_info.hostname,
+            role=role,
+            priority=config.ha.priority,
+            serial_number=config.device_info.serial_number,
+            model=config.device_info.model,
+            os_version=config.device_info.os_version,
+            ha_mgmt_ip=ha_mgmt_ip,
+            ha_mgmt_interface=ha_mgmt_interface,
+            config=config,
+            source_file=file_path
+        ))
 
     return members
 
@@ -354,16 +439,37 @@ def _detect_config_differences(
             description="優先度はHA構成で異なることが想定されます"
         ))
 
+    # モデル名の差分（通常同一機種だが念のため）
+    if p_config.device_info.model != s_config.device_info.model:
+        differences.append(ConfigDifference(
+            section="機器情報",
+            item="モデル",
+            primary_value=p_config.device_info.model,
+            secondary_value=s_config.device_info.model,
+            description="機種が異なります"
+        ))
+
+    # OSバージョンの差分
+    if p_config.device_info.os_version != s_config.device_info.os_version:
+        differences.append(ConfigDifference(
+            section="機器情報",
+            item="OSバージョン",
+            primary_value=p_config.device_info.os_version,
+            secondary_value=s_config.device_info.os_version,
+            description="OSバージョンが異なります（HA構成では同一推奨）"
+        ))
+
     # 管理IPの差分（HA管理インターフェース）
-    p_mgmt_ips = [mgmt.gateway for mgmt in p_config.ha.ha_mgmt_interfaces]
-    s_mgmt_ips = [mgmt.gateway for mgmt in s_config.ha.ha_mgmt_interfaces]
-    if p_mgmt_ips != s_mgmt_ips:
+    # dstフィールドに管理IPアドレスが格納されている
+    p_mgmt_ips = [mgmt.dst for mgmt in p_config.ha.ha_mgmt_interfaces if mgmt.dst]
+    s_mgmt_ips = [mgmt.dst for mgmt in s_config.ha.ha_mgmt_interfaces if mgmt.dst]
+    if p_mgmt_ips or s_mgmt_ips:
         differences.append(ConfigDifference(
             section="HA設定",
-            item="HA管理インターフェース",
+            item="HA管理IP",
             primary_value=", ".join(p_mgmt_ips) if p_mgmt_ips else "-",
             secondary_value=", ".join(s_mgmt_ips) if s_mgmt_ips else "-",
-            description="HA管理インターフェースの設定差分"
+            description="HA管理インターフェースのIPアドレス（各機器固有）"
         ))
 
     # ポリシー数の差分（警告レベル）

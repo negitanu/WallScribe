@@ -116,6 +116,125 @@ class Route:
     distance: str = ""
     vdom: str = "root"
     route_type: str = "static"  # static, connected, ospf, bgp
+    priority: str = ""  # For policy routes
+    comment: str = ""
+
+
+@dataclass
+class OSPFArea:
+    """OSPFエリア"""
+    area_id: str = ""
+    area_type: str = "normal"  # normal, stub, nssa
+    authentication: str = ""
+    networks: List[str] = field(default_factory=list)
+
+
+@dataclass
+class OSPFInterface:
+    """OSPFインターフェース"""
+    name: str = ""
+    interface: str = ""
+    area: str = ""
+    cost: str = ""
+    priority: str = ""
+    hello_interval: str = ""
+    dead_interval: str = ""
+    network_type: str = ""  # broadcast, point-to-point, etc.
+    authentication: str = ""
+    passive: bool = False
+
+
+@dataclass
+class OSPFRedistribute:
+    """OSPF再配布設定"""
+    protocol: str = ""  # connected, static, bgp, rip
+    status: bool = False
+    metric: str = ""
+    metric_type: str = ""
+    routemap: str = ""
+
+
+@dataclass
+class OSPFSettings:
+    """OSPF設定"""
+    router_id: str = ""
+    default_information_originate: bool = False
+    default_metric: str = ""
+    distance: str = ""
+    areas: List[OSPFArea] = field(default_factory=list)
+    interfaces: List[OSPFInterface] = field(default_factory=list)
+    redistributes: List[OSPFRedistribute] = field(default_factory=list)
+    passive_interfaces: List[str] = field(default_factory=list)
+    vdom: str = "root"
+
+
+@dataclass
+class BGPNeighbor:
+    """BGPネイバー"""
+    ip: str = ""
+    remote_as: str = ""
+    description: str = ""
+    update_source: str = ""
+    ebgp_multihop: str = ""
+    next_hop_self: bool = False
+    soft_reconfiguration: bool = False
+    route_map_in: str = ""
+    route_map_out: str = ""
+    activate: bool = True
+    shutdown: bool = False
+
+
+@dataclass
+class BGPNetwork:
+    """BGPネットワーク"""
+    prefix: str = ""
+    route_map: str = ""
+
+
+@dataclass
+class BGPRedistribute:
+    """BGP再配布設定"""
+    protocol: str = ""  # connected, static, ospf, rip
+    status: bool = False
+    route_map: str = ""
+
+
+@dataclass
+class BGPSettings:
+    """BGP設定"""
+    as_number: str = ""
+    router_id: str = ""
+    neighbors: List[BGPNeighbor] = field(default_factory=list)
+    networks: List[BGPNetwork] = field(default_factory=list)
+    redistributes: List[BGPRedistribute] = field(default_factory=list)
+    vdom: str = "root"
+
+
+@dataclass
+class PolicyRoute:
+    """ポリシールート"""
+    seq_num: str = ""
+    src: str = ""
+    src_negate: bool = False
+    dst: str = ""
+    dst_negate: bool = False
+    protocol: str = ""
+    input_device: str = ""
+    output_device: str = ""
+    gateway: str = ""
+    action: str = ""  # permit, deny
+    status: bool = True
+    comments: str = ""
+    vdom: str = "root"
+
+
+@dataclass
+class RoutingSettings:
+    """ルーティング設定（まとめ）"""
+    ospf: List[OSPFSettings] = field(default_factory=list)
+    ospf6: List[OSPFSettings] = field(default_factory=list)
+    bgp: List[BGPSettings] = field(default_factory=list)
+    policy_routes: List[PolicyRoute] = field(default_factory=list)
 
 
 @dataclass
@@ -384,9 +503,17 @@ class HAHeartbeatInterface:
 
 @dataclass
 class HAManagementInterface:
-    """HA管理インターフェース"""
+    """HA管理インターフェース
+
+    FortiGateのha-mgmt-interfacesセクションに対応:
+    - id: エントリID（通常1または2、各HAメンバーに対応）
+    - interface: 管理に使用するインターフェース名
+    - dst: 管理IPアドレス（CIDR形式またはIPアドレス単体）
+    - gateway: デフォルトゲートウェイ
+    """
     id: str = ""
     interface: str = ""
+    dst: str = ""  # 管理IPアドレス（例: 192.168.1.10/24）
     gateway: str = ""
 
 
@@ -402,6 +529,7 @@ class HASettings:
     heartbeat_interfaces: List[str] = field(default_factory=list)
     heartbeat_interfaces_detail: List[HAHeartbeatInterface] = field(default_factory=list)
     ha_mgmt_interfaces: List[HAManagementInterface] = field(default_factory=list)
+    ha_mgmt_status: bool = False  # HA管理インターフェース有効化状態
     preempt: bool = False
     session_sync: bool = True
     session_pickup: bool = False
@@ -453,6 +581,7 @@ class ConfigModel:
     system_settings: SystemSettings = field(default_factory=SystemSettings)
     interfaces: List[Interface] = field(default_factory=list)
     routes: List[Route] = field(default_factory=list)
+    routing: RoutingSettings = field(default_factory=RoutingSettings)
     dhcp_servers: List[DHCPServer] = field(default_factory=list)
     objects: Objects = field(default_factory=Objects)
     firewall_policies: List[FirewallPolicy] = field(default_factory=list)
