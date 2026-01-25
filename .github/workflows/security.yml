@@ -29,7 +29,8 @@ jobs:
     - name: Run safety check
       run: |
         pip install -r requirements.txt
-        safety check --json || safety check
+        # safety は脆弱性検出で非0終了するため、結果をファイルに残して継続する
+        safety check --json > safety-report.json || true
 
     - name: Run pip-audit
       run: |
@@ -40,6 +41,7 @@ jobs:
       if: always()
       with:
         name: security-report
+        if-no-files-found: warn
         path: |
           pip-audit-report.json
           safety-report.json

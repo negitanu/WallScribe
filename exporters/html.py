@@ -65,6 +65,15 @@ class HTMLExporter:
         self.for_pdf = for_pdf
         # ISDBデータをキャッシュ（ループ内での関数呼び出し削減）
         self._isdb_cache = load_isdb()
+        # 設定内に登場する Internet Service 名（ISDB未整備でも識別できるように）
+        self._internet_service_names = set()
+        try:
+            for p in getattr(self.config, "firewall_policies", []) or []:
+                for n in getattr(p, "internet_service_name", []) or []:
+                    if n:
+                        self._internet_service_names.add(str(n))
+        except Exception:
+            pass
         # ツールチップ生成キャッシュ（同じオブジェクトの重複生成を防止）
         self._tooltip_cache: Dict[tuple, str] = {}
         # オブジェクト辞書を構築（ツールチップ用）
@@ -290,6 +299,9 @@ class HTMLExporter:
             return True
         # 数字のみのID（ISDB IDの可能性）
         if name.strip().isdigit():
+            return True
+        # 設定内に Internet Service 名として登場する（ISDBに無くても扱う）
+        if name in getattr(self, "_internet_service_names", set()):
             return True
         # ISDBデータに存在するかチェック（キャッシュ使用）
         if name in self._isdb_cache or name.strip() in self._isdb_cache:

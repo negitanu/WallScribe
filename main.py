@@ -15,7 +15,13 @@ from parsers.cluster import parse_ha_cluster
 from models.cluster import ClusterConfig
 from models.config import ConfigModel
 from exporters.html import HTMLExporter
-from exporters.excel import ExcelExporter
+try:
+    import exporters.excel as excel_module  # type: ignore
+    ExcelExporter = excel_module.ExcelExporter  # type: ignore[attr-defined]
+    EXCEL_AVAILABLE = bool(getattr(excel_module, "OPENPYXL_AVAILABLE", True))
+except ImportError:
+    ExcelExporter = None  # type: ignore[assignment]
+    EXCEL_AVAILABLE = False
 
 __version__ = "1.1"
 
@@ -165,6 +171,8 @@ def main():
         exporter.export(str(output_path))
         logger.info(f"HTML出力: {output_path}")
     elif args.format == 'excel':
+        if not EXCEL_AVAILABLE or ExcelExporter is None:
+            raise RuntimeError("Excel出力には openpyxl が必要です。requirements.txt をインストールしてください。")
         # 出力ファイルの拡張子を.xlsxに変更
         if output_path.suffix.lower() != '.xlsx':
             output_path = output_path.with_suffix('.xlsx')

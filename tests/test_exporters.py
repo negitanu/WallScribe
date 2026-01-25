@@ -9,8 +9,20 @@ import tempfile
 from pathlib import Path
 
 from exporters.html import HTMLExporter
-from exporters.excel import ExcelExporter
-from exporters.pdf import PDFExporter
+try:
+    import exporters.excel as excel_module  # type: ignore
+    ExcelExporter = excel_module.ExcelExporter  # type: ignore[attr-defined]
+    EXCEL_AVAILABLE = bool(getattr(excel_module, "OPENPYXL_AVAILABLE", True))
+except ImportError:
+    ExcelExporter = None  # type: ignore[assignment]
+    EXCEL_AVAILABLE = False
+
+try:
+    from exporters.pdf import PDFExporter  # type: ignore
+    PDF_AVAILABLE = True
+except ImportError:
+    PDFExporter = None  # type: ignore[assignment]
+    PDF_AVAILABLE = False
 from exporters.utils import HtmlFormatter, CacheManager
 
 
@@ -153,6 +165,8 @@ class TestExcelExporter:
 
     def test_export_to_file(self, sample_config_model):
         """ファイルとして出力"""
+        if not EXCEL_AVAILABLE or ExcelExporter is None:
+            pytest.skip("openpyxl が未導入のため ExcelExporter テストをスキップ")
         exporter = ExcelExporter(sample_config_model)
 
         with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as f:
@@ -171,6 +185,8 @@ class TestExcelExporter:
 
     def test_export_creates_sheets(self, sample_config_model):
         """必要なシートが作成されていることを確認"""
+        if not EXCEL_AVAILABLE or ExcelExporter is None:
+            pytest.skip("openpyxl が未導入のため ExcelExporter テストをスキップ")
         exporter = ExcelExporter(sample_config_model)
         workbook = exporter.export()
 
@@ -188,6 +204,8 @@ class TestExcelExporter:
 
     def test_overview_sheet_content(self, sample_config_model):
         """機器概要シートの内容確認"""
+        if not EXCEL_AVAILABLE or ExcelExporter is None:
+            pytest.skip("openpyxl が未導入のため ExcelExporter テストをスキップ")
         exporter = ExcelExporter(sample_config_model)
         workbook = exporter.export()
 
@@ -203,6 +221,8 @@ class TestExcelExporter:
 
     def test_policies_sheet_content(self, sample_config_model):
         """ポリシーシートの内容確認"""
+        if not EXCEL_AVAILABLE or ExcelExporter is None:
+            pytest.skip("openpyxl が未導入のため ExcelExporter テストをスキップ")
         exporter = ExcelExporter(sample_config_model)
         workbook = exporter.export()
 
@@ -222,6 +242,8 @@ class TestExcelExporter:
 
     def test_routes_sheet_contains_blackhole_gateway_label(self, sample_config_model):
         """blackhole ルートがゲートウェイ欄に明示されることを確認"""
+        if not EXCEL_AVAILABLE or ExcelExporter is None:
+            pytest.skip("openpyxl が未導入のため ExcelExporter テストをスキップ")
         from models.config import Route
 
         sample_config_model.routes.append(Route(
@@ -341,6 +363,8 @@ class TestCacheManager:
 
     def test_pdf_exporter(self, sample_config_model):
         """PDFエクスポーターのテスト"""
+        if not PDF_AVAILABLE or PDFExporter is None:
+            pytest.skip("weasyprint が未導入のため PDFExporter テストをスキップ")
         exporter = PDFExporter(sample_config_model)
         
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as f:
@@ -358,6 +382,8 @@ class TestCacheManager:
 
     def test_pdf_exporter_header_css_with_cluster_config(self, sample_config_model):
         """ClusterConfig を渡してもヘッダーCSS生成で落ちないこと"""
+        if not PDF_AVAILABLE or PDFExporter is None:
+            pytest.skip("weasyprint が未導入のため PDFExporter テストをスキップ")
         from models.cluster import ClusterConfig, HAClusterInfo
 
         cluster = ClusterConfig(
@@ -377,6 +403,8 @@ class TestCacheManager:
 
     def test_excel_export_with_sections(self, sample_config_model):
         """セクション指定でのExcel出力"""
+        if not EXCEL_AVAILABLE or ExcelExporter is None:
+            pytest.skip("openpyxl が未導入のため ExcelExporter テストをスキップ")
         exporter = ExcelExporter(sample_config_model, sections=["device_info", "policies"])
         workbook = exporter.export()
         

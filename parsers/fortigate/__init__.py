@@ -95,7 +95,6 @@ class FortiGateParser(BaseConfigParser):
 
     def _separate_config(self, lines: List[str]) -> None:
         """設定をglobalとvdomに分割"""
-        skip_flag = False
         global_flag = False
         vdom_flag = False
         vdom_name_flag = False
@@ -108,7 +107,6 @@ class FortiGateParser(BaseConfigParser):
             # ヘッダー情報
             if '#config-version=' in line:
                 self._parse_header_line(line)
-                skip_flag = True
                 continue
 
             if 'config global' in stripped:
@@ -117,7 +115,7 @@ class FortiGateParser(BaseConfigParser):
                 continue
             elif no_vdom_flag and 'config system global' in stripped:
                 global_flag = True
-                skip_flag = False
+                # 以降の行も global として処理する
 
             if 'config vdom' in stripped:
                 global_flag = False
@@ -133,8 +131,10 @@ class FortiGateParser(BaseConfigParser):
             if 'vdom-mode multi-vdom' in stripped:
                 no_vdom_flag = False
 
-            if skip_flag:
-                continue
+            # 最小構成（config firewall policy だけ等）の場合、
+            # 明示的な "config system global" が無くても global として扱う
+            if no_vdom_flag and (not global_flag) and (not vdom_flag) and stripped.startswith("config "):
+                global_flag = True
 
             if global_flag:
                 self.raw_config["global"].append(stripped)

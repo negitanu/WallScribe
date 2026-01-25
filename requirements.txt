@@ -17,7 +17,7 @@ werkzeug>=2.0.0
 defusedxml>=0.7.1
 
 # PDF output
-weasyprint>=62.0
+weasyprint>=61.2
 
 # Testing
 pytest>=7.0.0

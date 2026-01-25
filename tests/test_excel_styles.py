@@ -5,40 +5,17 @@ Excelスタイル定義のテスト
 """
 
 import pytest
-import sys
-from pathlib import Path
 
-# スタイル定義を直接インポート（excel.pyを経由しない）
-sys.path.insert(0, str(Path(__file__).parent.parent / 'exporters' / 'excel'))
-
-try:
-    from styles import (
-        VDOM_COLORS,
-        GLOBAL_COLOR,
-        COLORS,
-        HEADER_FONT,
-        HEADER_FILL,
-        ACTION_FILLS,
-        ACTION_FONTS,
-    )
-    from models.config import PolicyAction
-except ImportError:
-    # フォールバック: 直接インポート
-    import importlib.util
-    styles_path = Path(__file__).parent.parent / 'exporters' / 'excel' / 'styles.py'
-    spec = importlib.util.spec_from_file_location("styles", styles_path)
-    styles = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(styles)
-    
-    VDOM_COLORS = styles.VDOM_COLORS
-    GLOBAL_COLOR = styles.GLOBAL_COLOR
-    COLORS = styles.COLORS
-    HEADER_FONT = styles.HEADER_FONT
-    HEADER_FILL = styles.HEADER_FILL
-    ACTION_FILLS = styles.ACTION_FILLS
-    ACTION_FONTS = styles.ACTION_FONTS
-    
-    from models.config import PolicyAction
+from exporters.excel_styles import (
+    VDOM_COLORS,
+    GLOBAL_COLOR,
+    COLORS,
+    HEADER_FONT,
+    HEADER_FILL,
+    ACTION_FILLS,
+    ACTION_FONTS,
+)
+from models.config import PolicyAction
 
 
 class TestExcelStyles:

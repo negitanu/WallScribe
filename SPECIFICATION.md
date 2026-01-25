@@ -763,7 +763,7 @@ gunicorn -w 4 -b 0.0.0.0:8080 app:app
 # requirements.txt
 flask>=2.0.0         # Web フレームワーク
 openpyxl>=3.0.0      # Excel出力用
-weasyprint>=62.0     # PDF出力用
+weasyprint>=61.2     # PDF出力用
 jinja2>=3.0.0        # HTMLテンプレート
 gunicorn>=20.0.0     # 本番用WSGIサーバー（オプション）
 defusedxml>=0.7.1    # XXE対策（Palo Alto XML）
