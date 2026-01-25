@@ -26,14 +26,16 @@ WallScribe REST APIは、ファイアウォール設定ファイルからパラ�
 設定ファイルをアップロードしてパラメータシートを生成します。
 
 **リクエスト:**
+
 - Content-Type: `multipart/form-data`
 - パラメータ:
-  - `config_files[]`: 設定ファイル（複数可、.conf または .xml）
-  - `output_format`: 出力形式（html, pdf, excel、デフォルト: html）
-  - `ha_mode`: HAモード（auto, single, cluster、デフォルト: auto）
-  - `sections`: 出力するセクションのJSON配列（オプション）
+    - `config_files[]`: 設定ファイル（複数可、.conf または .xml）
+    - `output_format`: 出力形式（html, pdf, excel、デフォルト: html）
+    - `ha_mode`: HAモード（auto, single, cluster、デフォルト: auto）
+    - `sections`: 出力するセクションのJSON配列（オプション）
 
 **レスポンス:**
+
 ```json
 {
   "success": true,
@@ -45,6 +47,7 @@ WallScribe REST APIは、ファイアウォール設定ファイルからパラ�
 ```
 
 **ステータスコード:**
+
 - `202 Accepted`: アップロード受付成功
 - `400 Bad Request`: リクエストエラー
 - `429 Too Many Requests`: レート制限超過
@@ -57,6 +60,7 @@ WallScribe REST APIは、ファイアウォール設定ファイルからパラ�
 処理の進捗状況を取得します。
 
 **レスポンス:**
+
 ```json
 {
   "success": true,
@@ -76,6 +80,7 @@ WallScribe REST APIは、ファイアウォール設定ファイルからパラ�
 ファイルのステータス情報を取得します。
 
 **レスポンス:**
+
 ```json
 {
   "success": true,
@@ -91,13 +96,76 @@ WallScribe REST APIは、ファイアウォール設定ファイルからパラ�
 }
 ```
 
+#### v1 エイリアス
+
+- GET `/api/v1/progress/<file_id>`（`/api/progress/<file_id>` のエイリアス）
+- GET `/api/v1/status/<file_id>`（`/api/status/<file_id>` のエイリアス）
+
+### ジョブ管理
+
+#### GET `/api/v1/jobs`
+
+最近のジョブ一覧（メタデータ）を取得します。
+
+**クエリ:**
+
+- `limit`: 取得件数（デフォルト 50、最大 200）
+
+**レスポンス:**
+
+```json
+{
+  "success": true,
+  "jobs": [
+    {
+      "file_id": "550e8400-e29b-41d4-a716-446655440000",
+      "filename": "fortigate_param.html",
+      "status": "processing",
+      "created_at": "2026-01-25T09:38:31",
+      "file_count": 1,
+      "progress_percent": 45,
+      "progress_message": "設定ファイルを解析しています...",
+      "progress_stage": "parsing",
+      "result_url": "/result/550e8400-e29b-41d4-a716-446655440000",
+      "download_url": "/download/550e8400-e29b-41d4-a716-446655440000",
+      "preview_url": "/preview/550e8400-e29b-41d4-a716-446655440000",
+      "status_url": "/api/status/550e8400-e29b-41d4-a716-446655440000",
+      "progress_url": "/api/progress/550e8400-e29b-41d4-a716-446655440000"
+    }
+  ]
+}
+```
+
+#### GET `/api/v1/jobs/<file_id>`
+
+ジョブの詳細を取得します（一覧の1件分を単体で取得）。
+
+#### DELETE `/api/v1/jobs/<file_id>`
+
+ジョブに紐づく生成物（入力/出力/メタデータ）を削除します。
+
+**レスポンス:**
+
+```json
+{
+  "success": true,
+  "file_id": "550e8400-e29b-41d4-a716-446655440000",
+  "deleted_files": 3
+}
+```
+
 ### ダウンロード
 
 #### GET `/download/<file_id>`
 
 生成されたファイルをダウンロードします。
 
+#### GET `/api/v1/download/<file_id>`
+
+`/download/<file_id>` のエイリアスです。
+
 **レスポンス:**
+
 - Content-Type: ファイル形式に応じたMIMEタイプ
 - Content-Disposition: `attachment; filename="..."`
 
@@ -105,7 +173,12 @@ WallScribe REST APIは、ファイアウォール設定ファイルからパラ�
 
 生成されたファイルをプレビュー表示します。
 
+#### GET `/api/v1/preview/<file_id>`
+
+`/preview/<file_id>` のエイリアスです。
+
 **レスポンス:**
+
 - Content-Type: ファイル形式に応じたMIMEタイプ
 
 ### システム
@@ -115,8 +188,17 @@ WallScribe REST APIは、ファイアウォール設定ファイルからパラ�
 Prometheusメトリクスを取得します。
 
 **レスポンス:**
+
 - Content-Type: `text/plain; version=0.0.4; charset=utf-8`
 - Prometheus形式のメトリクスデータ
+
+#### GET `/api/v1/spec`
+
+Swagger 仕様（JSON）を返します。
+
+#### GET `/swagger.json`
+
+`/api/v1/spec` のエイリアスです。
 
 ## エラーレスポンス
 
@@ -155,6 +237,7 @@ APIドキュメントはSwagger UIで確認できます：
 
 - URL: `http://localhost:8080/apidocs`
 - インタラクティブなAPIテストが可能
+- 仕様(JSON): `http://localhost:8080/swagger.json`
 
 ## 使用例
 
