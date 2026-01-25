@@ -7,7 +7,7 @@ HAクラスタパーサー
 
 import logging
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 from models.config import ConfigModel, HAMode
 from models.cluster import (
@@ -323,7 +323,7 @@ def _determine_ha_roles(
         List[HAMemberInfo]: メンバー情報のリスト
     """
     # まず優先度でソートするための一時リストを作成
-    temp_members = []
+    temp_members: List[Dict[str, Any]] = []
 
     for file_path, config in configs:
         temp_members.append({
@@ -333,7 +333,7 @@ def _determine_ha_roles(
         })
 
     # 優先度でソート（降順：高い方がPrimary）
-    def get_priority(item: dict) -> int:
+    def get_priority(item: Dict[str, Any]) -> int:
         try:
             return int(item["priority"])
         except (ValueError, TypeError):
@@ -343,25 +343,25 @@ def _determine_ha_roles(
 
     # ソート後、各メンバーにHA管理インターフェースのエントリを順番に割り当て
     # FortiGateのha-mgmt-interfacesはID=1がprimary、ID=2がsecondaryに対応
-    members = []
+    members: List[HAMemberInfo] = []
     for idx, item in enumerate(temp_members):
-        config = item["config"]
-        file_path = item["file_path"]
+        member_config: ConfigModel = cast(ConfigModel, item["config"])
+        member_file_path: str = cast(str, item["file_path"])
 
         # HA管理インターフェースからIPとインターフェース名を取得
         ha_mgmt_ip = ""
         ha_mgmt_interface = ""
-        if config.ha.ha_mgmt_interfaces:
+        if member_config.ha.ha_mgmt_interfaces:
             # IDが(idx + 1)のエントリを探す（1-indexed）
             target_id = str(idx + 1)
             matched_entry = None
-            for mgmt in config.ha.ha_mgmt_interfaces:
+            for mgmt in member_config.ha.ha_mgmt_interfaces:
                 if mgmt.id == target_id:
                     matched_entry = mgmt
                     break
             # 見つからない場合はインデックスで取得
-            if matched_entry is None and idx < len(config.ha.ha_mgmt_interfaces):
-                matched_entry = config.ha.ha_mgmt_interfaces[idx]
+            if matched_entry is None and idx < len(member_config.ha.ha_mgmt_interfaces):
+                matched_entry = member_config.ha.ha_mgmt_interfaces[idx]
             if matched_entry:
                 ha_mgmt_ip = matched_entry.dst  # 管理IPアドレス（dstフィールド）
                 ha_mgmt_interface = matched_entry.interface
@@ -370,16 +370,16 @@ def _determine_ha_roles(
         role = HARole.PRIMARY if idx == 0 else HARole.SECONDARY
 
         members.append(HAMemberInfo(
-            hostname=config.device_info.hostname,
+            hostname=member_config.device_info.hostname,
             role=role,
-            priority=config.ha.priority,
-            serial_number=config.device_info.serial_number,
-            model=config.device_info.model,
-            os_version=config.device_info.os_version,
+            priority=member_config.ha.priority,
+            serial_number=member_config.device_info.serial_number,
+            model=member_config.device_info.model,
+            os_version=member_config.device_info.os_version,
             ha_mgmt_ip=ha_mgmt_ip,
             ha_mgmt_interface=ha_mgmt_interface,
-            config=config,
-            source_file=file_path
+            config=member_config,
+            source_file=member_file_path
         ))
 
     return members
@@ -396,7 +396,7 @@ def _detect_config_differences(
     Returns:
         List[ConfigDifference]: 設定差分のリスト
     """
-    differences = []
+    differences: List[ConfigDifference] = []
 
     if len(members) < 2:
         return differences

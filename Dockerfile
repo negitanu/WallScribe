@@ -52,12 +52,14 @@ WORKDIR /app
 COPY --from=builder /root/.local /home/appuser/.local
 
 # アプリケーションファイルをコピー
-COPY app.py main.py ./
+COPY app.py main.py exceptions.py ./
 COPY parsers/ ./parsers/
 COPY models/ ./models/
 COPY exporters/ ./exporters/
 COPY web/ ./web/
 COPY static/ ./static/
+COPY utils/ ./utils/
+COPY api/ ./api/
 COPY gunicorn_config.py ./
 
 # アップロードディレクトリとフォントキャッシュディレクトリを作成

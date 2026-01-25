@@ -102,12 +102,6 @@ class HTMLExporter:
         default = self.DEFAULTS.get(default_key, '-')
         return HtmlFormatter.list_with_default(items, default)
 
-    def _list_to_str(self, items: List[Any], separator: str = ", ") -> str:
-        """リストを文字列に変換"""
-        if not items:
-            return ""
-        return separator.join(str(item) for item in items)
-
     def _resolve_isdb_name(self, isdb_id: str) -> str:
         """ISDB IDからアプリケーション名を解決"""
         # IDをそのまま検索（キャッシュ使用）
@@ -173,9 +167,9 @@ class HTMLExporter:
 
         # アドレスグループ辞書: {(vdom, name): AddressGroup}
         self._address_group_lookup: Dict[tuple, Any] = {}
-        for grp in self.config.objects.address_groups:
-            key = (grp.vdom, grp.name)
-            self._address_group_lookup[key] = grp
+        for addr_grp in self.config.objects.address_groups:
+            key = (addr_grp.vdom, addr_grp.name)
+            self._address_group_lookup[key] = addr_grp
 
         # サービスオブジェクト辞書: {(vdom, name): ServiceObject}
         self._service_lookup: Dict[tuple, Any] = {}
@@ -185,9 +179,9 @@ class HTMLExporter:
 
         # サービスグループ辞書: {(vdom, name): ServiceGroup}
         self._service_group_lookup: Dict[tuple, Any] = {}
-        for grp in self.config.objects.service_groups:
-            key = (grp.vdom, grp.name)
-            self._service_group_lookup[key] = grp
+        for svc_grp in self.config.objects.service_groups:
+            key = (svc_grp.vdom, svc_grp.name)
+            self._service_group_lookup[key] = svc_grp
 
         # インターフェース辞書: {(vdom, name): Interface}
         self._interface_lookup: Dict[tuple, Any] = {}
@@ -201,36 +195,27 @@ class HTMLExporter:
 
         # アンチウイルス
         for av in detail.antivirus:
-            key = (av.vdom, "av", av.name)
-            self._security_profile_lookup[key] = av
-            key2 = (av.vdom, "antivirus", av.name)
-            self._security_profile_lookup[key2] = av
+            self._security_profile_lookup[(av.vdom, "av", av.name)] = av
+            self._security_profile_lookup[(av.vdom, "antivirus", av.name)] = av
 
         # Webフィルタ
         for wf in detail.webfilter:
-            key = (wf.vdom, "webfilter", wf.name)
-            self._security_profile_lookup[key] = wf
-            key2 = (wf.vdom, "web-filter", wf.name)
-            self._security_profile_lookup[key2] = wf
+            self._security_profile_lookup[(wf.vdom, "webfilter", wf.name)] = wf
+            self._security_profile_lookup[(wf.vdom, "web-filter", wf.name)] = wf
 
         # アプリケーションコントロール
-        for app in detail.app_control:
-            key = (app.vdom, "application", app.name)
-            self._security_profile_lookup[key] = app
-            key2 = (app.vdom, "app-ctrl", app.name)
-            self._security_profile_lookup[key2] = app
+        for app_ctrl in detail.app_control:
+            self._security_profile_lookup[(app_ctrl.vdom, "application", app_ctrl.name)] = app_ctrl
+            self._security_profile_lookup[(app_ctrl.vdom, "app-ctrl", app_ctrl.name)] = app_ctrl
 
         # IPS
         for ips in detail.ips:
-            key = (ips.vdom, "ips", ips.name)
-            self._security_profile_lookup[key] = ips
+            self._security_profile_lookup[(ips.vdom, "ips", ips.name)] = ips
 
         # SSLインスペクション
         for ssl in detail.ssl_inspection:
-            key = (ssl.vdom, "ssl", ssl.name)
-            self._security_profile_lookup[key] = ssl
-            key2 = (ssl.vdom, "ssl-ssh-profile", ssl.name)
-            self._security_profile_lookup[key2] = ssl
+            self._security_profile_lookup[(ssl.vdom, "ssl", ssl.name)] = ssl
+            self._security_profile_lookup[(ssl.vdom, "ssl-ssh-profile", ssl.name)] = ssl
 
     def _format_tooltip_table(self, rows: List[tuple]) -> str:
         """ツールチップ用の表形式HTMLを生成

@@ -1,0 +1,52 @@
+# Pre-commitフック設定
+# インストール: pip install pre-commit && pre-commit install
+
+repos:
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3
+        args: ['--line-length=100']
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile', 'black', '--line-length=100']
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: ['--max-line-length=100', '--extend-ignore=E203,W503']
+        additional_dependencies: [flake8-docstrings]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-all]
+        args: ['--ignore-missing-imports', '--no-strict-optional']
+        exclude: ^(tests/|static/|web/templates/)
+
+  - repo: local
+    hooks:
+      - id: trailing-whitespace
+        name: trailing whitespace
+        entry: bash -c 'git diff --cached --name-only --diff-filter=ACM | grep -E "\.(py|md|yaml|yml)$" | xargs sed -i "" "s/[[:space:]]*$//" || true'
+        language: system
+        pass_filenames: true
+
+      - id: end-of-file-fixer
+        name: fix end of files
+        entry: bash -c 'for file in "$@"; do [ -s "$file" ] && [ "$(tail -c1 "$file")" != "" ] && echo >> "$file" || true; done'
+        language: system
+        pass_filenames: true
+
+      - id: check-yaml
+        name: check yaml
+        entry: bash -c 'for file in "$@"; do python3 -c "import yaml; yaml.safe_load(open(\"$file\"))" 2>/dev/null || exit 1; done'
+        language: system
+        pass_filenames: true
+        types: [yaml]

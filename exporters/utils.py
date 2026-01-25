@@ -22,13 +22,14 @@ class CacheManager:
 
     _instance: Optional['CacheManager'] = None
     _lock: Lock = Lock()
+    _caches: Dict[str, Any]
 
     def __new__(cls) -> 'CacheManager':
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
-                    cls._instance._caches: Dict[str, Any] = {}
+                    cls._instance._caches = {}
         return cls._instance
 
     def get(self, key: str) -> Optional[Any]:

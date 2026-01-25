@@ -335,11 +335,37 @@ Excel出力では、グローバル設定とVDOM/vsys単位の設定を分離し
 # すべてのテストを実行
 pytest -v
 
-# カバレッジ付きで実行
+# カバレッジ付きで実行（HTMLレポート生成）
 pytest --cov=. --cov-report=html -v
+
+# カバレッジレポートをブラウザで確認
+# htmlcov/index.html を開く
+
+# カバレッジの最小値チェック（70%以上）
+pytest
 
 # 特定のテストファイルを実行
 pytest tests/test_parsers.py -v
+
+# マーカーを使用したテストの実行
+pytest -m "not slow"  # スローテストを除外
+pytest -m "unit"      # ユニットテストのみ
+pytest -m "integration"  # 統合テストのみ
+```
+
+### テストカバレッジ
+
+テストカバレッジの目標は70%以上です。カバレッジレポートは以下のコマンドで生成できます：
+
+```bash
+# HTMLレポート生成
+pytest --cov=. --cov-report=html
+
+# ターミナルに表示
+pytest --cov=. --cov-report=term-missing
+
+# XMLレポート生成（CI/CD用）
+pytest --cov=. --cov-report=xml
 ```
 
 テストスイートには以下が含まれます：
@@ -350,9 +376,67 @@ pytest tests/test_parsers.py -v
 - ユーティリティ関数のテスト
 - Webアプリケーションのテスト
 
+## 開発
+
+### 開発環境のセットアップ
+
+```bash
+# 開発用依存関係のインストール
+pip install -r requirements-dev.txt
+
+# Pre-commitフックのインストール
+pre-commit install
+```
+
+### 開発コマンド
+
+```bash
+# コードフォーマット
+make format
+
+# リンター
+make lint
+
+# 型チェック
+make type-check
+
+# テスト実行
+make test
+
+# 全てのチェック
+make check
+
+# セキュリティチェック
+make security-check
+```
+
+詳細は [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
+
+### CI/CD
+
+GitHub Actionsによる自動テストとコード品質チェックが設定されています：
+
+- 複数のPythonバージョン（3.8, 3.9, 3.10, 3.11）でのテスト
+- コードフォーマットチェック（black, isort）
+- リンター（flake8）
+- 型チェック（mypy）
+- テストカバレッジレポート
+- Dockerイメージのビルド
+
 ## 詳細仕様
 
 詳細な仕様については [SPECIFICATION.md](SPECIFICATION.md) を参照してください。
+
+## API ドキュメント
+
+REST APIの詳細なドキュメントについては [api/README.md](api/README.md) を参照してください。
+
+Swagger UIでインタラクティブにAPIをテストできます：
+- URL: `http://localhost:8080/apidocs` (flasggerがインストールされている場合)
+
+## 改善提案
+
+プロジェクトの改善提案については [IMPROVEMENTS.md](IMPROVEMENTS.md) を参照してください。
 
 ## ライセンス
 

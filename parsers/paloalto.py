@@ -474,15 +474,15 @@ class PaloAltoParser(BaseConfigParser):
 
         # Service groups
         svcgrp_entries = vsys.findall('service-group/entry')
-        for grp_entry in svcgrp_entries:
-            members = self._get_members(grp_entry, 'members')
-            grp_obj = ServiceGroup(
-                name=grp_entry.get('name', ''),
+        for svc_grp_entry in svcgrp_entries:
+            members = self._get_members(svc_grp_entry, 'members')
+            svc_grp_obj = ServiceGroup(
+                name=svc_grp_entry.get('name', ''),
                 members=members,
                 vdom=vsys_name,
-                description=self._get_text(grp_entry, 'description')
+                description=self._get_text(svc_grp_entry, 'description')
             )
-            self.config_model.objects.service_groups.append(grp_obj)
+            self.config_model.objects.service_groups.append(svc_grp_obj)
 
     def _parse_policies(self):
         """ポリシーをパース"""

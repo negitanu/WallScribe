@@ -102,8 +102,8 @@ def _parse_hbdev(hbdev: Any) -> Tuple[List[str], List[HAHeartbeatInterface]]:
     Returns:
         (インターフェース名リスト, HAHeartbeatInterfaceリスト)
     """
-    interfaces = []
-    interfaces_detail = []
+    interfaces: List[str] = []
+    interfaces_detail: List[HAHeartbeatInterface] = []
 
     if not hbdev:
         return interfaces, interfaces_detail

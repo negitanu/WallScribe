@@ -20,6 +20,28 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
+# レート制限（オプショナル）
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    LIMITER_AVAILABLE = True
+except ImportError:
+    LIMITER_AVAILABLE = False
+
+    # モック用のダミークラス
+    class _MockLimiter:
+        def __init__(self, *args, **kwargs):
+            pass
+        def limit(self, *args, **kwargs):
+            def decorator(f):
+                return f
+            return decorator
+
+    def get_remote_address():
+        return "127.0.0.1"
+
+    Limiter = _MockLimiter  # type: ignore[misc,assignment]
+
 from parsers.base import get_parser_for_content, detect_encoding
 from parsers.cluster import parse_ha_cluster_from_contents
 from models.cluster import ClusterConfig
@@ -27,22 +49,105 @@ from models.config import ConfigModel
 from exporters.html import HTMLExporter
 from exporters.pdf import PDFExporter
 from exporters.excel import ExcelExporter
+from exceptions import (
+    WallScribeError, ParseError, ExportError,
+    ValidationError, FileError
+)
+from utils.validation import (
+    validate_file_content, validate_file_size,
+    validate_output_format, validate_ha_mode
+)
+
+# モニタリング（オプショナル）
+try:
+    from utils.metrics import (
+        record_request, record_file_upload, record_error,
+        set_active_jobs, record_processed_file, get_metrics
+    )
+    METRICS_AVAILABLE = True
+except ImportError:
+    METRICS_AVAILABLE = False
+
+    # モック関数（型チェックを無視）
+    def record_request(*args: Any, **kwargs: Any) -> None:  # type: ignore[misc]
+        pass
+
+    def record_file_upload(*args: Any, **kwargs: Any) -> None:  # type: ignore[misc]
+        pass
+
+    def record_error(*args: Any, **kwargs: Any) -> None:  # type: ignore[misc]
+        pass
+
+    def set_active_jobs(*args: Any, **kwargs: Any) -> None:  # type: ignore[misc]
+        pass
+
+    def record_processed_file(*args: Any, **kwargs: Any) -> None:  # type: ignore[misc]
+        pass
+
+    def get_metrics() -> bytes:
+        return b"# Metrics not available\n"
+
+# API Documentation（オプショナル）
+try:
+    from flasgger import Swagger
+    SWAGGER_AVAILABLE = True
+except ImportError:
+    SWAGGER_AVAILABLE = False
 
 # ロギング設定
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(levelname)s] %(message)s'
-)
+# 環境変数でJSON形式を有効化可能（LOG_FORMAT=json）
+log_format = os.environ.get('LOG_FORMAT', 'text')
+if log_format == 'json':
+    from utils.logging_config import StructuredLogger
+    StructuredLogger.setup_logging(
+        level=os.environ.get('LOG_LEVEL', 'INFO'),
+        format_type='json'
+    )
+else:
+    # 後方互換性のため、テキスト形式もサポート
+    logging.basicConfig(
+        level=getattr(logging, os.environ.get('LOG_LEVEL', 'INFO').upper(), logging.INFO),
+        format='[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
 logger = logging.getLogger(__name__)
 
 # Flask アプリケーション
 app = Flask(__name__, template_folder='web/templates', static_folder='static')
+
+# Swagger設定（利用可能な場合のみ）
+if SWAGGER_AVAILABLE:
+    try:
+        from api.specs import API_SPEC
+        swagger = Swagger(app, template=API_SPEC)
+        logger.info("Swagger UI有効化: /apidocs")
+    except ImportError as e:
+        # apiモジュールが見つからない場合は警告のみ（後方互換性）
+        logger.warning(f"Swagger設定エラー（apiモジュール未検出）: {e}")
+        SWAGGER_AVAILABLE = False
+    except Exception as e:
+        logger.warning(f"Swagger設定エラー: {e}")
+        SWAGGER_AVAILABLE = False
 
 # 設定
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24).hex())
 app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', './uploads')
 app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH', 50 * 1024 * 1024))  # 50MB
 app.config['CLEANUP_INTERVAL'] = int(os.environ.get('CLEANUP_INTERVAL', 3600))  # 1時間
+
+# レート制限設定（利用可能な場合のみ）
+if LIMITER_AVAILABLE:
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=[os.environ.get('RATE_LIMIT_DEFAULT', "100 per hour")],
+        storage_uri=os.environ.get('RATE_LIMIT_STORAGE', "memory://"),
+        headers_enabled=True,
+    )
+else:
+    # テスト環境などでflask_limiterがインストールされていない場合
+    limiter = Limiter()
 
 # 許可拡張子
 ALLOWED_EXTENSIONS = {'.conf', '.xml'}
@@ -166,8 +271,17 @@ def _process_job_multi(
     ha_mode: str = 'auto',
 ):
     """非同期でパース＆出力を実行し、進捗を更新する（複数ファイル対応）"""
+    import time
+    start_time = time.time()
+    device_type = "unknown"
+    total_size = 0
+    
     try:
         update_progress(file_id, 5, "ファイルを受信しました", stage="received")
+        
+        # ファイルサイズを計算
+        for input_path in input_paths:
+            total_size += input_path.stat().st_size
 
         # 各ファイルを読み込み
         contents: List[Tuple[str, str]] = []
@@ -222,6 +336,7 @@ def _process_job_multi(
             config = cluster_config
 
         update_progress(file_id, 70, "出力ファイルを生成しています...", stage="exporting")
+        exporter: Union[HTMLExporter, PDFExporter, ExcelExporter]
         if output_format == 'html':
             exporter = HTMLExporter(config) if sections is None else HTMLExporter(config, sections=sections)
             exporter.export(str(output_path))
@@ -244,11 +359,12 @@ def _process_job_multi(
 
         update_progress(file_id, 95, "メタデータを保存しています...", stage="finalizing")
         summary = config.get_summary()
+        device_type = summary.get("device_type", "unknown")
         normalized_path = str(output_path.resolve())
         metadata = {
             "filename": output_filename,
             "path": normalized_path,
-            "device_type": summary["device_type"],
+            "device_type": device_type,
             "hostname": summary["hostname"],
             "version": summary["version"],
             "summary": summary,
@@ -261,6 +377,12 @@ def _process_job_multi(
         }
         save_file_metadata(file_id, metadata)
         logger.info(f"生成完了(非同期): {output_filename} (ID: {file_id}, Path: {normalized_path})")
+        
+        # メトリクス記録
+        if METRICS_AVAILABLE:
+            duration = time.time() - start_time
+            record_file_upload(output_format, device_type, total_size, duration)
+            record_processed_file(output_format, "success")
 
     except Exception as e:
         logger.error(f"非同期処理エラー: {e}", exc_info=True)
@@ -274,6 +396,11 @@ def _process_job_multi(
                 "details": error_details,
             }
         })
+        
+        # エラーメトリクス記録
+        if METRICS_AVAILABLE:
+            record_error("INTERNAL_ERROR", "upload_async")
+            record_processed_file(output_format, "error")
 
 
 def cleanup_old_files():
@@ -327,6 +454,7 @@ def index():
 
 
 @app.route('/upload', methods=['POST'])
+@limiter.limit("10 per minute", per_method=True)
 def upload_file():
     """ファイルアップロード・変換処理"""
     try:
@@ -361,8 +489,17 @@ def upload_file():
                 }
             }), 400
 
-        # 出力形式
+        # 入力検証
         output_format = request.form.get('output_format', 'html')
+        is_valid_format, format_error = validate_output_format(output_format)
+        if not is_valid_format:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_OUTPUT_FORMAT',
+                    'message': format_error
+                }
+            }), 400
 
         # 出力セクション
         sections_json = request.form.get('sections', '[]')
@@ -375,9 +512,33 @@ def upload_file():
 
         # ファイル内容読み込み（エンコーディング自動検出）
         file_data = file.read()
+        
+        # ファイルサイズの検証
+        is_valid_size, size_error = validate_file_size(file_data, app.config['MAX_CONTENT_LENGTH'])
+        if not is_valid_size:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'FILE_TOO_LARGE',
+                    'message': size_error
+                }
+            }), 400
+        
+        # ファイル内容の検証
+        original_filename = secure_filename(file.filename)
+        is_valid_content, content_error = validate_file_content(file_data, original_filename)
+        if not is_valid_content:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_FILE_CONTENT',
+                    'message': 'ファイル内容の検証に失敗しました',
+                    'details': content_error
+                }
+            }), 400
+        
         content, detected_encoding = detect_encoding(file_data)
         logger.info(f"検出されたエンコーディング: {detected_encoding}")
-        original_filename = secure_filename(file.filename)
 
         # パーサー取得
         parser = get_parser_for_content(content)
@@ -521,9 +682,59 @@ def upload_file():
             }
         }), 500
 
-@app.route('/upload_async', methods=['POST'])
+@app.route('/api/v1/upload', methods=['POST'])
+@limiter.limit("10 per minute", per_method=True)
 def upload_file_async():
-    """ファイルアップロード・変換処理（非同期、複数ファイル対応）"""
+    """ファイルアップロード・変換処理（非同期、複数ファイル対応）
+    
+    ---
+    tags:
+      - ファイル処理
+    consumes:
+      - multipart/form-data
+    parameters:
+      - name: config_files[]
+        in: formData
+        type: array
+        items:
+          type: file
+        required: true
+        description: 設定ファイル（複数可、.conf または .xml）
+      - name: output_format
+        in: formData
+        type: string
+        enum: [html, pdf, excel]
+        default: html
+        description: 出力形式
+      - name: ha_mode
+        in: formData
+        type: string
+        enum: [auto, single, cluster]
+        default: auto
+        description: HAモード（auto=自動判定, single=単一機器, cluster=クラスタ）
+      - name: sections
+        in: formData
+        type: string
+        default: "[]"
+        description: 出力するセクションのJSON配列（空の場合は全セクション）
+    responses:
+      200:
+        description: アップロード受付成功
+        schema:
+          $ref: '#/components/schemas/UploadResponse'
+      400:
+        description: リクエストエラー
+        schema:
+          $ref: '#/components/schemas/Error'
+      429:
+        description: レート制限超過
+        schema:
+          $ref: '#/components/schemas/Error'
+      500:
+        description: サーバーエラー
+        schema:
+          $ref: '#/components/schemas/Error'
+    """
     try:
         # 複数ファイル対応: config_files[] または config_file
         files = request.files.getlist('config_files[]')
@@ -552,14 +763,64 @@ def upload_file_async():
                 }
             }), 400
 
+        # 入力検証
         output_format = request.form.get('output_format', 'html')
+        is_valid_format, format_error = validate_output_format(output_format)
+        if not is_valid_format:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_OUTPUT_FORMAT',
+                    'message': format_error
+                }
+            }), 400
+        
         ha_mode = request.form.get('ha_mode', 'auto')
+        is_valid_ha_mode, ha_mode_error = validate_ha_mode(ha_mode)
+        if not is_valid_ha_mode:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'INVALID_HA_MODE',
+                    'message': ha_mode_error
+                }
+            }), 400
+        
         sections_json = request.form.get('sections', '[]')
         try:
             sections_list = json.loads(sections_json)
             sections = [s for s in sections_list if isinstance(s, str)] if isinstance(sections_list, list) else None
         except json.JSONDecodeError:
             sections = None
+
+        # ファイル内容の検証（各ファイル）
+        for file in valid_files:
+            file_data = file.read()
+            file.seek(0)  # ファイルポインタをリセット
+            
+            # ファイルサイズの検証
+            is_valid_size, size_error = validate_file_size(file_data, app.config['MAX_CONTENT_LENGTH'])
+            if not is_valid_size:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'FILE_TOO_LARGE',
+                        'message': size_error
+                    }
+                }), 400
+            
+            # ファイル内容の検証
+            original_filename = secure_filename(file.filename)
+            is_valid_content, content_error = validate_file_content(file_data, original_filename)
+            if not is_valid_content:
+                return jsonify({
+                    'success': False,
+                    'error': {
+                        'code': 'INVALID_FILE_CONTENT',
+                        'message': 'ファイル内容の検証に失敗しました',
+                        'details': f"{original_filename}: {content_error}"
+                    }
+                }), 400
 
         file_id = str(uuid.uuid4())
         upload_folder = Path(app.config['UPLOAD_FOLDER']).resolve()
@@ -632,7 +893,7 @@ def upload_file_async():
             "file_count": len(valid_files),
             "progress_url": f"/api/progress/{file_id}",
             "result_url": f"/result/{file_id}",
-        })
+        }), 202  # Accepted
 
     except Exception as e:
         logger.error(f"非同期受付エラー: {e}", exc_info=True)
@@ -646,6 +907,15 @@ def upload_file_async():
                 'details': error_details
             }
         }), 500
+
+
+# 後方互換性のため、旧エンドポイントも維持
+@app.route('/upload_async', methods=['POST'])
+@limiter.limit("10 per minute", per_method=True)
+def upload_file_async_legacy():
+    """ファイルアップロード・変換処理（非同期、複数ファイル対応）- 旧エンドポイント"""
+    # 同じ関数を呼び出す
+    return upload_file_async()
 
 
 @app.route('/download/<file_id>')
@@ -785,7 +1055,32 @@ def result_page(file_id):
 
 @app.route('/api/status/<file_id>')
 def get_status(file_id):
-    """ファイルのステータス確認"""
+    """ファイルのステータス確認
+    
+    ---
+    tags:
+      - 進捗・ステータス
+    parameters:
+      - name: file_id
+        in: path
+        type: string
+        required: true
+        description: ファイルID（UUID）
+        example: "550e8400-e29b-41d4-a716-446655440000"
+    responses:
+      200:
+        description: ステータス情報
+        schema:
+          $ref: '#/components/schemas/StatusResponse'
+      400:
+        description: 無効なファイルID
+        schema:
+          $ref: '#/components/schemas/Error'
+      404:
+        description: ファイルが見つかりません
+        schema:
+          $ref: '#/components/schemas/Error'
+    """
     # セキュリティ: ファイルIDの検証
     try:
         uuid.UUID(file_id)
@@ -819,7 +1114,32 @@ def get_status(file_id):
 
 @app.route('/api/progress/<file_id>')
 def get_progress(file_id):
-    """生成中の進捗を取得（非同期用）"""
+    """生成中の進捗を取得（非同期用）
+    
+    ---
+    tags:
+      - 進捗・ステータス
+    parameters:
+      - name: file_id
+        in: path
+        type: string
+        required: true
+        description: ファイルID（UUID）
+        example: "550e8400-e29b-41d4-a716-446655440000"
+    responses:
+      200:
+        description: 進捗情報
+        schema:
+          $ref: '#/components/schemas/ProgressResponse'
+      400:
+        description: 無効なファイルID
+        schema:
+          $ref: '#/components/schemas/Error'
+      404:
+        description: ファイルが見つかりません
+        schema:
+          $ref: '#/components/schemas/Error'
+    """
     try:
         uuid.UUID(file_id)
     except (ValueError, AttributeError):
@@ -847,6 +1167,19 @@ def get_progress(file_id):
         "error": file_info.get("error"),
         "result_url": f"/result/{file_id}",
     })
+
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    """レート制限エラー"""
+    return jsonify({
+        'success': False,
+        'error': {
+            'code': 'RATE_LIMIT_EXCEEDED',
+            'message': 'リクエストが多すぎます。しばらく待ってから再度お試しください。',
+            'details': str(e.description) if hasattr(e, 'description') else None
+        }
+    }), 429
 
 
 @app.errorhandler(413)
@@ -879,15 +1212,119 @@ def internal_error(error):
     }), 500
 
 
+# メトリクスエンドポイント
+@app.route('/metrics')
+def metrics():
+    """Prometheusメトリクスエンドポイント"""
+    return get_metrics(), 200, {'Content-Type': 'text/plain; version=0.0.4; charset=utf-8'}
+
+
+# ヘルスチェックエンドポイント
+@app.route('/health')
+def health_check():
+    """基本的なヘルスチェック"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat()
+    }), 200
+
+
+@app.route('/health/ready')
+def readiness_check():
+    """レディネスチェック（ディスク容量、メモリ等）"""
+    import shutil
+    
+    try:
+        # ディスク容量チェック
+        upload_folder = Path(app.config['UPLOAD_FOLDER'])
+        upload_folder.mkdir(parents=True, exist_ok=True)
+        disk_usage = shutil.disk_usage(upload_folder)
+        free_space_gb = disk_usage.free / (1024 ** 3)
+        
+        # 1GB未満の場合はnot_ready
+        if free_space_gb < 1.0:
+            return jsonify({
+                'status': 'not_ready',
+                'reason': 'insufficient_disk_space',
+                'free_space_gb': round(free_space_gb, 2)
+            }), 503
+        
+        return jsonify({
+            'status': 'ready',
+            'free_space_gb': round(free_space_gb, 2)
+        }), 200
+    except Exception as e:
+        logger.error(f"レディネスチェックエラー: {e}", exc_info=True)
+        return jsonify({
+            'status': 'not_ready',
+            'reason': 'check_failed',
+            'error': str(e)
+        }), 503
+
+
+@app.route('/health/live')
+def liveness_check():
+    """ライブネスチェック（アプリケーションが応答するか）"""
+    return jsonify({
+        'status': 'alive',
+        'timestamp': datetime.now().isoformat()
+    }), 200
+
+
 # セキュリティヘッダーの追加
 @app.after_request
 def set_security_headers(response):
     """セキュリティヘッダーを設定"""
+    # 基本的なセキュリティヘッダー
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    
+    # CSP（Content Security Policy）の強化
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "font-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none';"
+    )
+    response.headers['Content-Security-Policy'] = csp
+    
+    # HSTS（HTTPS使用時のみ）
+    if request.is_secure:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    
+    # Referrer Policy
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    
+    # Permissions Policy
+    response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+    
+    # メトリクス記録（利用可能な場合）
+    if METRICS_AVAILABLE and request.endpoint:
+        try:
+            import time
+            duration = time.time() - getattr(request, '_start_time', time.time())
+            record_request(
+                method=request.method,
+                endpoint=request.endpoint,
+                status=response.status_code,
+                duration=duration
+            )
+        except Exception:
+            pass  # メトリクス記録の失敗は無視
+    
     return response
+
+
+# リクエスト開始時間の記録
+@app.before_request
+def before_request():
+    """リクエスト前処理"""
+    import time
+    request._start_time = time.time()
 
 
 if __name__ == '__main__':
