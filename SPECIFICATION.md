@@ -1,13 +1,13 @@
 # WallScribe 仕様書
 
-**バージョン 1.1**  
-**最終更新日: 2026-01-23**
+**バージョン 1.2**  
+**最終更新日: 2026-01-25**
 
 ## 1. 概要
 
 ### 1.1 目的
 
-#FortiGate と #PA-Series ファイアウォールの設定ファイルから、統一フォーマットのパラメータシートを自動生成するツール。
+FortiGate と PA-Series ファイアウォールの設定ファイルから、統一フォーマットのパラメータシートを自動生成するツール。
 
 ### 1.2 対象機器
 
@@ -32,13 +32,13 @@
 
 - FortiOS 6.x / 7.x 形式に対応
 - VDOM（Virtual Domain）構成に対応
-- UTF-8 エンコーディング
+- エンコーディングは自動検出（UTF-8 / UTF-8 BOM / CP932(Shift-JIS) / Latin-1）
 
 #### 2.1.2 Palo Alto 設定ファイル (.xml)
 
 - PAN-OS 10.x / 11.x 形式に対応
 - vsys（Virtual System）構成に対応
-- UTF-8 エンコーディング
+- エンコーディングは自動検出（UTF-8 / UTF-8 BOM / CP932(Shift-JIS) / Latin-1）
 
 ### 2.2 抽出項目
 
@@ -361,9 +361,17 @@ Excel出力は、**グローバル設定**と**VDOM/vsys単位の設定**に分�
 WallScribe/
 ├── main.py                    # エントリーポイント（CLI）
 ├── app.py                     # Web アプリケーション（Flask）
+├── exceptions.py              # カスタム例外クラス
 ├── SPECIFICATION.md           # 本仕様書
 ├── README.md                  # 使用方法
 ├── requirements.txt           # 依存パッケージ
+├── docker-compose.yml         # Docker Compose
+├── Dockerfile                 # Docker ビルド定義
+│
+├── api/                       # REST API仕様（Swagger定義・ドキュメント）
+│   ├── __init__.py
+│   ├── specs.py               # Swagger 2.0 定義（flasgger用）
+│   └── README.md              # REST API ドキュメント
 │
 ├── parsers/                   # パーサーモジュール
 │   ├── __init__.py
@@ -384,6 +392,11 @@ WallScribe/
 │   ├── html.py               # HTML出力
 │   ├── pdf.py                # PDF出力
 │   └── excel.py              # Excel出力（オプション）
+│
+├── utils/                     # 共通ユーティリティ
+│   ├── logging_config.py      # 構造化ログ（JSON）
+│   ├── metrics.py             # Prometheus メトリクス
+│   └── validation.py          # 入力/ファイル検証
 │
 ├── web/                       # Web インターフェース
 │   ├── __init__.py
@@ -561,18 +574,32 @@ python main.py config.conf -v
 | -------- | ---------------------- | -------------------------------- |
 | GET      | `/`                    | メインページ表示                 |
 | POST     | `/upload`              | ファイルアップロード・変換処理（同期） |
-| POST     | `/upload_async`        | ファイルアップロード・変換処理（非同期・複数ファイル/HA対応） |
+| POST     | `/api/v1/upload`       | ファイルアップロード・変換処理（非同期・複数ファイル/HA対応、推奨） |
+| POST     | `/upload_async`        | 非同期アップロード（後方互換エイリアス） |
 | GET      | `/download/<file_id>`  | 生成ファイルのダウンロード       |
+| GET      | `/api/v1/download/<file_id>` | ダウンロード（v1 エイリアス） |
 | GET      | `/preview/<file_id>`   | 生成ファイルのプレビュー表示     |
+| GET      | `/api/v1/preview/<file_id>` | プレビュー（v1 エイリアス） |
 | GET      | `/api/status/<file_id>` | 生成結果のサマリー取得（メタデータ） |
+| GET      | `/api/v1/status/<file_id>` | ステータス（v1 エイリアス） |
 | GET      | `/api/progress/<file_id>` | 生成中の進捗取得（非同期用）     |
+| GET      | `/api/v1/progress/<file_id>` | 進捗（v1 エイリアス） |
+| GET      | `/api/v1/jobs`         | ジョブ一覧（メタデータ）         |
+| GET      | `/api/v1/jobs/<file_id>` | ジョブ詳細                       |
+| DELETE   | `/api/v1/jobs/<file_id>` | ジョブ削除（入力/出力/メタデータ） |
+| GET      | `/api/v1/spec`         | Swagger仕様（JSON）              |
+| GET      | `/swagger.json`        | Swagger仕様（JSON エイリアス）   |
+| GET      | `/metrics`             | Prometheusメトリクス             |
+| GET      | `/health`              | ヘルスチェック（基本）           |
+| GET      | `/health/ready`        | レディネスチェック               |
+| GET      | `/health/live`         | ライブネスチェック               |
 
 ### 6.4 ファイルアップロード仕様
 
 #### 6.4.1 リクエスト
 
 ```http
-POST /upload_async HTTP/1.1
+POST /api/v1/upload HTTP/1.1
 Content-Type: multipart/form-data
 
 ------WebKitFormBoundary
@@ -601,10 +628,10 @@ auto
 ```json
 {
   "success": true,
-  "file_id": "abc123",
+  "file_id": "550e8400-e29b-41d4-a716-446655440000",
   "file_count": 2,
-  "progress_url": "/api/progress/abc123",
-  "result_url": "/result/abc123"
+  "progress_url": "/api/progress/550e8400-e29b-41d4-a716-446655440000",
+  "result_url": "/result/550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -613,14 +640,14 @@ auto
 ```json
 {
   "success": true,
-  "file_id": "abc123",
+  "file_id": "550e8400-e29b-41d4-a716-446655440000",
   "status": "processing",
   "progress": {
     "percent": 35,
     "message": "設定ファイルを解析しています...",
     "stage": "parsing"
   },
-  "result_url": "/result/abc123"
+  "result_url": "/result/550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -652,9 +679,12 @@ auto
 
 - アップロードファイルのサニタイズ
 - ファイル名のランダム化（UUID 使用）
+- ファイル内容の検証（拡張子に加えて内容を簡易検証）
 - 一時ファイルの自動クリーンアップ
 - パストラバーサル対策（パス正規化と検証）
 - UUID形式チェック（download/preview/status/progress）
+- レート制限（アップロード等）
+- セキュリティヘッダー（CSP / HSTS(HTTPS時) / Referrer-Policy / Permissions-Policy）
 
 ### 6.6 UI/UX 要件
 
@@ -713,6 +743,10 @@ gunicorn -w 4 -b 0.0.0.0:8080 app:app
 | `SECRET_KEY`        | セッション暗号化キー  | ランダム生成      |
 | `CLEANUP_INTERVAL`  | クリーンアップ間隔    | `3600` (1時間)    |
 | `TZ`                | タイムゾーン          | `Asia/Tokyo`      |
+| `LOG_FORMAT`        | ログ形式（text/json） | `text`            |
+| `LOG_LEVEL`         | ログレベル            | `INFO`            |
+| `RATE_LIMIT_DEFAULT`| デフォルトレート制限  | `100 per hour`    |
+| `RATE_LIMIT_STORAGE`| レート制限ストレージ  | `memory://`       |
 
 ---
 
@@ -732,6 +766,10 @@ openpyxl>=3.0.0      # Excel出力用
 weasyprint>=62.0     # PDF出力用
 jinja2>=3.0.0        # HTMLテンプレート
 gunicorn>=20.0.0     # 本番用WSGIサーバー（オプション）
+defusedxml>=0.7.1    # XXE対策（Palo Alto XML）
+flask-limiter>=3.5.0 # レート制限
+prometheus-client>=0.19.0 # メトリクス
+flasgger>=0.9.7.1    # Swagger UI（Swagger 2.0）
 ```
 
 ### 7.3 文字エンコーディング
@@ -823,7 +861,7 @@ gunicorn>=20.0.0     # 本番用WSGIサーバー（オプション）
   - [x] 日本語フォント対応
   - [x] タイムゾーン設定（環境変数で指定可能、デフォルト: Asia/Tokyo）
   - [x] ファイルシステムベースのメタデータ管理（複数ワーカー対応）
-- [ ] REST API 化
+- [x] REST API 化（Swagger UI / ジョブ管理API を含む）
 
 ---
 
@@ -840,6 +878,12 @@ gunicorn>=20.0.0     # 本番用WSGIサーバー（オプション）
 
 | バージョン | 日付       | 変更内容                           |
 | ---------- | ---------- | ---------------------------------- |
+| 1.2        | 2026-01-25 | API拡充・ドキュメント更新          |
+|            |            | - Swagger UIの定義をSwagger 2.0に統一（`/apidocs`） |
+|            |            | - ジョブ管理API追加（`/api/v1/jobs` など） |
+|            |            | - 仕様JSON提供（`/api/v1/spec`, `/swagger.json`） |
+|            |            | - ヘルスチェック追加（`/health`, `/health/ready`, `/health/live`） |
+|            |            | - 入力検証強化（サイズ/内容/パラメータ） |
 | 1.1        | 2026-01-23 | 現状版（v1.1）                     |
 |            |            | - Excel出力: クラスタメンバーシートに「モデル」「OSバージョン」「HA管理IP」列を追加 |
 |            |            | - Excel出力: ルーティングシートにOSPF、OSPFv6、BGP、ポリシールート対応を追加 |

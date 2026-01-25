@@ -1,6 +1,6 @@
 # WallScribe
 
-#FortiGate と #PA-Series ファイアウォールの設定ファイルから、統一フォーマットのパラメータシートを自動生成するツールです。
+FortiGate と PA-Series ファイアウォールの設定ファイルから、統一フォーマットのパラメータシートを自動生成するツールです。
 
 ## 技術スタック
 
@@ -14,7 +14,7 @@
 ## 対応機器
 
 | ベンダー | 機種 | 設定ファイル形式 |
-|----------|------|------------------|
+| --- | --- | --- |
 | Fortinet | FortiGate シリーズ | `.conf` (テキスト形式) |
 | Palo Alto Networks | PA シリーズ | `.xml` (XML 形式) |
 
@@ -45,7 +45,7 @@ git clone <repository-url>
 cd WallScribe
 
 # 仮想環境の作成と有効化
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate  # Linux/macOS
 # .venv\Scripts\activate   # Windows
 
@@ -59,16 +59,16 @@ pip install -r requirements.txt
 
 ```bash
 # FortiGate設定からHTML生成
-python main.py fortigate.conf -o output.html
+python3 main.py fortigate.conf -o output.html
 
 # FortiGate設定からExcel生成
-python main.py fortigate.conf -f excel -o output.xlsx
+python3 main.py fortigate.conf -f excel -o output.xlsx
 
 # HA構成（複数ファイル）をクラスタとしてHTML生成（自動判定）
-python main.py primary.conf secondary.conf --ha-mode auto -o ha_cluster.html
+python3 main.py primary.conf secondary.conf --ha-mode auto -o ha_cluster.html
 
 # 詳細ログ付きで実行
-python main.py config.conf -v
+python3 main.py config.conf -v
 ```
 
 補足:
@@ -80,7 +80,7 @@ python main.py config.conf -v
 
 ```bash
 # 開発モード
-python app.py
+python3 app.py
 
 # 本番モード（Gunicorn使用）
 gunicorn -w 4 -b 0.0.0.0:8080 app:app
@@ -99,16 +99,16 @@ Webインターフェースの特徴:
 
 ```bash
 # ビルド
-docker-compose build
+docker compose build
 
 # 起動
-docker-compose up -d
+docker compose up -d
 
 # ログ確認
-docker-compose logs -f
+docker compose logs -f
 
 # 停止
-docker-compose down
+docker compose down
 
 # アクセス
 # http://localhost:80 (ポート80で公開)
@@ -185,11 +185,11 @@ ports:
 
 ```bash
 # ログを確認
-docker-compose logs
+docker compose logs
 
 # コンテナを再ビルド
-docker-compose build --no-cache
-docker-compose up -d
+docker compose build --no-cache
+docker compose up -d
 ```
 
 **アップロードファイルの権限エラー：**
@@ -205,12 +205,14 @@ chmod 755 uploads
 WallScribe/
 ├── main.py                # エントリーポイント（CLI）
 ├── app.py                 # Webアプリケーション（Flask）
+├── exceptions.py          # カスタム例外クラス
 ├── parsers/               # パーサーモジュール
 │   ├── base.py           # 基底パーサークラス
 │   ├── cluster.py        # HAクラスタ構成パーサー（複数ファイル統合）
 │   ├── fortigate/        # FortiGate用パーサー
 │   ├── paloalto.py       # Palo Alto用パーサー
 │   └── utils.py          # ユーティリティ関数
+├── api/                   # REST API仕様（Swagger定義・ドキュメント）
 ├── models/                # データモデル
 │   ├── config.py         # 設定データ構造の定義
 │   └── cluster.py        # HAクラスタ統合データモデル
@@ -218,6 +220,7 @@ WallScribe/
 │   ├── html.py           # HTML出力
 │   ├── pdf.py            # PDF出力
 │   └── excel.py          # Excel出力
+├── utils/                 # 共通ユーティリティ（logging/metrics/validation）
 ├── static/                # 静的ファイル
 │   └── data/
 │       └── appid.csv     # アプリケーションIDマッピング
@@ -232,7 +235,7 @@ WallScribe/
 FortiGateのアプリケーションコントロールで使用されるアプリケーションIDを、アプリケーション名・カテゴリ・リスクレベルに変換するためのマッピングデータです。
 
 | カラム | 説明 |
-|--------|------|
+| --- | --- |
 | app_id | アプリケーションID（数値） |
 | app_name | アプリケーション名 |
 | category | カテゴリ（例: Social.Media, P2P, Email） |
@@ -320,7 +323,7 @@ Excel出力では、グローバル設定とVDOM/vsys単位の設定を分離し
 ## 環境変数
 
 | 変数名 | 説明 | デフォルト値 |
-|--------|------|--------------|
+| --- | --- | --- |
 | `FLASK_ENV` | 実行環境 | `production` |
 | `FLASK_PORT` | リッスンポート | `8080` |
 | `SECRET_KEY` | セッション暗号化キー | ランダム生成 |
@@ -410,8 +413,6 @@ make check
 make security-check
 ```
 
-詳細は [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
-
 ### CI/CD
 
 GitHub Actionsによる自動テストとコード品質チェックが設定されています：
@@ -432,11 +433,22 @@ GitHub Actionsによる自動テストとコード品質チェックが設定さ
 REST APIの詳細なドキュメントについては [api/README.md](api/README.md) を参照してください。
 
 Swagger UIでインタラクティブにAPIをテストできます：
+
 - URL: `http://localhost:8080/apidocs` (flasggerがインストールされている場合)
+- Dockerで起動している場合: `http://localhost/apidocs`（ポート80で公開）
+- 仕様(JSON): `http://localhost:8080/swagger.json`
 
-## 改善提案
+主なAPI（抜粋）:
 
-プロジェクトの改善提案については [IMPROVEMENTS.md](IMPROVEMENTS.md) を参照してください。
+- `POST /api/v1/upload`（非同期受付・複数ファイル/HA対応）
+- `GET /api/progress/<file_id>` / `GET /api/status/<file_id>`（進捗・結果）
+- `GET /api/v1/jobs` / `GET|DELETE /api/v1/jobs/<file_id>`（ジョブ管理）
+- `GET /api/v1/spec` / `GET /swagger.json`（Swagger仕様JSON）
+- `GET /health` / `GET /health/ready` / `GET /health/live`（ヘルスチェック）
+
+## 変更履歴
+
+変更履歴は [CHANGELOG.md](CHANGELOG.md) を参照してください。
 
 ## ライセンス
 
