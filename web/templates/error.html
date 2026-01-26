@@ -1,92 +1,56 @@
-<!DOCTYPE html>
-<html lang="ja" data-bs-theme="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>エラー - WallScribe</title>
-    <!-- Bootstrap 5 (Local) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <!-- Bootstrap Icons (Local) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}">
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-    <!-- Animated Background Grid -->
-    <div class="bg-grid"></div>
-    <div class="bg-glow bg-glow-error"></div>
+{% extends "base.html" %}
 
-    <div class="container py-4">
-        <!-- Header -->
-        <header class="text-center mb-5 position-relative">
-            <div class="header-badge mb-3">
-                <span class="badge-icon"><i class="bi bi-shield-lock"></i></span>
-                <span class="badge-text">Every Rule, Revealed.</span>
-            </div>
-            <h1 class="display-5 fw-bold mb-3">
-                <span class="text-gradient">WallScribe</span>
-                <br>
-            </h1>
-            <p class="lead text-body-secondary mb-0">
-                <span class="font-mono text-info-emphasis">#FortiGate</span>
-                <span class="mx-2 text-body-tertiary">/</span>
-                <span class="font-mono text-warning-emphasis">#PA-Series</span>
-            </p>
-            <div class="header-line mt-4"></div>
-        </header>
+{% block title %}エラー{% endblock %}
 
-        <main>
-            <!-- Error Card -->
-            <section class="error-section">
-                <div class="card card-glass border-danger-subtle">
-                    <div class="card-body p-5 text-center">
-                        <!-- Error Icon with Animation -->
-                        <div class="error-icon-wrapper mb-4">
-                            <div class="error-icon-bg"></div>
-                            <div class="error-icon">
-                                <i class="bi bi-exclamation-triangle"></i>
-                            </div>
-                        </div>
+{% block extra_css %}
+<style>
+    /* Error glow effect for this page */
+    body {
+        background-image:
+            radial-gradient(ellipse 80% 50% at 50% -20%, rgba(239, 68, 68, 0.15), transparent),
+            linear-gradient(var(--grid-color) 1px, transparent 1px),
+            linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+    }
+</style>
+{% endblock %}
 
-                        <!-- Error Code -->
-                        <div class="error-code mb-3">
-                            <span class="badge bg-danger-subtle text-danger font-mono fs-5 px-3 py-2">
-                                Error {{ error.code }}
-                            </span>
-                        </div>
-
-                        <!-- Error Message -->
-                        <h3 class="text-danger mb-3">エラーが発生しました</h3>
-                        <p class="text-body-secondary mb-4 fs-5">{{ error.message }}</p>
-
-                        <!-- Action Button -->
-                        <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4">
-                            <i class="bi bi-house-door me-2"></i>トップページに戻る
-                        </a>
-
-                        <!-- Help Text -->
-                        <div class="mt-4 pt-4 border-top border-secondary">
-                            <p class="text-body-tertiary small mb-0">
-                                <i class="bi bi-info-circle me-1"></i>
-                                問題が解決しない場合は、設定ファイルの形式をご確認ください
-                            </p>
-                        </div>
-                    </div>
+{% block content %}
+<!-- Error Card -->
+<section class="error-section">
+    <div class="glass-card error-glow">
+        <div class="card-body p-5 text-center">
+            <!-- Error Icon with Animation -->
+            <div class="error-icon-wrapper mb-4">
+                <div class="error-icon-bg"></div>
+                <div class="error-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
                 </div>
-            </section>
-        </main>
+            </div>
 
-        <!-- Footer -->
-        <footer class="text-center mt-5 py-4">
-            <p class="text-body-tertiary small mb-0 font-mono">
-                <i class="bi bi-terminal me-1"></i>
-                WallScribe – Firewall Parameter Sheet Generator
-                <span class="text-body-secondary">v1.1</span>
-            </p>
-        </footer>
+            <!-- Error Code -->
+            <div class="error-code mb-3">
+                <span class="badge bg-danger-subtle text-danger font-mono fs-5 px-3 py-2">
+                    Error {{ error.code }}
+                </span>
+            </div>
+
+            <!-- Error Message -->
+            <h3 class="text-danger mb-3">エラーが発生しました</h3>
+            <p class="text-body-secondary mb-4 fs-5">{{ error.message }}</p>
+
+            <!-- Action Button -->
+            <a href="{{ url_for('index') }}" class="btn btn-gradient btn-lg px-4">
+                <i class="bi bi-house-door me-2"></i>トップページに戻る
+            </a>
+
+            <!-- Help Text -->
+            <div class="mt-4 pt-4 border-top border-secondary">
+                <p class="text-body-tertiary small mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    問題が解決しない場合は、設定ファイルの形式をご確認ください
+                </p>
+            </div>
+        </div>
     </div>
-
-    <!-- Bootstrap JS (Local) -->
-    <script src="{{ url_for('static', filename='js/vendor/bootstrap.bundle.min.js') }}"></script>
-</body>
-</html>
+</section>
+{% endblock %}
