@@ -62,6 +62,7 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
     VDOM_SECTIONS = [
         ('interfaces', 'インターフェース', '_create_interfaces_sheet_for_vdom'),
         ('routes', 'ルーティング', '_create_routes_sheet_for_vdom'),
+        ('dhcp', 'DHCPサーバー', '_create_dhcp_sheet_for_vdom'),
         ('objects', 'オブジェクト', '_create_objects_sheet_for_vdom'),
         ('policies', 'ポリシー', '_create_policies_sheet_for_vdom'),
         ('nat', 'NAT設定', '_create_nat_sheet_for_vdom'),

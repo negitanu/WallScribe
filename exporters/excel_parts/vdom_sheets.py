@@ -307,8 +307,8 @@ class ExcelVdomSheetsMixin:
         row_idx = 1
 
         if policies:
-            self._set_section_title(ws, row_idx, 1, "ファイアウォールポリシー", colspan=13)
-            headers = ["No", "ID", "ポリシー名", "送信元IF", "宛先IF", "送信元アドレス", "宛先アドレス", "サービス", "アクション", "NAT", "ログ", "セキュリティ", "有効"]
+            self._set_section_title(ws, row_idx, 1, "ファイアウォールポリシー", colspan=14)
+            headers = ["No", "ID", "ポリシー名", "送信元IF", "宛先IF", "送信元アドレス", "宛先アドレス", "サービス", "アクション", "NAT", "ログ", "セキュリティ", "有効", "説明"]
             self._set_header_row(ws, headers, row_idx + 1)
             row_idx += 2
 
@@ -326,6 +326,7 @@ class ExcelVdomSheetsMixin:
                 self._set_status_cell(ws, row_idx, 11, policy.log_enabled)
                 self._set_cell(ws, row_idx, 12, self._list_to_str(policy.security_profiles))
                 self._set_status_cell(ws, row_idx, 13, policy.enabled)
+                self._set_cell(ws, row_idx, 14, policy.description)
                 row_idx += 1
 
             row_idx += 1
@@ -464,6 +465,29 @@ class ExcelVdomSheetsMixin:
             self._set_cell(ws, row_idx, 2, profile.profile_type, center=True)
             self._set_status_cell(ws, row_idx, 3, profile.enabled)
             self._set_cell(ws, row_idx, 4, profile.description)
+
+        self._auto_column_width(ws)
+
+    def _create_dhcp_sheet_for_vdom(self, vdom: str):
+        """指定VDOMのDHCPサーバーシートを作成"""
+        dhcp_servers = self._filter_by_vdom(self.config.dhcp_servers, vdom)
+        if not dhcp_servers:
+            return
+
+        ws = self._create_sheet("DHCP", vdom)
+        headers = ["インターフェース", "開始IP", "終了IP", "サブネットマスク", "除外IP", "ゲートウェイ", "DNSサーバー", "リース時間", "状態"]
+        self._set_header_row(ws, headers)
+
+        for row_idx, dhcp in enumerate(dhcp_servers, 2):
+            self._set_cell(ws, row_idx, 1, dhcp.interface)
+            self._set_cell(ws, row_idx, 2, dhcp.start_ip)
+            self._set_cell(ws, row_idx, 3, dhcp.end_ip)
+            self._set_cell(ws, row_idx, 4, dhcp.netmask)
+            self._set_cell(ws, row_idx, 5, self._list_to_str(dhcp.exclude_ips, ", ") if dhcp.exclude_ips else "-")
+            self._set_cell(ws, row_idx, 6, dhcp.gateway or "-")
+            self._set_cell(ws, row_idx, 7, self._list_to_str(dhcp.dns_servers, ", ") if dhcp.dns_servers else "-")
+            self._set_cell(ws, row_idx, 8, dhcp.lease_time or "-")
+            self._set_status_cell(ws, row_idx, 9, dhcp.status if hasattr(dhcp, 'status') else True)
 
         self._auto_column_width(ws)
 

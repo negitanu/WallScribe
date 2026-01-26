@@ -960,6 +960,18 @@ class HTMLExporter:
             if iface.vlan_id:
                 vlan_display = f"VLAN {self.escape(iface.vlan_id)}"
 
+            # 状態表示
+            status_display = "-"
+            status_class = ""
+            if iface.status:
+                status_lower = iface.status.lower()
+                if status_lower in ("up", "enable", "enabled", "有効"):
+                    status_class = "allow"
+                    status_display = iface.status
+                else:
+                    status_class = "deny"
+                    status_display = iface.status
+
             iface_rows += f'''<tr>
                 <td>{self.escape(iface.name)}</td>
                 <td>{self.escape(iface.interface_type)}</td>
@@ -968,6 +980,8 @@ class HTMLExporter:
                 <td>{vlan_display}</td>
                 <td>{zone_tag}</td>
                 <td>{self._format_allowed_access(iface.allowed_access)}</td>
+                <td class="{status_class}">{self.escape(status_display)}</td>
+                <td>{self.escape(iface.description) if iface.description else '-'}</td>
             </tr>'''
 
         # ルーティング
@@ -981,12 +995,16 @@ class HTMLExporter:
             interface_display = route.interface or "-"
             name_display = route.name or "-"
             destination_display = route.destination or "-"
+            distance_display = route.distance if route.distance else "-"
+            route_type_display = route.route_type if route.route_type else "-"
 
             route_rows += f'''<tr>
                 <td>{self.escape(name_display)}</td>
                 <td><code>{self.escape(destination_display)}</code></td>
                 <td><code>{self.escape(gateway_display) if gateway_display else '-'}</code></td>
                 <td>{self.escape(interface_display)}</td>
+                <td>{self.escape(str(distance_display))}</td>
+                <td>{self.escape(route_type_display)}</td>
             </tr>'''
 
         # DHCP
@@ -1035,16 +1053,16 @@ class HTMLExporter:
                 <h4>インターフェース（物理・VLAN・LAG）</h4>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover table-bordered">
-                        <tr><th>インターフェース名</th><th>タイプ</th><th>役割</th><th>IPアドレス</th><th>VLAN ID</th><th>ゾーン</th><th>許可アクセス</th></tr>
-                        {iface_rows if iface_rows else '<tr><td colspan="7">インターフェース設定なし</td></tr>'}
+                        <tr><th>インターフェース名</th><th>タイプ</th><th>役割</th><th>IPアドレス</th><th>VLAN ID</th><th>ゾーン</th><th>許可アクセス</th><th>状態</th><th>説明</th></tr>
+                        {iface_rows if iface_rows else '<tr><td colspan="9">インターフェース設定なし</td></tr>'}
                     </table>
                 </div>
 
                 <h4>スタティックルート</h4>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover table-bordered">
-                        <tr><th>名前</th><th>宛先ネットワーク</th><th>ゲートウェイ</th><th>デバイス（インターフェース）</th></tr>
-                        {route_rows if route_rows else '<tr><td colspan="4">スタティックルート設定なし</td></tr>'}
+                        <tr><th>名前</th><th>宛先ネットワーク</th><th>ゲートウェイ</th><th>デバイス（インターフェース）</th><th>ディスタンス</th><th>タイプ</th></tr>
+                        {route_rows if route_rows else '<tr><td colspan="6">スタティックルート設定なし</td></tr>'}
                     </table>
                 </div>
 
@@ -1526,10 +1544,12 @@ class HTMLExporter:
         # IPsec Phase1
         p1_rows = ""
         for p1 in ipsec_phase1:
+            ike_version_display = p1.ike_version if p1.ike_version else "-"
             p1_rows += f'''<tr>
                 <td>{self.escape(p1.name)}</td>
                 <td><code>{self.escape(p1.remote_gateway)}</code></td>
                 <td>{self.escape(p1.interface)}</td>
+                <td>{self.escape(str(ike_version_display))}</td>
                 <td>{self.escape(p1.encryption)} / {self.escape(p1.authentication)}</td>
                 <td>{self.escape(p1.dh_group)}</td>
                 <td>{self.escape(p1.lifetime)}</td>
@@ -1574,8 +1594,8 @@ class HTMLExporter:
                 <h4>IPsec-VPN Phase1</h4>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover table-bordered">
-                        <tr><th>VPN名</th><th>対向機器IP（ピア）</th><th>インターフェース</th><th>暗号化/認証</th><th>DHグループ</th><th>ライフタイム</th><th>事前共有鍵</th></tr>
-                        {p1_rows if p1_rows else '<tr><td colspan="7">IPsec Phase1設定なし</td></tr>'}
+                        <tr><th>VPN名</th><th>対向機器IP（ピア）</th><th>インターフェース</th><th>IKE</th><th>暗号化/認証</th><th>DHグループ</th><th>ライフタイム</th><th>事前共有鍵</th></tr>
+                        {p1_rows if p1_rows else '<tr><td colspan="8">IPsec Phase1設定なし</td></tr>'}
                     </table>
                 </div>
 
