@@ -9,8 +9,10 @@ import tempfile
 from pathlib import Path
 
 from exporters.html import HTMLExporter
+
 try:
     import exporters.excel as excel_module  # type: ignore
+
     ExcelExporter = excel_module.ExcelExporter  # type: ignore[attr-defined]
     EXCEL_AVAILABLE = bool(getattr(excel_module, "OPENPYXL_AVAILABLE", True))
 except ImportError:
@@ -19,6 +21,7 @@ except ImportError:
 
 try:
     from exporters.pdf import PDFExporter  # type: ignore
+
     PDF_AVAILABLE = True
 except ImportError:
     PDFExporter = None  # type: ignore[assignment]
@@ -79,7 +82,7 @@ class TestHTMLExporter:
         """ファイルとして出力"""
         exporter = HTMLExporter(sample_config_model)
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
             output_path = f.name
 
         try:
@@ -89,7 +92,7 @@ class TestHTMLExporter:
             assert Path(output_path).exists()
 
             # 内容を確認
-            with open(output_path, 'r', encoding='utf-8') as f:
+            with open(output_path, "r", encoding="utf-8") as f:
                 content = f.read()
             assert "<!DOCTYPE html>" in content
         finally:
@@ -124,15 +127,17 @@ class TestHTMLExporter:
         """blackhole ルートがスタティックルートに明示されることを確認"""
         from models.config import Route
 
-        sample_config_model.routes.append(Route(
-            name="BH-TEST",
-            destination="203.0.113.0/24",
-            gateway="",  # blackholeはゲートウェイ空
-            interface="",
-            distance="10",
-            vdom="root",
-            route_type="blackhole"
-        ))
+        sample_config_model.routes.append(
+            Route(
+                name="BH-TEST",
+                destination="203.0.113.0/24",
+                gateway="",  # blackholeはゲートウェイ空
+                interface="",
+                distance="10",
+                vdom="root",
+                route_type="blackhole",
+            )
+        )
 
         exporter = HTMLExporter(sample_config_model)
         html = exporter.export()
@@ -169,7 +174,7 @@ class TestExcelExporter:
             pytest.skip("openpyxl が未導入のため ExcelExporter テストをスキップ")
         exporter = ExcelExporter(sample_config_model)
 
-        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as f:
             output_path = f.name
 
         try:
@@ -246,15 +251,17 @@ class TestExcelExporter:
             pytest.skip("openpyxl が未導入のため ExcelExporter テストをスキップ")
         from models.config import Route
 
-        sample_config_model.routes.append(Route(
-            name="BH-TEST",
-            destination="203.0.113.0/24",
-            gateway="",
-            interface="",
-            distance="10",
-            vdom="root",
-            route_type="blackhole"
-        ))
+        sample_config_model.routes.append(
+            Route(
+                name="BH-TEST",
+                destination="203.0.113.0/24",
+                gateway="",
+                interface="",
+                distance="10",
+                vdom="root",
+                route_type="blackhole",
+            )
+        )
 
         exporter = ExcelExporter(sample_config_model)
         workbook = exporter.export()
@@ -306,7 +313,7 @@ class TestCacheManager:
     def test_internet_service_display(self, sample_config_model):
         """Internet Serviceの表示"""
         from models.config import FirewallPolicy, PolicyAction
-        
+
         # Internet Service名を含むポリシーを追加
         policy = FirewallPolicy(
             policy_id="2",
@@ -315,7 +322,7 @@ class TestCacheManager:
             destination_address=[],
             internet_service_name=["Google-Web", "Dropbox-Web"],
             action=PolicyAction.ALLOW,
-            vdom="root"
+            vdom="root",
         )
         sample_config_model.firewall_policies.append(policy)
 
@@ -329,15 +336,15 @@ class TestCacheManager:
     def test_tooltip_generation(self, sample_config_model):
         """ツールチップの生成"""
         exporter = HTMLExporter(sample_config_model)
-        
+
         # インターフェースツールチップ
         tooltip = exporter._get_interface_tooltip("port1", "root")
         assert len(tooltip) > 0
-        
+
         # アドレストールチップ
         tooltip = exporter._get_address_tooltip("Server-A", "root")
         assert len(tooltip) > 0
-        
+
         # サービストールチップ
         tooltip = exporter._get_service_tooltip("HTTP", "root")
         assert len(tooltip) > 0
@@ -346,7 +353,7 @@ class TestCacheManager:
         """HTML出力にツールチップが含まれている"""
         exporter = HTMLExporter(sample_config_model)
         html = exporter.export()
-        
+
         # ツールチップ用のクラスが含まれていることを確認
         assert "has-tooltip" in html
         assert "data-tooltip" in html
@@ -356,7 +363,7 @@ class TestCacheManager:
         # 特定のセクションのみを出力
         exporter = HTMLExporter(sample_config_model, sections=["device_info", "policies"])
         html = exporter.export()
-        
+
         # 指定したセクションが含まれていることを確認
         assert "機器概要" in html or "device_info" in html.lower()
         assert "ファイアウォールポリシー" in html or "policies" in html.lower()
@@ -366,13 +373,13 @@ class TestCacheManager:
         if not PDF_AVAILABLE or PDFExporter is None:
             pytest.skip("weasyprint が未導入のため PDFExporter テストをスキップ")
         exporter = PDFExporter(sample_config_model)
-        
-        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
             output_path = f.name
-        
+
         try:
             exporter.export(output_path)
-            
+
             # ファイルが作成されていることを確認
             assert Path(output_path).exists()
             # PDFファイルのサイズが0より大きいことを確認
@@ -393,8 +400,8 @@ class TestCacheManager:
                 cluster_name="CLUSTER-TEST",
                 group_id="1",
                 ha_mode=sample_config_model.ha.mode,
-                members=[]
-            )
+                members=[],
+            ),
         )
 
         exporter = PDFExporter(cluster)
@@ -407,7 +414,7 @@ class TestCacheManager:
             pytest.skip("openpyxl が未導入のため ExcelExporter テストをスキップ")
         exporter = ExcelExporter(sample_config_model, sections=["device_info", "policies"])
         workbook = exporter.export()
-        
+
         sheet_names = workbook.sheetnames
         # 指定したセクションが含まれていることを確認
         assert "機器概要" in sheet_names

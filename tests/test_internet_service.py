@@ -84,12 +84,12 @@ class TestInternetServiceDisplay:
             destination_address=[],
             internet_service_name=["Google-Web", "Dropbox-Web"],
             action=PolicyAction.ALLOW,
-            vdom="root"
+            vdom="root",
         )
         sample_config_model.firewall_policies.append(policy)
 
         exporter = HTMLExporter(sample_config_model)
-        
+
         # Internet Serviceの識別テスト
         assert exporter._is_internet_service("Google-Web") is True
         assert exporter._is_internet_service("12345") is True  # ISDB ID
@@ -110,7 +110,7 @@ class TestInternetServiceDisplay:
             destination_address=[],
             internet_service_name=["Google-Web", "Dropbox-Web"],
             action=PolicyAction.ALLOW,
-            vdom="root"
+            vdom="root",
         )
         sample_config_model.firewall_policies.append(policy)
 
@@ -131,7 +131,7 @@ class TestInternetServiceDisplay:
             destination_address=["Server-A"],
             internet_service_name=["Google-Web"],
             action=PolicyAction.ALLOW,
-            vdom="root"
+            vdom="root",
         )
         sample_config_model.firewall_policies.append(policy)
 
@@ -149,7 +149,7 @@ class TestISDBData:
     def test_load_isdb(self):
         """ISDBデータの読み込み"""
         isdb = load_isdb()
-        
+
         # ISDBデータが読み込まれていることを確認
         assert isinstance(isdb, dict)
         # appid.csvからデータが読み込まれていることを確認（少なくとも1件以上）
@@ -158,7 +158,7 @@ class TestISDBData:
     def test_isdb_data_structure(self):
         """ISDBデータの構造確認"""
         isdb = load_isdb()
-        
+
         # データがapp_id: app_nameの形式であることを確認
         for app_id, app_name in list(isdb.items())[:5]:  # 最初の5件をチェック
             assert isinstance(app_id, str)

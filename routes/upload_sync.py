@@ -47,14 +47,24 @@ def register(
         try:
             if "config_file" not in request.files:
                 return (
-                    jsonify({"success": False, "error": {"code": "NO_FILE", "message": "ファイルが選択されていません"}}),
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {"code": "NO_FILE", "message": "ファイルが選択されていません"},
+                        }
+                    ),
                     400,
                 )
 
             file = request.files["config_file"]
             if file.filename == "":
                 return (
-                    jsonify({"success": False, "error": {"code": "NO_FILE", "message": "ファイルが選択されていません"}}),
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {"code": "NO_FILE", "message": "ファイルが選択されていません"},
+                        }
+                    ),
                     400,
                 )
 
@@ -76,7 +86,15 @@ def register(
             output_format = request.form.get("output_format", "html")
             is_valid_format, format_error = validate_output_format(output_format)
             if not is_valid_format:
-                return jsonify({"success": False, "error": {"code": "INVALID_OUTPUT_FORMAT", "message": format_error}}), 400
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {"code": "INVALID_OUTPUT_FORMAT", "message": format_error},
+                        }
+                    ),
+                    400,
+                )
 
             # 依存関係チェック（オプショナル出力）
             if output_format == "pdf" and not pdf_available:
@@ -112,15 +130,27 @@ def register(
             sections_json = request.form.get("sections", "[]")
             try:
                 sections_list = json.loads(sections_json)
-                sections: Optional[List[Any]] = sections_list if isinstance(sections_list, list) else None
+                sections: Optional[List[Any]] = (
+                    sections_list if isinstance(sections_list, list) else None
+                )
             except json.JSONDecodeError:
                 sections = None
 
             file_data = file.read()
 
-            is_valid_size, size_error = validate_file_size(file_data, app.config["MAX_CONTENT_LENGTH"])
+            is_valid_size, size_error = validate_file_size(
+                file_data, app.config["MAX_CONTENT_LENGTH"]
+            )
             if not is_valid_size:
-                return jsonify({"success": False, "error": {"code": "FILE_TOO_LARGE", "message": size_error}}), 400
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {"code": "FILE_TOO_LARGE", "message": size_error},
+                        }
+                    ),
+                    400,
+                )
 
             original_filename = secure_filename(file.filename)
             is_valid_content, content_error = validate_file_content(file_data, original_filename)
@@ -309,4 +339,3 @@ def register(
                 ),
                 500,
             )
-

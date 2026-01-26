@@ -14,6 +14,7 @@ try:
     from openpyxl.styles import Font, Alignment, Border, Side, PatternFill  # type: ignore
     from openpyxl.utils import get_column_letter  # type: ignore
     from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
+
     OPENPYXL_AVAILABLE = True
 except ImportError:  # pragma: no cover - openpyxl未導入環境向け
     OPENPYXL_AVAILABLE = False
@@ -30,9 +31,8 @@ except ImportError:  # pragma: no cover - openpyxl未導入環境向け
     def get_column_letter(*args, **kwargs):  # type: ignore
         raise ImportError("Excel出力には openpyxl が必要です")
 
-from models.config import (
-    ConfigModel, PolicyAction, HAMode, DeviceType
-)
+
+from models.config import ConfigModel, PolicyAction, HAMode, DeviceType
 from models.cluster import ClusterConfig, HARole
 from exporters import excel_styles as styles
 from exporters.excel_parts.common import ExcelCommonMixin
@@ -51,23 +51,23 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
 
     # グローバルセクション定義（VDOM横断の共通設定）
     GLOBAL_SECTIONS = [
-        ('cluster_overview', 'クラスタ概要', '_create_cluster_overview_sheet'),
-        ('device_info', '機器概要', '_create_overview_sheet'),
-        ('system_settings', 'システム設定', '_create_system_sheet'),
-        ('ha', 'HA設定', '_create_ha_sheet'),
-        ('logging', 'ログ・監視設定', '_create_logging_sheet'),
+        ("cluster_overview", "クラスタ概要", "_create_cluster_overview_sheet"),
+        ("device_info", "機器概要", "_create_overview_sheet"),
+        ("system_settings", "システム設定", "_create_system_sheet"),
+        ("ha", "HA設定", "_create_ha_sheet"),
+        ("logging", "ログ・監視設定", "_create_logging_sheet"),
     ]
 
     # VDOM単位セクション定義
     VDOM_SECTIONS = [
-        ('interfaces', 'インターフェース', '_create_interfaces_sheet_for_vdom'),
-        ('routes', 'ルーティング', '_create_routes_sheet_for_vdom'),
-        ('dhcp', 'DHCPサーバー', '_create_dhcp_sheet_for_vdom'),
-        ('objects', 'オブジェクト', '_create_objects_sheet_for_vdom'),
-        ('policies', 'ポリシー', '_create_policies_sheet_for_vdom'),
-        ('nat', 'NAT設定', '_create_nat_sheet_for_vdom'),
-        ('vpn', 'VPN設定', '_create_vpn_sheet_for_vdom'),
-        ('security_profiles', 'セキュリティ', '_create_security_profiles_sheet_for_vdom'),
+        ("interfaces", "インターフェース", "_create_interfaces_sheet_for_vdom"),
+        ("routes", "ルーティング", "_create_routes_sheet_for_vdom"),
+        ("dhcp", "DHCPサーバー", "_create_dhcp_sheet_for_vdom"),
+        ("objects", "オブジェクト", "_create_objects_sheet_for_vdom"),
+        ("policies", "ポリシー", "_create_policies_sheet_for_vdom"),
+        ("nat", "NAT設定", "_create_nat_sheet_for_vdom"),
+        ("vpn", "VPN設定", "_create_vpn_sheet_for_vdom"),
+        ("security_profiles", "セキュリティ", "_create_security_profiles_sheet_for_vdom"),
     ]
     # ============================================================
     # スタイル定義（分割）
@@ -158,7 +158,7 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
 
     def _filter_by_vdom(self, items: List[Any], vdom: str) -> List[Any]:
         """指定VDOMの項目のみをフィルタリング"""
-        return [item for item in items if getattr(item, 'vdom', 'root') == vdom]
+        return [item for item in items if getattr(item, "vdom", "root") == vdom]
 
     def _get_vdom_color(self, vdom: str) -> dict:
         """指定VDOMの色設定を取得"""
@@ -176,24 +176,32 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
         """VDOM用のスタイルオブジェクトを取得"""
         color = self._current_color if vdom is None else self._get_vdom_color(vdom)
         return {
-            'header_font': Font(bold=True, color=color['header_text'], size=10, name='Yu Gothic UI'),
-            'header_fill': PatternFill(start_color=color['header_bg'], end_color=color['header_bg'], fill_type="solid"),
-            'header_border': Border(
-                left=Side(style='thin', color=color['header_bg']),
-                right=Side(style='thin', color=color['header_bg']),
-                top=Side(style='thin', color=color['header_bg']),
-                bottom=Side(style='medium', color=color['header_bg'])
+            "header_font": Font(
+                bold=True, color=color["header_text"], size=10, name="Yu Gothic UI"
             ),
-            'section_font': Font(bold=True, color=color['header_bg'], size=12, name='Yu Gothic UI'),
-            'section_fill': PatternFill(start_color=color['accent'], end_color=color['accent'], fill_type="solid"),
-            'row_alt_fill': PatternFill(start_color=color['row_alt'], end_color=color['row_alt'], fill_type="solid"),
-            'border': Border(
-                left=Side(style='thin', color=color['border']),
-                right=Side(style='thin', color=color['border']),
-                top=Side(style='thin', color=color['border']),
-                bottom=Side(style='thin', color=color['border'])
+            "header_fill": PatternFill(
+                start_color=color["header_bg"], end_color=color["header_bg"], fill_type="solid"
             ),
-            'tab_color': color['tab_color'],
+            "header_border": Border(
+                left=Side(style="thin", color=color["header_bg"]),
+                right=Side(style="thin", color=color["header_bg"]),
+                top=Side(style="thin", color=color["header_bg"]),
+                bottom=Side(style="medium", color=color["header_bg"]),
+            ),
+            "section_font": Font(bold=True, color=color["header_bg"], size=12, name="Yu Gothic UI"),
+            "section_fill": PatternFill(
+                start_color=color["accent"], end_color=color["accent"], fill_type="solid"
+            ),
+            "row_alt_fill": PatternFill(
+                start_color=color["row_alt"], end_color=color["row_alt"], fill_type="solid"
+            ),
+            "border": Border(
+                left=Side(style="thin", color=color["border"]),
+                right=Side(style="thin", color=color["border"]),
+                top=Side(style="thin", color=color["border"]),
+                bottom=Side(style="thin", color=color["border"]),
+            ),
+            "tab_color": color["tab_color"],
         }
 
     def export(self, output_path: Optional[str] = None) -> Workbook:
@@ -207,7 +215,7 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
 
         for key, title, method_name in self.GLOBAL_SECTIONS:
             # クラスタ概要はクラスタ構成時のみ
-            if key == 'cluster_overview' and not self.is_cluster:
+            if key == "cluster_overview" and not self.is_cluster:
                 continue
             method = getattr(self, method_name)
             method()
@@ -235,14 +243,24 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
 
     def _create_interfaces_sheet(self):
         """インターフェースシートを作成（モダンスタイル）
-        
+
         注意: このメソッドは非推奨です。
         VDOM単位の出力には _create_interfaces_sheet_for_vdom() を使用してください。
         """
         ws = self._create_sheet("インターフェース")
 
-        headers = ["インターフェース名", "タイプ", "役割", "IPアドレス", "VLAN ID",
-                   "ゾーン", "VDOM/vsys", "許可アクセス", "状態", "説明"]
+        headers = [
+            "インターフェース名",
+            "タイプ",
+            "役割",
+            "IPアドレス",
+            "VLAN ID",
+            "ゾーン",
+            "VDOM/vsys",
+            "許可アクセス",
+            "状態",
+            "説明",
+        ]
         self._set_header_row(ws, headers)
 
         for row_idx, iface in enumerate(self.config.interfaces, 2):
@@ -255,10 +273,20 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
             self._set_cell(ws, row_idx, 7, iface.vdom, center=True)
             self._set_cell(ws, row_idx, 8, self._list_to_str(iface.allowed_access, ", "))
             # 状態をステータスセルとして表示
-            status_enabled = iface.status and iface.status.lower() in ('up', 'enable', 'enabled', '有効')
-            self._set_status_cell(ws, row_idx, 9, status_enabled,
-                                 enabled_text=iface.status or "up",
-                                 disabled_text=iface.status or "down")
+            status_enabled = iface.status and iface.status.lower() in (
+                "up",
+                "enable",
+                "enabled",
+                "有効",
+            )
+            self._set_status_cell(
+                ws,
+                row_idx,
+                9,
+                status_enabled,
+                enabled_text=iface.status or "up",
+                disabled_text=iface.status or "down",
+            )
             self._set_cell(ws, row_idx, 10, iface.description)
 
         self._auto_column_width(ws)
@@ -267,14 +295,24 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
         """ルーティングシートを作成（モダンスタイル）"""
         ws = self._create_sheet("ルーティング")
 
-        headers = ["ルート名", "宛先ネットワーク", "ゲートウェイ", "インターフェース",
-                   "ディスタンス", "タイプ", "VDOM/vsys"]
+        headers = [
+            "ルート名",
+            "宛先ネットワーク",
+            "ゲートウェイ",
+            "インターフェース",
+            "ディスタンス",
+            "タイプ",
+            "VDOM/vsys",
+        ]
         self._set_header_row(ws, headers)
 
         for row_idx, route in enumerate(self.config.routes, 2):
             gateway_display = route.gateway
             # blackhole/discard ルートはゲートウェイが空になるため、明示して記載する
-            if not gateway_display and getattr(route, "route_type", "") in ("blackhole", "blackhole6"):
+            if not gateway_display and getattr(route, "route_type", "") in (
+                "blackhole",
+                "blackhole6",
+            ):
                 gateway_display = "blackhole"
 
             self._set_cell(ws, row_idx, 1, route.name)
@@ -354,9 +392,23 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
         """ファイアウォールポリシーシートを作成（モダンスタイル）"""
         ws = self._create_sheet("ファイアウォールポリシー")
 
-        headers = ["No", "ID", "ポリシー名", "送信元IF", "宛先IF", "送信元アドレス",
-                   "宛先アドレス", "サービス", "アクション", "NAT", "ログ",
-                   "セキュリティプロファイル", "VDOM/vsys", "有効", "説明"]
+        headers = [
+            "No",
+            "ID",
+            "ポリシー名",
+            "送信元IF",
+            "宛先IF",
+            "送信元アドレス",
+            "宛先アドレス",
+            "サービス",
+            "アクション",
+            "NAT",
+            "ログ",
+            "セキュリティプロファイル",
+            "VDOM/vsys",
+            "有効",
+            "説明",
+        ]
         self._set_header_row(ws, headers)
 
         for row_idx, (idx, policy) in enumerate(enumerate(self.config.firewall_policies, 1), 2):
@@ -388,8 +440,19 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
         """Local-in ポリシーシートを作成（モダンスタイル）"""
         ws = self._create_sheet("Local-in ポリシー")
 
-        headers = ["No", "ID", "ポリシー名", "送信元IF", "送信元アドレス",
-                   "宛先アドレス", "サービス", "アクション", "VDOM/vsys", "有効", "説明"]
+        headers = [
+            "No",
+            "ID",
+            "ポリシー名",
+            "送信元IF",
+            "送信元アドレス",
+            "宛先アドレス",
+            "サービス",
+            "アクション",
+            "VDOM/vsys",
+            "有効",
+            "説明",
+        ]
         self._set_header_row(ws, headers)
 
         for row_idx, (idx, policy) in enumerate(enumerate(self.config.local_in_policies, 1), 2):
@@ -418,9 +481,22 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
         """NAT設定シートを作成（モダンスタイル）"""
         ws = self._create_sheet("NAT設定")
 
-        headers = ["ルール名", "タイプ", "元送信元", "元宛先", "変換後送信元",
-                   "変換後宛先", "外部IF", "外部IP", "内部IP", "ポートフォワード",
-                   "元ポート", "変換後ポート", "VDOM/vsys", "説明"]
+        headers = [
+            "ルール名",
+            "タイプ",
+            "元送信元",
+            "元宛先",
+            "変換後送信元",
+            "変換後宛先",
+            "外部IF",
+            "外部IP",
+            "内部IP",
+            "ポートフォワード",
+            "元ポート",
+            "変換後ポート",
+            "VDOM/vsys",
+            "説明",
+        ]
         self._set_header_row(ws, headers)
 
         for row_idx, nat in enumerate(self.config.nat_policies, 2):
@@ -447,8 +523,17 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
 
         # IPsec Phase1
         self._set_section_title(ws, 1, 1, "IPsec Phase1", colspan=9)
-        p1_headers = ["VPN名", "リモートGW", "インターフェース", "IKEバージョン",
-                      "暗号化", "認証", "DHグループ", "ライフタイム", "PSK"]
+        p1_headers = [
+            "VPN名",
+            "リモートGW",
+            "インターフェース",
+            "IKEバージョン",
+            "暗号化",
+            "認証",
+            "DHグループ",
+            "ライフタイム",
+            "PSK",
+        ]
         self._set_header_row(ws, p1_headers, 2)
 
         row_idx = 3
@@ -461,14 +546,24 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
             self._set_cell(ws, row_idx, 6, p1.authentication, center=True)
             self._set_cell(ws, row_idx, 7, p1.dh_group, center=True)
             self._set_cell(ws, row_idx, 8, p1.lifetime, center=True)
-            self._set_status_cell(ws, row_idx, 9, bool(p1.psk), enabled_text="有", disabled_text="無")
+            self._set_status_cell(
+                ws, row_idx, 9, bool(p1.psk), enabled_text="有", disabled_text="無"
+            )
             row_idx += 1
 
         # IPsec Phase2
         row_idx += 2
         self._set_section_title(ws, row_idx, 1, "IPsec Phase2", colspan=8)
-        p2_headers = ["VPN名", "Phase1名", "暗号化", "認証", "PFS",
-                      "ライフタイム", "ローカルセグメント", "リモートセグメント"]
+        p2_headers = [
+            "VPN名",
+            "Phase1名",
+            "暗号化",
+            "認証",
+            "PFS",
+            "ライフタイム",
+            "ローカルセグメント",
+            "リモートセグメント",
+        ]
         self._set_header_row(ws, p2_headers, row_idx + 1)
         row_idx += 2
 
@@ -486,8 +581,17 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
         # SSL-VPN
         row_idx += 2
         self._set_section_title(ws, row_idx, 1, "SSL-VPN / GlobalProtect", colspan=9)
-        ssl_headers = ["レルム", "ポータル", "ポート", "インターフェース",
-                       "認証方式", "IPプール", "ユーザーグループ", "モード", "VDOM/vsys"]
+        ssl_headers = [
+            "レルム",
+            "ポータル",
+            "ポート",
+            "インターフェース",
+            "認証方式",
+            "IPプール",
+            "ユーザーグループ",
+            "モード",
+            "VDOM/vsys",
+        ]
         self._set_header_row(ws, ssl_headers, row_idx + 1)
         row_idx += 2
 

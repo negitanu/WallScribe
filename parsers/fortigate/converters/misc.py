@@ -7,17 +7,18 @@
 from typing import Any, Dict, List, Tuple
 
 from models.config import (
-    ConfigModel, HASettings, HAMode,
-    HAHeartbeatInterface, HAManagementInterface,
-    SyslogServer, SNMPSettings
+    ConfigModel,
+    HASettings,
+    HAMode,
+    HAHeartbeatInterface,
+    HAManagementInterface,
+    SyslogServer,
+    SNMPSettings,
 )
 from parsers.utils import get_nested
 
 
-def convert_ha(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_ha(config_model: ConfigModel, parsed_config: Dict) -> None:
     """HA設定を変換
 
     Args:
@@ -86,7 +87,7 @@ def convert_ha(
             hb_lost_threshold=hb_lost_threshold,
             encryption=encryption,
             authentication=authentication,
-            password=password if password else ""
+            password=password if password else "",
         )
 
 
@@ -112,10 +113,10 @@ def _parse_hbdev(hbdev: Any) -> Tuple[List[str], List[HAHeartbeatInterface]]:
     # FortiGateParser._parse_value() はトークン数が複数の場合 list を返すため、
     # ここでは str / list の両方を受け取れるようにする。
     if isinstance(hbdev, list):
-        parts = [str(x).replace('"', '') for x in hbdev if str(x).strip() != ""]
+        parts = [str(x).replace('"', "") for x in hbdev if str(x).strip() != ""]
     else:
         # 例: '"port3" 0 "port4" 1' または 'port3 0 port4 1'
-        parts = str(hbdev).replace('"', '').split()
+        parts = str(hbdev).replace('"', "").split()
 
     i = 0
     while i < len(parts):
@@ -130,10 +131,7 @@ def _parse_hbdev(hbdev: Any) -> Tuple[List[str], List[HAHeartbeatInterface]]:
             i += 1
 
         interfaces.append(iface_name)
-        interfaces_detail.append(HAHeartbeatInterface(
-            interface=iface_name,
-            priority=priority
-        ))
+        interfaces_detail.append(HAHeartbeatInterface(interface=iface_name, priority=priority))
 
     return interfaces, interfaces_detail
 
@@ -160,22 +158,26 @@ def _parse_ha_mgmt_interfaces(ha_config: Dict) -> List[HAManagementInterface]:
         for mgmt_id, mgmt_data in ha_mgmt_interfaces.items():
             if isinstance(mgmt_data, dict):
                 dst = _format_dst_address(mgmt_data.get("dst", ""))
-                result.append(HAManagementInterface(
-                    id=str(mgmt_id),
-                    interface=mgmt_data.get("interface", ""),
-                    dst=dst,
-                    gateway=mgmt_data.get("gateway", "")
-                ))
+                result.append(
+                    HAManagementInterface(
+                        id=str(mgmt_id),
+                        interface=mgmt_data.get("interface", ""),
+                        dst=dst,
+                        gateway=mgmt_data.get("gateway", ""),
+                    )
+                )
     elif isinstance(ha_mgmt_interfaces, list):
         for idx, mgmt_data in enumerate(ha_mgmt_interfaces):
             if isinstance(mgmt_data, dict):
                 dst = _format_dst_address(mgmt_data.get("dst", ""))
-                result.append(HAManagementInterface(
-                    id=str(idx + 1),
-                    interface=mgmt_data.get("interface", ""),
-                    dst=dst,
-                    gateway=mgmt_data.get("gateway", "")
-                ))
+                result.append(
+                    HAManagementInterface(
+                        id=str(idx + 1),
+                        interface=mgmt_data.get("interface", ""),
+                        dst=dst,
+                        gateway=mgmt_data.get("gateway", ""),
+                    )
+                )
 
     return result
 
@@ -245,10 +247,7 @@ def _parse_ha_mode(mode_str: str) -> HAMode:
     return HAMode.STANDALONE
 
 
-def convert_logging(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_logging(config_model: ConfigModel, parsed_config: Dict) -> None:
     """ログ設定を変換
 
     Args:
@@ -262,10 +261,7 @@ def convert_logging(
     _add_fortianalyzer_settings(config_model, global_cfg)
 
 
-def _add_syslog_settings(
-    config_model: ConfigModel,
-    global_cfg: Dict
-) -> None:
+def _add_syslog_settings(config_model: ConfigModel, global_cfg: Dict) -> None:
     """Syslog設定を追加"""
     syslog_setting = get_nested(global_cfg, "log syslogd setting", default={})
     if isinstance(syslog_setting, dict) and syslog_setting:
@@ -273,16 +269,13 @@ def _add_syslog_settings(
             server=syslog_setting.get("server", ""),
             port=str(syslog_setting.get("port", "514")),
             facility=syslog_setting.get("facility", ""),
-            status="enabled" if syslog_setting.get("status") == "enable" else "disabled"
+            status="enabled" if syslog_setting.get("status") == "enable" else "disabled",
         )
         config_model.logging.syslog_servers.append(server)
 
 
 def _process_snmp_community(
-    comm_data: Dict,
-    comm_name: str,
-    snmp_enabled: bool,
-    config_model: ConfigModel
+    comm_data: Dict, comm_name: str, snmp_enabled: bool, config_model: ConfigModel
 ) -> None:
     """SNMPコミュニティ設定を処理"""
     # コミュニティ名を取得（_name属性を優先、なければキー名を使用）
@@ -290,10 +283,10 @@ def _process_snmp_community(
     if not community_name:
         # _nameが存在しない場合、キー名を使用（引用符を除去）
         community_name = str(comm_name).strip('"')
-    
+
     # ホストリストを処理
     hosts = _parse_hosts_list(comm_data.get("hosts", []))
-    
+
     # トラップ送信先を取得（trap-statusがenableの場合）
     trap_hosts = []
     trap_status = comm_data.get("trap-status", "")
@@ -305,16 +298,13 @@ def _process_snmp_community(
         community=community_name,
         hosts=hosts,
         trap_hosts=trap_hosts,
-        version="v2c"
+        version="v2c",
     )
     config_model.logging.snmp.append(snmp)
 
 
 def _process_snmp_user(
-    user_data: Dict,
-    user_name: str,
-    snmp_enabled: bool,
-    config_model: ConfigModel
+    user_data: Dict, user_name: str, snmp_enabled: bool, config_model: ConfigModel
 ) -> None:
     """SNMP v3ユーザー設定を処理"""
     # ユーザー名を取得（_name属性を優先、なければキー名を使用）
@@ -322,10 +312,10 @@ def _process_snmp_user(
     if not username:
         # _nameが存在しない場合、キー名を使用（引用符を除去）
         username = str(user_name).strip('"')
-    
+
     # ホストリストを処理
     hosts = _parse_hosts_list(user_data.get("hosts", []))
-    
+
     # トラップ送信先を取得（trap-statusがenableの場合）
     trap_hosts = []
     trap_status = user_data.get("trap-status", "")
@@ -333,11 +323,7 @@ def _process_snmp_user(
         trap_hosts = hosts if hosts else []
 
     snmp = SNMPSettings(
-        enabled=snmp_enabled,
-        username=username,
-        hosts=hosts,
-        trap_hosts=trap_hosts,
-        version="v3"
+        enabled=snmp_enabled, username=username, hosts=hosts, trap_hosts=trap_hosts, version="v3"
     )
     config_model.logging.snmp.append(snmp)
 
@@ -383,18 +369,17 @@ def _parse_hosts_list(hosts: Any) -> List[str]:
     return []
 
 
-def _add_snmp_settings(
-    config_model: ConfigModel,
-    global_cfg: Dict
-) -> None:
+def _add_snmp_settings(config_model: ConfigModel, global_cfg: Dict) -> None:
     """SNMP設定を追加"""
     # SNMP有効化状態を取得
     snmp_sysinfo = get_nested(global_cfg, "system snmp sysinfo", default={})
-    snmp_enabled = snmp_sysinfo.get("status", "") == "enable" if isinstance(snmp_sysinfo, dict) else False
+    snmp_enabled = (
+        snmp_sysinfo.get("status", "") == "enable" if isinstance(snmp_sysinfo, dict) else False
+    )
 
     # SNMP v2c コミュニティ設定
     snmp_community = get_nested(global_cfg, "system snmp community", default={})
-    
+
     # 辞書形式の場合
     if isinstance(snmp_community, dict):
         for comm_name, comm_data in snmp_community.items():
@@ -414,7 +399,7 @@ def _add_snmp_settings(
 
     # SNMP v3 ユーザー設定
     snmp_user = get_nested(global_cfg, "system snmp user", default={})
-    
+
     # 辞書形式の場合
     if isinstance(snmp_user, dict):
         for user_name, user_data in snmp_user.items():
@@ -433,10 +418,7 @@ def _add_snmp_settings(
                 _process_snmp_user(user_data, user_name, snmp_enabled, config_model)
 
 
-def _add_fortianalyzer_settings(
-    config_model: ConfigModel,
-    global_cfg: Dict
-) -> None:
+def _add_fortianalyzer_settings(config_model: ConfigModel, global_cfg: Dict) -> None:
     """FortiAnalyzer設定を追加"""
     faz_setting = get_nested(global_cfg, "log fortianalyzer setting", default={})
     if isinstance(faz_setting, dict) and faz_setting:

@@ -4,7 +4,7 @@ FortiGate と PA-Series ファイアウォールの設定ファイルから、�
 
 ## 技術スタック
 
-![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat-square&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-2.0+-000000?style=flat-square&logo=flask&logoColor=white)
 ![WeasyPrint](https://img.shields.io/badge/WeasyPrint-62.0+-FF6B6B?style=flat-square)
 ![Gunicorn](https://img.shields.io/badge/Gunicorn-20.0+-499848?style=flat-square&logo=gunicorn&logoColor=white)
@@ -30,7 +30,7 @@ FortiGate と PA-Series ファイアウォールの設定ファイルから、�
 
 #### ローカル環境（Python直接実行）
 
-- Python 3.8 以上
+- Python 3.14 のみ
 
 #### Docker環境
 
@@ -414,7 +414,7 @@ make security-check
 
 GitHub Actionsによる自動テストとコード品質チェックが設定されています：
 
-- 複数のPythonバージョン（3.8, 3.9, 3.10, 3.11）でのテスト
+- Python 3.14 でのテスト
 - コードフォーマットチェック（black, isort）
 - リンター（flake8）
 - 型チェック（mypy）

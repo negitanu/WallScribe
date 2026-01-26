@@ -26,8 +26,7 @@ def get_appid_mapping() -> Dict[str, Dict[str, str]]:
 
     _appid_cache = {}
     csv_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        "static", "data", "appid.csv"
+        os.path.dirname(os.path.dirname(__file__)), "static", "data", "appid.csv"
     )
 
     if not os.path.exists(csv_path):
@@ -147,7 +146,7 @@ def ip_to_cidr(ip_subnet: Union[str, List]) -> str:
             octets = [int(x) for x in subnet_mask.split(".")]
             if len(octets) == 4:
                 mask_int = (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3]
-                cidr = bin(mask_int).count('1')
+                cidr = bin(mask_int).count("1")
                 return f"{ip_address}/{cidr}"
         except (ValueError, IndexError):
             pass

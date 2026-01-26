@@ -6,17 +6,11 @@
 
 from typing import Dict
 
-from models.config import (
-    ConfigModel, AddressObject, AddressGroup,
-    ServiceObject, ServiceGroup
-)
+from models.config import ConfigModel, AddressObject, AddressGroup, ServiceObject, ServiceGroup
 from parsers.utils import get_nested, ip_to_cidr
 
 
-def convert_objects(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_objects(config_model: ConfigModel, parsed_config: Dict) -> None:
     """オブジェクト定義を変換
 
     Args:
@@ -32,11 +26,7 @@ def convert_objects(
         _add_objects_from_config(config_model, vdom_cfg, vdom_name)
 
 
-def _add_objects_from_config(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_objects_from_config(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """オブジェクトを追加"""
     _add_address_objects(config_model, config, vdom)
     _add_address6_objects(config_model, config, vdom)
@@ -46,11 +36,7 @@ def _add_objects_from_config(
     _add_service_groups(config_model, config, vdom)
 
 
-def _add_address_objects(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_address_objects(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """アドレスオブジェクトを追加"""
     firewall_address = get_nested(config, "firewall address", default={})
     if isinstance(firewall_address, dict):
@@ -76,16 +62,12 @@ def _add_address_objects(
                     object_type=addr_type,
                     value=value,
                     vdom=vdom,
-                    description=addr_data.get("comment", "")
+                    description=addr_data.get("comment", ""),
                 )
                 config_model.objects.addresses.append(addr_obj)
 
 
-def _add_address6_objects(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_address6_objects(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """IPv6アドレスオブジェクトを追加（firewall address6）"""
     firewall_address6 = get_nested(config, "firewall address6", default={})
     if isinstance(firewall_address6, dict):
@@ -112,16 +94,12 @@ def _add_address6_objects(
                     object_type=addr_type,
                     value=value,
                     vdom=vdom,
-                    description=addr_data.get("comment", "")
+                    description=addr_data.get("comment", ""),
                 )
                 config_model.objects.addresses.append(addr_obj)
 
 
-def _add_address_groups(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_address_groups(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """アドレスグループを追加"""
     firewall_addrgrp = get_nested(config, "firewall addrgrp", default={})
     if isinstance(firewall_addrgrp, dict):
@@ -134,16 +112,12 @@ def _add_address_groups(
                     name=grp_data.get("_name", grp_name),
                     members=members,
                     vdom=vdom,
-                    description=grp_data.get("comment", "")
+                    description=grp_data.get("comment", ""),
                 )
                 config_model.objects.address_groups.append(grp_obj)
 
 
-def _add_address6_groups(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_address6_groups(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """IPv6アドレスグループを追加（firewall addrgrp6）"""
     firewall_addrgrp6 = get_nested(config, "firewall addrgrp6", default={})
     if isinstance(firewall_addrgrp6, dict):
@@ -156,7 +130,7 @@ def _add_address6_groups(
                     name=grp_data.get("_name", grp_name),
                     members=members,
                     vdom=vdom,
-                    description=grp_data.get("comment", "")
+                    description=grp_data.get("comment", ""),
                 )
                 config_model.objects.address_groups.append(grp_obj)
 
@@ -181,11 +155,7 @@ def _normalize_protocol_value(value) -> str:
     return str(value).strip().upper()
 
 
-def _add_service_objects(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_service_objects(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """サービスオブジェクトを追加"""
     firewall_service = get_nested(config, "firewall service custom", default={})
     if isinstance(firewall_service, dict):
@@ -198,23 +168,23 @@ def _add_service_objects(
                 sctp_port = _normalize_port_value(svc_data.get("sctp-portrange", ""))
                 icmp_code = _normalize_port_value(svc_data.get("icmpcode", ""))
                 icmp_type = _normalize_port_value(svc_data.get("icmptype", ""))
-                
+
                 # プロトコルを推測（tcp-portrange/udp-portrangeから）
                 protocols = []
                 port_parts = []
-                
+
                 if tcp_port:
                     protocols.append("TCP")
                     port_parts.append(tcp_port)
-                
+
                 if udp_port:
                     protocols.append("UDP")
                     port_parts.append(udp_port)
-                
+
                 if sctp_port:
                     protocols.append("SCTP")
                     port_parts.append(sctp_port)
-                
+
                 # ICMPの処理
                 if icmp_type or icmp_code:
                     protocols.append("ICMP")
@@ -227,23 +197,23 @@ def _add_service_objects(
                         else:
                             icmp_value = f"code={icmp_code}"
                     port_parts.append(icmp_value)
-                
+
                 # 既存のprotocolフィールドがある場合、それを優先（ただし、ポート範囲から推測したものと統合）
                 if protocol and protocol not in ["TCP", "UDP", "SCTP", "ICMP", "IP"]:
                     # 不明なプロトコルの場合は既存の値を保持
                     if not protocols:
                         protocols.append(protocol)
-                
+
                 # プロトコルが空の場合、ポート範囲から推測
                 if not protocols:
                     if protocol:
                         protocols.append(protocol)
                     else:
                         protocols.append("IP")  # デフォルト
-                
+
                 # プロトコル文字列を生成（複数の場合は結合）
                 protocol_str = "/".join(protocols) if len(protocols) > 1 else protocols[0]
-                
+
                 # ポート文字列を生成（プロトコル情報は含めない）
                 if port_parts:
                     # 重複を除去して結合
@@ -257,22 +227,18 @@ def _add_service_objects(
                     port_str = ""
                 else:
                     port_str = ""
-                
+
                 svc_obj = ServiceObject(
                     name=svc_data.get("_name", svc_name),
                     protocol=protocol_str,
                     port=port_str,
                     vdom=vdom,
-                    description=svc_data.get("comment", "")
+                    description=svc_data.get("comment", ""),
                 )
                 config_model.objects.services.append(svc_obj)
 
 
-def _add_service_groups(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_service_groups(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """サービスグループを追加"""
     firewall_svcgrp = get_nested(config, "firewall service group", default={})
     if isinstance(firewall_svcgrp, dict):
@@ -285,6 +251,6 @@ def _add_service_groups(
                     name=grp_data.get("_name", grp_name),
                     members=members,
                     vdom=vdom,
-                    description=grp_data.get("comment", "")
+                    description=grp_data.get("comment", ""),
                 )
                 config_model.objects.service_groups.append(grp_obj)

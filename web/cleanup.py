@@ -55,4 +55,3 @@ def start_cleanup_thread(app, *, load_file_metadata, delete_file_metadata) -> th
     t = threading.Thread(target=cleanup_old_files, daemon=True)
     t.start()
     return t
-

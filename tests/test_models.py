@@ -7,11 +7,26 @@
 import pytest
 
 from models.config import (
-    ConfigModel, DeviceInfo, DeviceType, OperationMode, HAMode,
-    SystemSettings, AdminUser, Interface, Route,
-    Objects, AddressObject, AddressGroup, ServiceObject, ServiceGroup,
-    FirewallPolicy, NATPolicy, PolicyAction,
-    VPNSettings, HASettings, LoggingSettings
+    ConfigModel,
+    DeviceInfo,
+    DeviceType,
+    OperationMode,
+    HAMode,
+    SystemSettings,
+    AdminUser,
+    Interface,
+    Route,
+    Objects,
+    AddressObject,
+    AddressGroup,
+    ServiceObject,
+    ServiceGroup,
+    FirewallPolicy,
+    NATPolicy,
+    PolicyAction,
+    VPNSettings,
+    HASettings,
+    LoggingSettings,
 )
 
 
@@ -39,7 +54,7 @@ class TestDeviceInfo:
             device_type=DeviceType.FORTIGATE,
             operation_mode=OperationMode.NAT_ROUTE,
             vdom_enabled=True,
-            vdom_list=["root", "vdom1"]
+            vdom_list=["root", "vdom1"],
         )
 
         assert info.hostname == "test-fw"
@@ -88,7 +103,7 @@ class TestFirewallPolicy:
             service=["HTTP", "HTTPS"],
             action=PolicyAction.ALLOW,
             nat_enabled=True,
-            log_enabled=True
+            log_enabled=True,
         )
 
         assert policy.policy_id == "1"
@@ -120,7 +135,7 @@ class TestInterface:
             ip_address="192.168.1.1/24",
             zone="WAN",
             role="wan",
-            allowed_access=["https", "ssh", "ping"]
+            allowed_access=["https", "ssh", "ping"],
         )
 
         assert iface.name == "port1"
@@ -143,11 +158,7 @@ class TestObjects:
     def test_add_address_object(self):
         """アドレスオブジェクトの追加"""
         objects = Objects()
-        addr = AddressObject(
-            name="Server-A",
-            object_type="subnet",
-            value="10.0.0.10/32"
-        )
+        addr = AddressObject(name="Server-A", object_type="subnet", value="10.0.0.10/32")
         objects.addresses.append(addr)
 
         assert len(objects.addresses) == 1
@@ -172,7 +183,7 @@ class TestHASettings:
             group_id="1",
             priority="100",
             preempt=True,
-            monitor_interfaces=["port1", "port2"]
+            monitor_interfaces=["port1", "port2"],
         )
 
         assert ha.mode == HAMode.ACTIVE_PASSIVE
@@ -217,9 +228,8 @@ class TestConfigModel:
         expected_interfaces = len(sample_config_model.interfaces)
         expected_routes = len(sample_config_model.routes)
         expected_policies = len(sample_config_model.firewall_policies)
-        expected_objects = (
-            len(sample_config_model.objects.addresses) +
-            len(sample_config_model.objects.services)
+        expected_objects = len(sample_config_model.objects.addresses) + len(
+            sample_config_model.objects.services
         )
 
         assert summary["interfaces"] == expected_interfaces
@@ -266,7 +276,7 @@ class TestInternetService:
             destination_address=[],
             internet_service_name=["Google-Web", "Google-RTMP", "Dropbox-Web"],
             action=PolicyAction.ALLOW,
-            vdom="root"
+            vdom="root",
         )
 
         assert policy.policy_id == "53"
@@ -287,29 +297,18 @@ class TestCIDRNotation:
 
     def test_address_object_cidr(self):
         """アドレスオブジェクトのCIDR表記"""
-        addr = AddressObject(
-            name="Server-A",
-            object_type="subnet",
-            value="10.0.0.10/32"
-        )
+        addr = AddressObject(name="Server-A", object_type="subnet", value="10.0.0.10/32")
         assert addr.value == "10.0.0.10/32"
         assert "/" in addr.value
 
     def test_interface_cidr(self):
         """インターフェースのCIDR表記"""
-        iface = Interface(
-            name="port1",
-            ip_address="192.168.1.1/24"
-        )
+        iface = Interface(name="port1", ip_address="192.168.1.1/24")
         assert iface.ip_address == "192.168.1.1/24"
         assert "/" in iface.ip_address
 
     def test_route_cidr(self):
         """ルートのCIDR表記"""
-        route = Route(
-            name="default",
-            destination="0.0.0.0/0",
-            gateway="192.168.1.254"
-        )
+        route = Route(name="default", destination="0.0.0.0/0", gateway="192.168.1.254")
         assert route.destination == "0.0.0.0/0"
         assert "/" in route.destination

@@ -10,9 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, cast
 
 from models.config import ConfigModel, HAMode
-from models.cluster import (
-    ClusterConfig, HAClusterInfo, HAMemberInfo, HARole, ConfigDifference
-)
+from models.cluster import ClusterConfig, HAClusterInfo, HAMemberInfo, HARole, ConfigDifference
 from parsers.base import get_parser_for_file, get_parser_for_content, detect_encoding
 
 logger = logging.getLogger(__name__)
@@ -46,19 +44,21 @@ def parse_ha_cluster(file_paths: List[str]) -> ClusterConfig:
                 cluster_name=config.device_info.hostname,
                 group_id=config.ha.group_id,
                 ha_mode=config.ha.mode,
-                members=[HAMemberInfo(
-                    hostname=config.device_info.hostname,
-                    role=HARole.PRIMARY,
-                    priority=config.ha.priority,
-                    serial_number=config.device_info.serial_number,
-                    model=config.device_info.model,
-                    os_version=config.device_info.os_version,
-                    ha_mgmt_ip=ha_mgmt_ip,
-                    ha_mgmt_interface=ha_mgmt_interface,
-                    config=config,
-                    source_file=file_paths[0]
-                )]
-            )
+                members=[
+                    HAMemberInfo(
+                        hostname=config.device_info.hostname,
+                        role=HARole.PRIMARY,
+                        priority=config.ha.priority,
+                        serial_number=config.device_info.serial_number,
+                        model=config.device_info.model,
+                        os_version=config.device_info.os_version,
+                        ha_mgmt_ip=ha_mgmt_ip,
+                        ha_mgmt_interface=ha_mgmt_interface,
+                        config=config,
+                        source_file=file_paths[0],
+                    )
+                ],
+            ),
         )
 
     # 複数ファイルの場合：各ファイルをパース
@@ -75,9 +75,7 @@ def parse_ha_cluster(file_paths: List[str]) -> ClusterConfig:
     return _build_cluster_config(configs)
 
 
-def parse_ha_cluster_from_contents(
-    contents: List[Tuple[str, str]]
-) -> ClusterConfig:
+def parse_ha_cluster_from_contents(contents: List[Tuple[str, str]]) -> ClusterConfig:
     """複数の設定ファイル内容からHAクラスタ構成をパース
 
     Args:
@@ -106,19 +104,21 @@ def parse_ha_cluster_from_contents(
                 cluster_name=config.device_info.hostname,
                 group_id=config.ha.group_id,
                 ha_mode=config.ha.mode,
-                members=[HAMemberInfo(
-                    hostname=config.device_info.hostname,
-                    role=HARole.PRIMARY,
-                    priority=config.ha.priority,
-                    serial_number=config.device_info.serial_number,
-                    model=config.device_info.model,
-                    os_version=config.device_info.os_version,
-                    ha_mgmt_ip=ha_mgmt_ip,
-                    ha_mgmt_interface=ha_mgmt_interface,
-                    config=config,
-                    source_file=filename
-                )]
-            )
+                members=[
+                    HAMemberInfo(
+                        hostname=config.device_info.hostname,
+                        role=HARole.PRIMARY,
+                        priority=config.ha.priority,
+                        serial_number=config.device_info.serial_number,
+                        model=config.device_info.model,
+                        os_version=config.device_info.os_version,
+                        ha_mgmt_ip=ha_mgmt_ip,
+                        ha_mgmt_interface=ha_mgmt_interface,
+                        config=config,
+                        source_file=filename,
+                    )
+                ],
+            ),
         )
 
     # 複数ファイルの場合：各ファイルをパース
@@ -197,9 +197,7 @@ def _get_ha_mgmt_info(config: ConfigModel) -> Tuple[str, str]:
     return ha_mgmt_ip, ha_mgmt_interface
 
 
-def _build_cluster_config(
-    configs: List[Tuple[str, ConfigModel]]
-) -> ClusterConfig:
+def _build_cluster_config(configs: List[Tuple[str, ConfigModel]]) -> ClusterConfig:
     """パース済み設定からクラスタ構成を構築
 
     Args:
@@ -226,19 +224,21 @@ def _build_cluster_config(
                 cluster_name=config.device_info.hostname,
                 group_id=config.ha.group_id,
                 ha_mode=config.ha.mode,
-                members=[HAMemberInfo(
-                    hostname=config.device_info.hostname,
-                    role=HARole.PRIMARY,
-                    priority=config.ha.priority,
-                    serial_number=config.device_info.serial_number,
-                    model=config.device_info.model,
-                    os_version=config.device_info.os_version,
-                    ha_mgmt_ip=ha_mgmt_ip,
-                    ha_mgmt_interface=ha_mgmt_interface,
-                    config=config,
-                    source_file=file_path
-                )]
-            )
+                members=[
+                    HAMemberInfo(
+                        hostname=config.device_info.hostname,
+                        role=HARole.PRIMARY,
+                        priority=config.ha.priority,
+                        serial_number=config.device_info.serial_number,
+                        model=config.device_info.model,
+                        os_version=config.device_info.os_version,
+                        ha_mgmt_ip=ha_mgmt_ip,
+                        ha_mgmt_interface=ha_mgmt_interface,
+                        config=config,
+                        source_file=file_path,
+                    )
+                ],
+            ),
         )
 
     # HAクラスタの場合、Primary/Secondaryを判定
@@ -262,7 +262,7 @@ def _build_cluster_config(
         cluster_name=first_config.ha.group_name or first_config.device_info.hostname,
         group_id=first_config.ha.group_id,
         ha_mode=first_config.ha.mode,
-        members=members
+        members=members,
     )
 
     # 設定差分を検出
@@ -272,7 +272,7 @@ def _build_cluster_config(
         cluster_info=cluster_info,
         primary_config=primary_member.config if primary_member else None,
         config_differences=differences,
-        is_cluster=True
+        is_cluster=True,
     )
 
 
@@ -299,7 +299,7 @@ def _detect_ha_cluster(configs: List[Tuple[str, ConfigModel]]) -> bool:
             ha_modes.add(config.ha.mode)
 
     # 同じグループIDを持ち、HA構成が有効な場合
-    if len(group_ids) == 1 and group_ids != {''}:
+    if len(group_ids) == 1 and group_ids != {""}:
         return True
 
     # グループIDが設定されていなくても、同じHAモードであればクラスタとみなす
@@ -309,9 +309,7 @@ def _detect_ha_cluster(configs: List[Tuple[str, ConfigModel]]) -> bool:
     return False
 
 
-def _determine_ha_roles(
-    configs: List[Tuple[str, ConfigModel]]
-) -> List[HAMemberInfo]:
+def _determine_ha_roles(configs: List[Tuple[str, ConfigModel]]) -> List[HAMemberInfo]:
     """各設定のHA役割を判定
 
     優先度(priority)が高い方がPrimary（FortiGateの場合、数値が大きいほど優先）
@@ -326,11 +324,13 @@ def _determine_ha_roles(
     temp_members: List[Dict[str, Any]] = []
 
     for file_path, config in configs:
-        temp_members.append({
-            "file_path": file_path,
-            "config": config,
-            "priority": config.ha.priority,
-        })
+        temp_members.append(
+            {
+                "file_path": file_path,
+                "config": config,
+                "priority": config.ha.priority,
+            }
+        )
 
     # 優先度でソート（降順：高い方がPrimary）
     def get_priority(item: Dict[str, Any]) -> int:
@@ -369,25 +369,25 @@ def _determine_ha_roles(
         # 役割を割り当て
         role = HARole.PRIMARY if idx == 0 else HARole.SECONDARY
 
-        members.append(HAMemberInfo(
-            hostname=member_config.device_info.hostname,
-            role=role,
-            priority=member_config.ha.priority,
-            serial_number=member_config.device_info.serial_number,
-            model=member_config.device_info.model,
-            os_version=member_config.device_info.os_version,
-            ha_mgmt_ip=ha_mgmt_ip,
-            ha_mgmt_interface=ha_mgmt_interface,
-            config=member_config,
-            source_file=member_file_path
-        ))
+        members.append(
+            HAMemberInfo(
+                hostname=member_config.device_info.hostname,
+                role=role,
+                priority=member_config.ha.priority,
+                serial_number=member_config.device_info.serial_number,
+                model=member_config.device_info.model,
+                os_version=member_config.device_info.os_version,
+                ha_mgmt_ip=ha_mgmt_ip,
+                ha_mgmt_interface=ha_mgmt_interface,
+                config=member_config,
+                source_file=member_file_path,
+            )
+        )
 
     return members
 
 
-def _detect_config_differences(
-    members: List[HAMemberInfo]
-) -> List[ConfigDifference]:
+def _detect_config_differences(members: List[HAMemberInfo]) -> List[ConfigDifference]:
     """Primary/Secondary間の設定差分を検出
 
     Args:
@@ -421,79 +421,93 @@ def _detect_config_differences(
 
     # 基本情報の差分
     if p_config.device_info.hostname != s_config.device_info.hostname:
-        differences.append(ConfigDifference(
-            section="機器情報",
-            item="ホスト名",
-            primary_value=p_config.device_info.hostname,
-            secondary_value=s_config.device_info.hostname,
-            description="ホスト名はHA構成で異なることが想定されます"
-        ))
+        differences.append(
+            ConfigDifference(
+                section="機器情報",
+                item="ホスト名",
+                primary_value=p_config.device_info.hostname,
+                secondary_value=s_config.device_info.hostname,
+                description="ホスト名はHA構成で異なることが想定されます",
+            )
+        )
 
     # HA設定の差分
     if p_config.ha.priority != s_config.ha.priority:
-        differences.append(ConfigDifference(
-            section="HA設定",
-            item="優先度",
-            primary_value=p_config.ha.priority,
-            secondary_value=s_config.ha.priority,
-            description="優先度はHA構成で異なることが想定されます"
-        ))
+        differences.append(
+            ConfigDifference(
+                section="HA設定",
+                item="優先度",
+                primary_value=p_config.ha.priority,
+                secondary_value=s_config.ha.priority,
+                description="優先度はHA構成で異なることが想定されます",
+            )
+        )
 
     # モデル名の差分（通常同一機種だが念のため）
     if p_config.device_info.model != s_config.device_info.model:
-        differences.append(ConfigDifference(
-            section="機器情報",
-            item="モデル",
-            primary_value=p_config.device_info.model,
-            secondary_value=s_config.device_info.model,
-            description="機種が異なります"
-        ))
+        differences.append(
+            ConfigDifference(
+                section="機器情報",
+                item="モデル",
+                primary_value=p_config.device_info.model,
+                secondary_value=s_config.device_info.model,
+                description="機種が異なります",
+            )
+        )
 
     # OSバージョンの差分
     if p_config.device_info.os_version != s_config.device_info.os_version:
-        differences.append(ConfigDifference(
-            section="機器情報",
-            item="OSバージョン",
-            primary_value=p_config.device_info.os_version,
-            secondary_value=s_config.device_info.os_version,
-            description="OSバージョンが異なります（HA構成では同一推奨）"
-        ))
+        differences.append(
+            ConfigDifference(
+                section="機器情報",
+                item="OSバージョン",
+                primary_value=p_config.device_info.os_version,
+                secondary_value=s_config.device_info.os_version,
+                description="OSバージョンが異なります（HA構成では同一推奨）",
+            )
+        )
 
     # 管理IPの差分（HA管理インターフェース）
     # dstフィールドに管理IPアドレスが格納されている
     p_mgmt_ips = [mgmt.dst for mgmt in p_config.ha.ha_mgmt_interfaces if mgmt.dst]
     s_mgmt_ips = [mgmt.dst for mgmt in s_config.ha.ha_mgmt_interfaces if mgmt.dst]
     if p_mgmt_ips or s_mgmt_ips:
-        differences.append(ConfigDifference(
-            section="HA設定",
-            item="HA管理IP",
-            primary_value=", ".join(p_mgmt_ips) if p_mgmt_ips else "-",
-            secondary_value=", ".join(s_mgmt_ips) if s_mgmt_ips else "-",
-            description="HA管理インターフェースのIPアドレス（各機器固有）"
-        ))
+        differences.append(
+            ConfigDifference(
+                section="HA設定",
+                item="HA管理IP",
+                primary_value=", ".join(p_mgmt_ips) if p_mgmt_ips else "-",
+                secondary_value=", ".join(s_mgmt_ips) if s_mgmt_ips else "-",
+                description="HA管理インターフェースのIPアドレス（各機器固有）",
+            )
+        )
 
     # ポリシー数の差分（警告レベル）
     p_policy_count = len(p_config.firewall_policies)
     s_policy_count = len(s_config.firewall_policies)
     if p_policy_count != s_policy_count:
-        differences.append(ConfigDifference(
-            section="ポリシー",
-            item="ファイアウォールポリシー数",
-            primary_value=str(p_policy_count),
-            secondary_value=str(s_policy_count),
-            description="ポリシー数の不一致（設定同期の問題の可能性）"
-        ))
+        differences.append(
+            ConfigDifference(
+                section="ポリシー",
+                item="ファイアウォールポリシー数",
+                primary_value=str(p_policy_count),
+                secondary_value=str(s_policy_count),
+                description="ポリシー数の不一致（設定同期の問題の可能性）",
+            )
+        )
 
     # オブジェクト数の差分
     p_addr_count = len(p_config.objects.addresses)
     s_addr_count = len(s_config.objects.addresses)
     if p_addr_count != s_addr_count:
-        differences.append(ConfigDifference(
-            section="オブジェクト",
-            item="アドレスオブジェクト数",
-            primary_value=str(p_addr_count),
-            secondary_value=str(s_addr_count),
-            description="オブジェクト数の不一致（設定同期の問題の可能性）"
-        ))
+        differences.append(
+            ConfigDifference(
+                section="オブジェクト",
+                item="アドレスオブジェクト数",
+                primary_value=str(p_addr_count),
+                secondary_value=str(s_addr_count),
+                description="オブジェクト数の不一致（設定同期の問題の可能性）",
+            )
+        )
 
     return differences

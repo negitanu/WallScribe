@@ -6,16 +6,11 @@
 
 from typing import Dict
 
-from models.config import (
-    ConfigModel, FirewallPolicy, LocalInPolicy, NATPolicy, PolicyAction
-)
+from models.config import ConfigModel, FirewallPolicy, LocalInPolicy, NATPolicy, PolicyAction
 from parsers.utils import get_nested, to_list
 
 
-def convert_policies(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_policies(config_model: ConfigModel, parsed_config: Dict) -> None:
     """ポリシーを変換
 
     Args:
@@ -31,11 +26,7 @@ def convert_policies(
         _add_policies_from_config(config_model, vdom_cfg, vdom_name)
 
 
-def _add_policies_from_config(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_policies_from_config(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """ポリシーを追加"""
     firewall_policy = get_nested(config, "firewall policy", default={})
     if isinstance(firewall_policy, dict):
@@ -61,7 +52,7 @@ def _add_policies_from_config(
                     security_profiles=security_profiles,
                     vdom=vdom,
                     enabled=policy_data.get("status", "") != "disable",
-                    description=policy_data.get("comments", "")
+                    description=policy_data.get("comments", ""),
                 )
 
                 config_model.firewall_policies.append(policy)
@@ -100,10 +91,7 @@ def _extract_security_profiles(policy_data: Dict) -> list:
     return security_profiles
 
 
-def convert_local_in_policies(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_local_in_policies(config_model: ConfigModel, parsed_config: Dict) -> None:
     """Local-in ポリシーを変換
 
     Args:
@@ -119,11 +107,7 @@ def convert_local_in_policies(
         _add_local_in_policies_from_config(config_model, vdom_cfg, vdom_name)
 
 
-def _add_local_in_policies_from_config(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_local_in_policies_from_config(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """Local-in ポリシーを追加"""
     local_in_policy = get_nested(config, "firewall local-in-policy", default={})
     if isinstance(local_in_policy, dict):
@@ -141,15 +125,12 @@ def _add_local_in_policies_from_config(
                     schedule=policy_data.get("schedule", ""),
                     vdom=vdom,
                     enabled=policy_data.get("status", "") != "disable",
-                    description=policy_data.get("comments", "")
+                    description=policy_data.get("comments", ""),
                 )
                 config_model.local_in_policies.append(policy)
 
 
-def convert_nat(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_nat(config_model: ConfigModel, parsed_config: Dict) -> None:
     """NAT設定を変換
 
     Args:
@@ -165,22 +146,14 @@ def convert_nat(
         _add_nat_from_config(config_model, vdom_cfg, vdom_name)
 
 
-def _add_nat_from_config(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_nat_from_config(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """NAT設定を追加"""
     _add_vip_nat(config_model, config, vdom)
     _add_ippool_nat(config_model, config, vdom)
     _add_central_snat(config_model, config, vdom)
 
 
-def _add_vip_nat(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_vip_nat(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """VIP (DNAT) を追加"""
     firewall_vip = get_nested(config, "firewall vip", default={})
     if isinstance(firewall_vip, dict):
@@ -203,16 +176,12 @@ def _add_vip_nat(
                     original_port=vip_data.get("extport", ""),
                     translated_port=vip_data.get("mappedport", ""),
                     vdom=vdom,
-                    description=vip_data.get("comment", "")
+                    description=vip_data.get("comment", ""),
                 )
                 config_model.nat_policies.append(nat)
 
 
-def _add_ippool_nat(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_ippool_nat(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """IP Pool (SNAT) を追加"""
     firewall_ippool = get_nested(config, "firewall ippool", default={})
     if isinstance(firewall_ippool, dict):
@@ -236,16 +205,12 @@ def _add_ippool_nat(
                     translated_source=translated_source,
                     interface=pool_data.get("associated-interface", ""),
                     vdom=vdom,
-                    description=pool_data.get("comments", "")
+                    description=pool_data.get("comments", ""),
                 )
                 config_model.nat_policies.append(nat)
 
 
-def _add_central_snat(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_central_snat(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """Central SNAT Map を追加"""
     central_snat = get_nested(config, "firewall central-snat-map", default={})
     if isinstance(central_snat, dict):
@@ -287,6 +252,6 @@ def _add_central_snat(
                     protocol=str(protocol),
                     vdom=vdom,
                     enabled=snat_data.get("status", "") != "disable",
-                    description=snat_data.get("comments", "")
+                    description=snat_data.get("comments", ""),
                 )
                 config_model.nat_policies.append(nat)

@@ -21,26 +21,11 @@ API_SPEC = {
     "schemes": ["http", "https"],
     "basePath": "/",
     "tags": [
-        {
-            "name": "ファイル処理",
-            "description": "設定ファイルのアップロードとパラメータシート生成"
-        },
-        {
-            "name": "進捗・ステータス",
-            "description": "処理の進捗状況とステータスの取得"
-        },
-        {
-            "name": "ジョブ管理",
-            "description": "生成ジョブの一覧・詳細・削除"
-        },
-        {
-            "name": "ダウンロード",
-            "description": "生成されたファイルのダウンロード"
-        },
-        {
-            "name": "システム",
-            "description": "システム情報とメトリクス"
-        }
+        {"name": "ファイル処理", "description": "設定ファイルのアップロードとパラメータシート生成"},
+        {"name": "進捗・ステータス", "description": "処理の進捗状況とステータスの取得"},
+        {"name": "ジョブ管理", "description": "生成ジョブの一覧・詳細・削除"},
+        {"name": "ダウンロード", "description": "生成されたファイルのダウンロード"},
+        {"name": "システム", "description": "システム情報とメトリクス"},
     ],
     # Swagger 2.0 のスキーマ定義は definitions を使用
     "definitions": {
@@ -72,7 +57,10 @@ API_SPEC = {
                     "type": "string",
                     "example": "/api/progress/550e8400-e29b-41d4-a716-446655440000",
                 },
-                "result_url": {"type": "string", "example": "/result/550e8400-e29b-41d4-a716-446655440000"},
+                "result_url": {
+                    "type": "string",
+                    "example": "/result/550e8400-e29b-41d4-a716-446655440000",
+                },
             },
         },
         "ProgressResponse": {
@@ -131,16 +119,34 @@ API_SPEC = {
                 "created_at": {"type": "string", "example": "2026-01-25T09:38:31"},
                 "file_count": {"type": "integer", "example": 1},
                 "progress_percent": {"type": "integer", "example": 45},
-                "progress_message": {"type": "string", "example": "設定ファイルを解析しています..."},
+                "progress_message": {
+                    "type": "string",
+                    "example": "設定ファイルを解析しています...",
+                },
                 "progress_stage": {"type": "string", "example": "parsing"},
                 "device_type": {"type": "string", "example": "fortigate"},
                 "hostname": {"type": "string", "example": "FW-PRIMARY"},
                 "version": {"type": "string", "example": "7.6.2"},
-                "result_url": {"type": "string", "example": "/result/550e8400-e29b-41d4-a716-446655440000"},
-                "download_url": {"type": "string", "example": "/download/550e8400-e29b-41d4-a716-446655440000"},
-                "preview_url": {"type": "string", "example": "/preview/550e8400-e29b-41d4-a716-446655440000"},
-                "status_url": {"type": "string", "example": "/api/status/550e8400-e29b-41d4-a716-446655440000"},
-                "progress_url": {"type": "string", "example": "/api/progress/550e8400-e29b-41d4-a716-446655440000"},
+                "result_url": {
+                    "type": "string",
+                    "example": "/result/550e8400-e29b-41d4-a716-446655440000",
+                },
+                "download_url": {
+                    "type": "string",
+                    "example": "/download/550e8400-e29b-41d4-a716-446655440000",
+                },
+                "preview_url": {
+                    "type": "string",
+                    "example": "/preview/550e8400-e29b-41d4-a716-446655440000",
+                },
+                "status_url": {
+                    "type": "string",
+                    "example": "/api/status/550e8400-e29b-41d4-a716-446655440000",
+                },
+                "progress_url": {
+                    "type": "string",
+                    "example": "/api/progress/550e8400-e29b-41d4-a716-446655440000",
+                },
             },
         },
         "JobResponse": {

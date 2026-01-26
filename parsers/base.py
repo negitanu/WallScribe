@@ -27,7 +27,7 @@ def detect_encoding(data: bytes) -> Tuple[str, str]:
         UnicodeDecodeError: すべてのエンコーディングで失敗した場合
     """
     # 試行するエンコーディングの順序
-    encodings = ['utf-8', 'utf-8-sig', 'cp932', 'latin-1']
+    encodings = ["utf-8", "utf-8-sig", "cp932", "latin-1"]
 
     for encoding in encodings:
         try:
@@ -37,8 +37,11 @@ def detect_encoding(data: bytes) -> Tuple[str, str]:
 
     # すべて失敗した場合（latin-1は通常失敗しないが念のため）
     raise UnicodeDecodeError(
-        'all', data, 0, len(data),
-        f'すべてのエンコーディング({", ".join(encodings)})でデコードに失敗しました'
+        "all",
+        data,
+        0,
+        len(data),
+        f'すべてのエンコーディング({", ".join(encodings)})でデコードに失敗しました',
     )
 
 
@@ -117,27 +120,27 @@ class BaseConfigParser(ABC):
 
             # UTF-8で試行
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     return f.read()
             except UnicodeDecodeError:
                 pass
 
             # UTF-8-BOMで試行
             try:
-                with open(file_path, 'r', encoding='utf-8-sig') as f:
+                with open(file_path, "r", encoding="utf-8-sig") as f:
                     return f.read()
             except UnicodeDecodeError:
                 pass
 
             # CP932（Shift-JIS）で試行
             try:
-                with open(file_path, 'r', encoding='cp932') as f:
+                with open(file_path, "r", encoding="cp932") as f:
                     return f.read()
             except UnicodeDecodeError:
                 pass
 
             # Latin-1で試行（最終手段）
-            with open(file_path, 'r', encoding='latin-1') as f:
+            with open(file_path, "r", encoding="latin-1") as f:
                 return f.read()
 
         except Exception as e:

@@ -12,6 +12,7 @@ from typing import Optional
 
 try:
     from openpyxl.styles import Font, Alignment, Border, Side, PatternFill  # type: ignore
+
     OPENPYXL_AVAILABLE = True
 except ImportError:  # pragma: no cover - openpyxl未導入環境向け
     OPENPYXL_AVAILABLE = False
@@ -46,6 +47,7 @@ except ImportError:  # pragma: no cover - openpyxl未導入環境向け
         start_color: Optional[str] = None
         end_color: Optional[str] = None
         fill_type: Optional[str] = None
+
 
 from models.config import PolicyAction
 
@@ -241,4 +243,3 @@ ENABLED_FILL = PatternFill(start_color="BBDEFB", end_color="BBDEFB", fill_type="
 ENABLED_FONT = Font(size=9, name="Yu Gothic UI", color="0D47A1", bold=True)
 DISABLED_FILL = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
 DISABLED_FONT = Font(size=9, name="Yu Gothic UI", color="424242", bold=True)
-

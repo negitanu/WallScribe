@@ -18,6 +18,7 @@ from flask import (
 try:
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
+
     LIMITER_AVAILABLE = True
 except ImportError:
     LIMITER_AVAILABLE = False
@@ -26,9 +27,11 @@ except ImportError:
     class _MockLimiter:
         def __init__(self, *args, **kwargs):
             pass
+
         def limit(self, *args, **kwargs):
             def decorator(f):
                 return f
+
             return decorator
 
     def get_remote_address():
@@ -42,6 +45,7 @@ from exporters.html import HTMLExporter
 # エクスポーター（環境によりオプショナル）
 try:
     from exporters.pdf import PDFExporter  # type: ignore
+
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
@@ -49,18 +53,18 @@ except ImportError:
 
 try:
     import exporters.excel as excel_module  # type: ignore
+
     ExcelExporter = excel_module.ExcelExporter  # type: ignore[attr-defined]
     EXCEL_AVAILABLE = bool(getattr(excel_module, "OPENPYXL_AVAILABLE", True))
 except ImportError:
     EXCEL_AVAILABLE = False
     ExcelExporter = None  # type: ignore[assignment]
-from exceptions import (
-    WallScribeError, ParseError, ExportError,
-    ValidationError, FileError
-)
+from exceptions import WallScribeError, ParseError, ExportError, ValidationError, FileError
 from utils.validation import (
-    validate_file_content, validate_file_size,
-    validate_output_format, validate_ha_mode
+    validate_file_content,
+    validate_file_size,
+    validate_output_format,
+    validate_ha_mode,
 )
 from utils.storage import (
     set_upload_folder,
@@ -83,9 +87,14 @@ from jobs.processor import JobProcessor
 # モニタリング（オプショナル）
 try:
     from utils.metrics import (
-        record_request, record_file_upload, record_error,
-        set_active_jobs, record_processed_file, get_metrics
+        record_request,
+        record_file_upload,
+        record_error,
+        set_active_jobs,
+        record_processed_file,
+        get_metrics,
     )
+
     METRICS_AVAILABLE = True
 except ImportError:
     METRICS_AVAILABLE = False
@@ -109,23 +118,22 @@ except ImportError:
     def get_metrics() -> bytes:
         return b"# Metrics not available\n"
 
+
 SWAGGER_AVAILABLE = True
 
 # ロギング設定
 # 環境変数でJSON形式を有効化可能（LOG_FORMAT=json）
-log_format = os.environ.get('LOG_FORMAT', 'text')
-if log_format == 'json':
+log_format = os.environ.get("LOG_FORMAT", "text")
+if log_format == "json":
     from utils.logging_config import StructuredLogger
-    StructuredLogger.setup_logging(
-        level=os.environ.get('LOG_LEVEL', 'INFO'),
-        format_type='json'
-    )
+
+    StructuredLogger.setup_logging(level=os.environ.get("LOG_LEVEL", "INFO"), format_type="json")
 else:
     # 後方互換性のため、テキスト形式もサポート
     logging.basicConfig(
-        level=getattr(logging, os.environ.get('LOG_LEVEL', 'INFO').upper(), logging.INFO),
-        format='[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        level=getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO),
+        format="[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
 logger = logging.getLogger(__name__)
@@ -143,7 +151,9 @@ def create_app() -> Flask:
     # 設定
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(24).hex())
     app.config["UPLOAD_FOLDER"] = os.environ.get("UPLOAD_FOLDER", "./uploads")
-    app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_CONTENT_LENGTH", 50 * 1024 * 1024))  # 50MB
+    app.config["MAX_CONTENT_LENGTH"] = int(
+        os.environ.get("MAX_CONTENT_LENGTH", 50 * 1024 * 1024)
+    )  # 50MB
     app.config["CLEANUP_INTERVAL"] = int(os.environ.get("CLEANUP_INTERVAL", 3600))  # 1時間
 
     # メタデータ保存先を共有（ワーカースレッドからも参照）
@@ -219,12 +229,16 @@ def create_app() -> Flask:
 
     # クリーンアップスレッド
     if os.environ.get("WALLSCRIBE_DISABLE_CLEANUP_THREAD", "").lower() not in ("1", "true", "yes"):
-        cleanup_thread = start_cleanup_thread(app, load_file_metadata=load_file_metadata, delete_file_metadata=delete_file_metadata)
+        cleanup_thread = start_cleanup_thread(
+            app, load_file_metadata=load_file_metadata, delete_file_metadata=delete_file_metadata
+        )
 
     return app
 
+
 # 許可拡張子
-ALLOWED_EXTENSIONS = {'.conf', '.xml'}
+ALLOWED_EXTENSIONS = {".conf", ".xml"}
+
 
 def allowed_file(filename: str) -> bool:
     """許可されたファイル拡張子かチェック"""
@@ -235,13 +249,14 @@ def get_file_extension(filename: str) -> str:
     """ファイル拡張子を取得"""
     return Path(filename).suffix.lower()
 
+
 # module-level app（後方互換）
 app = create_app()
 
 
-if __name__ == '__main__':
-    port = int(os.environ.get('FLASK_PORT', 8080))
-    debug = os.environ.get('FLASK_ENV', 'production') == 'development'
+if __name__ == "__main__":
+    port = int(os.environ.get("FLASK_PORT", 8080))
+    debug = os.environ.get("FLASK_ENV", "production") == "development"
 
     logger.info(f"サーバー起動: http://localhost:{port}")
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    app.run(host="0.0.0.0", port=port, debug=debug)

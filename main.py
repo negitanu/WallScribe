@@ -15,8 +15,10 @@ from parsers.cluster import parse_ha_cluster
 from models.cluster import ClusterConfig
 from models.config import ConfigModel
 from exporters.html import HTMLExporter
+
 try:
     import exporters.excel as excel_module  # type: ignore
+
     ExcelExporter = excel_module.ExcelExporter  # type: ignore[attr-defined]
     EXCEL_AVAILABLE = bool(getattr(excel_module, "OPENPYXL_AVAILABLE", True))
 except ImportError:
@@ -26,19 +28,16 @@ except ImportError:
 __version__ = "1.1"
 
 # ロギング設定
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(levelname)s] %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
 def parse_args():
     """コマンドライン引数をパース"""
     parser = argparse.ArgumentParser(
-        description='ファイアウォール設定ファイルからパラメータシートを生成',
+        description="ファイアウォール設定ファイルからパラメータシートを生成",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog='''
+        epilog="""
 使用例:
   python main.py fortigate.conf -o output.html
   python main.py pa440.xml -o pa_param.html
@@ -52,46 +51,37 @@ HA構成:
 対応形式:
   FortiGate: .conf (FortiOS 6.x/7.x)
   Palo Alto: .xml (PAN-OS 10.x/11.x)
-'''
+""",
     )
 
     parser.add_argument(
-        'input_files',
-        nargs='+',
-        help='入力設定ファイル (.conf または .xml)。複数指定でHA構成として処理'
+        "input_files",
+        nargs="+",
+        help="入力設定ファイル (.conf または .xml)。複数指定でHA構成として処理",
     )
 
     parser.add_argument(
-        '-o', '--output',
-        default='output.html',
-        help='出力ファイルパス (デフォルト: output.html)'
+        "-o", "--output", default="output.html", help="出力ファイルパス (デフォルト: output.html)"
     )
 
     parser.add_argument(
-        '-f', '--format',
-        choices=['html', 'excel'],
-        default='html',
-        help='出力形式 (デフォルト: html)'
+        "-f",
+        "--format",
+        choices=["html", "excel"],
+        default="html",
+        help="出力形式 (デフォルト: html)",
     )
 
     parser.add_argument(
-        '--ha-mode',
-        choices=['auto', 'single', 'cluster'],
-        default='auto',
-        help='HAモード: auto=自動判定, single=単一機器として処理, cluster=クラスタとして処理 (デフォルト: auto)'
+        "--ha-mode",
+        choices=["auto", "single", "cluster"],
+        default="auto",
+        help="HAモード: auto=自動判定, single=単一機器として処理, cluster=クラスタとして処理 (デフォルト: auto)",
     )
 
-    parser.add_argument(
-        '-v', '--verbose',
-        action='store_true',
-        help='詳細ログを出力'
-    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="詳細ログを出力")
 
-    parser.add_argument(
-        '--version',
-        action='version',
-        version=f'%(prog)s {__version__}'
-    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     return parser.parse_args()
 
@@ -117,7 +107,7 @@ def main():
     config: Union[ConfigModel, ClusterConfig]
     is_cluster = False
 
-    if args.ha_mode == 'single' or (args.ha_mode == 'auto' and len(input_paths) == 1):
+    if args.ha_mode == "single" or (args.ha_mode == "auto" and len(input_paths) == 1):
         # 単一ファイルモード
         logger.info(f"ファイル読み込み: {input_paths[0]}")
 
@@ -145,7 +135,9 @@ def main():
             logger.info(f"HAクラスタを検出: グループID={cluster_config.cluster_info.group_id}")
             logger.info(f"メンバー数: {cluster_config.cluster_info.get_member_count()}")
             for member in cluster_config.cluster_info.members:
-                logger.info(f"  - {member.hostname} ({member.role.value}, Priority: {member.priority})")
+                logger.info(
+                    f"  - {member.hostname} ({member.role.value}, Priority: {member.priority})"
+                )
             is_cluster = True
         else:
             logger.info("HAクラスタ構成は検出されませんでした。最初のファイルを使用します。")
@@ -157,7 +149,9 @@ def main():
     logger.info(f"機器タイプ: {summary['device_type']}")
     logger.info(f"ホスト名: {summary['hostname']}")
     logger.info(f"バージョン: {summary['version']}")
-    logger.info(f"パース完了: {summary.get('policies', 0)}ポリシー、{summary.get('objects', 0)}オブジェクト")
+    logger.info(
+        f"パース完了: {summary.get('policies', 0)}ポリシー、{summary.get('objects', 0)}オブジェクト"
+    )
 
     if is_cluster:
         logger.info(f"HAモード: {summary.get('ha_mode', '-')}")
@@ -166,16 +160,18 @@ def main():
     # 出力
     output_path = Path(args.output)
 
-    if args.format == 'html':
+    if args.format == "html":
         exporter = HTMLExporter(config)
         exporter.export(str(output_path))
         logger.info(f"HTML出力: {output_path}")
-    elif args.format == 'excel':
+    elif args.format == "excel":
         if not EXCEL_AVAILABLE or ExcelExporter is None:
-            raise RuntimeError("Excel出力には openpyxl が必要です。requirements.txt をインストールしてください。")
+            raise RuntimeError(
+                "Excel出力には openpyxl が必要です。requirements.txt をインストールしてください。"
+            )
         # 出力ファイルの拡張子を.xlsxに変更
-        if output_path.suffix.lower() != '.xlsx':
-            output_path = output_path.with_suffix('.xlsx')
+        if output_path.suffix.lower() != ".xlsx":
+            output_path = output_path.with_suffix(".xlsx")
         exporter = ExcelExporter(config)
         exporter.export(str(output_path))
         logger.info(f"Excel出力: {output_path}")
@@ -183,5 +179,5 @@ def main():
     logger.info("完了")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

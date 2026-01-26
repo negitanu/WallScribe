@@ -9,12 +9,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from models.config import (
-    ConfigModel, PolicyAction, HAMode, DeviceType, FirewallPolicy
-)
+from models.config import ConfigModel, PolicyAction, HAMode, DeviceType, FirewallPolicy
 from models.cluster import ClusterConfig, HARole
 from exporters.utils import (
-    STATIC_DIR, load_isdb, load_css, load_css_for_pdf, load_search_js, load_tooltip_js, HtmlFormatter
+    STATIC_DIR,
+    load_isdb,
+    load_css,
+    load_css_for_pdf,
+    load_search_js,
+    load_tooltip_js,
+    HtmlFormatter,
 )
 
 logger = logging.getLogger(__name__)
@@ -25,24 +29,29 @@ class HTMLExporter:
 
     # グローバルセクション定義（VDOM横断の設定）
     GLOBAL_SECTIONS = [
-        ('cluster_overview', 'クラスタ概要', '_generate_cluster_overview_section'),
-        ('device_info', '機器概要', '_generate_device_info_section'),
-        ('system_settings', 'システム設定', '_generate_system_settings_section'),
-        ('ha', 'HA設定', '_generate_ha_section'),
-        ('logging', 'ログ・監視設定', '_generate_logging_section'),
+        ("cluster_overview", "クラスタ概要", "_generate_cluster_overview_section"),
+        ("device_info", "機器概要", "_generate_device_info_section"),
+        ("system_settings", "システム設定", "_generate_system_settings_section"),
+        ("ha", "HA設定", "_generate_ha_section"),
+        ("logging", "ログ・監視設定", "_generate_logging_section"),
     ]
 
     # VDOM単位セクション定義
     VDOM_SECTIONS = [
-        ('network', 'ネットワーク設定', '_generate_network_section'),
-        ('objects', 'オブジェクト定義', '_generate_objects_section'),
-        ('policies', 'ファイアウォールポリシー', '_generate_policies_section'),
-        ('nat', 'NAT設定', '_generate_nat_section'),
-        ('vpn', 'VPN設定', '_generate_vpn_section'),
-        ('security_profiles', 'セキュリティプロファイル', '_generate_security_profiles_section'),
+        ("network", "ネットワーク設定", "_generate_network_section"),
+        ("objects", "オブジェクト定義", "_generate_objects_section"),
+        ("policies", "ファイアウォールポリシー", "_generate_policies_section"),
+        ("nat", "NAT設定", "_generate_nat_section"),
+        ("vpn", "VPN設定", "_generate_vpn_section"),
+        ("security_profiles", "セキュリティプロファイル", "_generate_security_profiles_section"),
     ]
 
-    def __init__(self, config: Union[ConfigModel, ClusterConfig], sections: List[str] = None, for_pdf: bool = False):
+    def __init__(
+        self,
+        config: Union[ConfigModel, ClusterConfig],
+        sections: List[str] = None,
+        for_pdf: bool = False,
+    ):
         """HTMLエクスポーターを初期化
 
         Args:
@@ -81,19 +90,19 @@ class HTMLExporter:
 
     # FortiGateデフォルト値
     DEFAULTS = {
-        'timezone': '(GMT+0:00) UTC',
-        'ntp_servers': 'FortiGuard NTP',
-        'ntp_sync_interval': '60分',
-        'dns_primary': 'FortiGuard DNS',
-        'dns_secondary': '-',
-        'https_port': '443',
-        'ssh_port': '22',
-        'idle_timeout': '5分',
-        'auth_timeout': '5分',
-        'ha_hb_interval': '200ms',
-        'ha_hb_lost_threshold': '6',
-        'dhcp_lease_time': '604800秒 (7日)',
-        'dhcp_dns': 'システムDNS設定',
+        "timezone": "(GMT+0:00) UTC",
+        "ntp_servers": "FortiGuard NTP",
+        "ntp_sync_interval": "60分",
+        "dns_primary": "FortiGuard DNS",
+        "dns_secondary": "-",
+        "https_port": "443",
+        "ssh_port": "22",
+        "idle_timeout": "5分",
+        "auth_timeout": "5分",
+        "ha_hb_interval": "200ms",
+        "ha_hb_lost_threshold": "6",
+        "dhcp_lease_time": "604800秒 (7日)",
+        "dhcp_dns": "システムDNS設定",
     }
 
     # フォーマッター（委譲）
@@ -103,12 +112,12 @@ class HTMLExporter:
 
     def _with_default(self, value: Optional[str], default_key: str) -> str:
         """値が空の場合はデフォルト値を表示（グレー表示）"""
-        default = self.DEFAULTS.get(default_key, '-')
+        default = self.DEFAULTS.get(default_key, "-")
         return HtmlFormatter.with_default(value, default)
 
     def _list_with_default(self, items: List[Any], default_key: str) -> str:
         """リストが空の場合はデフォルト値を表示"""
-        default = self.DEFAULTS.get(default_key, '-')
+        default = self.DEFAULTS.get(default_key, "-")
         return HtmlFormatter.list_with_default(items, default)
 
     def _resolve_isdb_name(self, isdb_id: str) -> str:
@@ -129,23 +138,46 @@ class HTMLExporter:
 
     # バッジ色マッピング
     SECURITY_PROFILE_COLORS = {
-        "av": "danger", "antivirus": "danger",
+        "av": "danger",
+        "antivirus": "danger",
         "ips": "warning",
-        "ssl": "info", "ssl-ssh-profile": "info",
-        "webfilter": "primary", "web-filter": "primary",
-        "application": "success", "app-ctrl": "success",
+        "ssl": "info",
+        "ssl-ssh-profile": "info",
+        "webfilter": "primary",
+        "web-filter": "primary",
+        "application": "success",
+        "app-ctrl": "success",
         "dlp": "secondary",
         "emailfilter": "dark",
-        "dns": "light", "dnsfilter": "light",
+        "dns": "light",
+        "dnsfilter": "light",
     }
 
     SERVICE_COLORS = {
         "all": "danger",
-        "http": "primary", "https": "primary", "web access": "primary",
-        "ssh": "dark", "telnet": "dark", "rdp": "dark", "vnc": "dark",
-        "dns": "info", "ntp": "info", "snmp": "info", "syslog": "info", "icmp": "info", "ping": "info",
-        "smtp": "warning", "smtps": "warning", "pop3": "warning", "pop3s": "warning", "imap": "warning", "imaps": "warning",
-        "ftp": "success", "tftp": "success", "smb": "success", "nfs": "success",
+        "http": "primary",
+        "https": "primary",
+        "web access": "primary",
+        "ssh": "dark",
+        "telnet": "dark",
+        "rdp": "dark",
+        "vnc": "dark",
+        "dns": "info",
+        "ntp": "info",
+        "snmp": "info",
+        "syslog": "info",
+        "icmp": "info",
+        "ping": "info",
+        "smtp": "warning",
+        "smtps": "warning",
+        "pop3": "warning",
+        "pop3s": "warning",
+        "imap": "warning",
+        "imaps": "warning",
+        "ftp": "success",
+        "tftp": "success",
+        "smb": "success",
+        "nfs": "success",
     }
 
     def _security_profiles_to_badges(self, profiles: List[str]) -> str:
@@ -164,7 +196,7 @@ class HTMLExporter:
 
     def _filter_by_vdom(self, items: List[Any], vdom: str) -> List[Any]:
         """指定VDOMの項目のみをフィルタリング"""
-        return [item for item in items if getattr(item, 'vdom', 'root') == vdom]
+        return [item for item in items if getattr(item, "vdom", "root") == vdom]
 
     def _build_object_lookups(self) -> None:
         """オブジェクト名から詳細情報を引くための辞書を構築"""
@@ -228,32 +260,32 @@ class HTMLExporter:
 
     def _format_tooltip_table(self, rows: List[tuple]) -> str:
         """ツールチップ用の表形式HTMLを生成
-        
+
         Args:
             rows: (項目, 値)のタプルのリスト。最初の行はヘッダーとして扱われる
-        
+
         Returns:
             表形式のHTML文字列
         """
         if not rows or len(rows) < 2:
             return ""
-        
+
         html = ['<table class="tooltip-table">']
         # ヘッダー行
-        html.append('<thead><tr>')
-        html.append(f'<th>{self.escape(rows[0][0])}</th>')
-        html.append(f'<th>{self.escape(rows[0][1])}</th>')
-        html.append('</tr></thead>')
+        html.append("<thead><tr>")
+        html.append(f"<th>{self.escape(rows[0][0])}</th>")
+        html.append(f"<th>{self.escape(rows[0][1])}</th>")
+        html.append("</tr></thead>")
         # データ行
-        html.append('<tbody>')
+        html.append("<tbody>")
         for key, value in rows[1:]:
-            html.append('<tr>')
+            html.append("<tr>")
             html.append(f'<td class="tooltip-key">{self.escape(str(key))}</td>')
             html.append(f'<td class="tooltip-value">{self.escape(str(value))}</td>')
-            html.append('</tr>')
-        html.append('</tbody>')
-        html.append('</table>')
-        return ''.join(html)
+            html.append("</tr>")
+        html.append("</tbody>")
+        html.append("</table>")
+        return "".join(html)
 
     def _get_interface_tooltip(self, name: str, vdom: str = "root") -> str:
         """インターフェース名からツールチップ用の詳細情報を取得（表形式）"""
@@ -520,7 +552,9 @@ class HTMLExporter:
                 app_name = self._isdb_cache.get(isdb_id) or self._isdb_cache.get(str(isdb_id))
                 display_name = app_name if app_name else f"Internet Service ({isdb_id})"
                 tooltip = self._get_internet_service_tooltip(addr)
-                lines.append(f'<span class="badge bg-info has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(display_name)}</span>')
+                lines.append(
+                    f'<span class="badge bg-info has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(display_name)}</span>'
+                )
             else:
                 lines.append(self._address_with_tooltip(addr, vdom))
         return "<br>".join(lines)
@@ -534,7 +568,9 @@ class HTMLExporter:
             color = self.SERVICE_COLORS.get(svc.lower(), "secondary")
             tooltip = self._get_service_tooltip(svc, vdom)
             if tooltip:
-                badges.append(f'<span class="badge bg-{color} has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(svc)}</span>')
+                badges.append(
+                    f'<span class="badge bg-{color} has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(svc)}</span>'
+                )
             else:
                 badges.append(f'<span class="badge bg-{color}">{self.escape(svc)}</span>')
         return " ".join(badges)
@@ -596,29 +632,29 @@ class HTMLExporter:
             return result
 
         # プロファイルタイプに応じた詳細情報を生成
-        if hasattr(profile, 'scan_mode') and profile.scan_mode:
+        if hasattr(profile, "scan_mode") and profile.scan_mode:
             # アンチウイルス
             rows.append(("スキャンモード", profile.scan_mode))
-            if hasattr(profile, 'protocols') and profile.protocols:
-                protocols_str = ', '.join(profile.protocols[:3])
+            if hasattr(profile, "protocols") and profile.protocols:
+                protocols_str = ", ".join(profile.protocols[:3])
                 if len(profile.protocols) > 3:
                     protocols_str += f" ... (他{len(profile.protocols) - 3}件)"
                 rows.append(("対象プロトコル", protocols_str))
-            if hasattr(profile, 'action') and profile.action:
+            if hasattr(profile, "action") and profile.action:
                 rows.append(("アクション", profile.action))
-        elif hasattr(profile, 'categories') and profile.categories:
+        elif hasattr(profile, "categories") and profile.categories:
             # Webフィルタ / アプリコントロール
             cat_count = len(profile.categories)
             rows.append(("カテゴリ", f"{cat_count}件設定"))
-            if hasattr(profile, 'action') and profile.action:
+            if hasattr(profile, "action") and profile.action:
                 rows.append(("アクション", profile.action))
-        elif hasattr(profile, 'signatures'):
+        elif hasattr(profile, "signatures"):
             # IPS
             sig_count = len(profile.signatures) if profile.signatures else 0
             rows.append(("シグネチャ", f"{sig_count}件"))
-            if hasattr(profile, 'action') and profile.action:
+            if hasattr(profile, "action") and profile.action:
                 rows.append(("アクション", profile.action))
-        elif hasattr(profile, 'mode') and profile.mode:
+        elif hasattr(profile, "mode") and profile.mode:
             # SSLインスペクション
             rows.append(("モード", profile.mode))
 
@@ -626,7 +662,9 @@ class HTMLExporter:
         self._tooltip_cache[cache_key] = result
         return result
 
-    def _security_profiles_to_badges_with_tooltip(self, profiles: List[str], vdom: str = "root") -> str:
+    def _security_profiles_to_badges_with_tooltip(
+        self, profiles: List[str], vdom: str = "root"
+    ) -> str:
         """セキュリティプロファイルをツールチップ付きBootstrapバッジで表示"""
         if not profiles:
             return "-"
@@ -658,7 +696,7 @@ class HTMLExporter:
         html_content = self._generate_html()
 
         if output_path:
-            with open(output_path, 'w', encoding='utf-8') as f:
+            with open(output_path, "w", encoding="utf-8") as f:
                 f.write(html_content)
 
         return html_content
@@ -670,28 +708,34 @@ class HTMLExporter:
 
         # 1. グローバル設定セクション
         toc.append('                <li><a href="#global">1. グローバル設定</a>')
-        toc.append('                    <ul>')
+        toc.append("                    <ul>")
         section_num = 1
         for key, title, _ in self.GLOBAL_SECTIONS:
             # クラスタ概要はクラスタ構成時のみ表示
-            if key == 'cluster_overview' and not self.is_cluster:
+            if key == "cluster_overview" and not self.is_cluster:
                 continue
-            toc.append(f'                        <li><a href="#global-{key}">1.{section_num} {title}</a></li>')
+            toc.append(
+                f'                        <li><a href="#global-{key}">1.{section_num} {title}</a></li>'
+            )
             section_num += 1
-        toc.append('                    </ul>')
-        toc.append('                </li>')
+        toc.append("                    </ul>")
+        toc.append("                </li>")
 
         # 2. 各VDOM/vsysセクション
         vdom_list = self._get_vdom_list()
         for vdom_idx, vdom in enumerate(vdom_list, 2):
-            toc.append(f'                <li><a href="#vdom-{self.escape(vdom)}">{vdom_idx}. {vdom_label}: {self.escape(vdom)}</a>')
-            toc.append('                    <ul>')
+            toc.append(
+                f'                <li><a href="#vdom-{self.escape(vdom)}">{vdom_idx}. {vdom_label}: {self.escape(vdom)}</a>'
+            )
+            toc.append("                    <ul>")
             for i, (key, title, _) in enumerate(self.VDOM_SECTIONS, 1):
-                toc.append(f'                        <li><a href="#vdom-{self.escape(vdom)}-{key}">{vdom_idx}.{i} {title}</a></li>')
-            toc.append('                    </ul>')
-            toc.append('                </li>')
+                toc.append(
+                    f'                        <li><a href="#vdom-{self.escape(vdom)}-{key}">{vdom_idx}.{i} {title}</a></li>'
+                )
+            toc.append("                    </ul>")
+            toc.append("                </li>")
 
-        return '\n'.join(toc)
+        return "\n".join(toc)
 
     def _generate_sections(self) -> str:
         """グローバル設定とVDOM単位セクションを生成"""
@@ -699,65 +743,77 @@ class HTMLExporter:
         vdom_label = self._get_vdom_label()
 
         # 1. グローバル設定セクション
-        sections_html.append(f'''
+        sections_html.append(
+            f"""
         <section id="global" class="vdom-section global-section">
-            <h2>1. グローバル設定</h2>''')
+            <h2>1. グローバル設定</h2>"""
+        )
 
         section_num = 1
         for key, title, method_name in self.GLOBAL_SECTIONS:
             # クラスタ概要はクラスタ構成時のみ表示
-            if key == 'cluster_overview' and not self.is_cluster:
+            if key == "cluster_overview" and not self.is_cluster:
                 continue
             method = getattr(self, method_name)
             section_html = method(section_num=f"1.{section_num}", section_id=f"global-{key}")
             sections_html.append(section_html)
             section_num += 1
 
-        sections_html.append('        </section>')
+        sections_html.append("        </section>")
 
         # 2. 各VDOM/vsysセクション
         vdom_list = self._get_vdom_list()
         for vdom_idx, vdom in enumerate(vdom_list, 2):
-            sections_html.append(f'''
+            sections_html.append(
+                f"""
         <section id="vdom-{self.escape(vdom)}" class="vdom-section">
-            <h2>{vdom_idx}. {vdom_label}: {self.escape(vdom)}</h2>''')
+            <h2>{vdom_idx}. {vdom_label}: {self.escape(vdom)}</h2>"""
+            )
 
             for i, (key, title, method_name) in enumerate(self.VDOM_SECTIONS, 1):
                 method = getattr(self, method_name)
                 section_html = method(
                     section_num=f"{vdom_idx}.{i}",
                     section_id=f"vdom-{self.escape(vdom)}-{key}",
-                    vdom=vdom
+                    vdom=vdom,
                 )
                 sections_html.append(section_html)
 
-            sections_html.append('        </section>')
+            sections_html.append("        </section>")
 
-        return '\n'.join(sections_html)
+        return "\n".join(sections_html)
 
     def _generate_html(self) -> str:
         """HTML全体を生成"""
         device_info = self.config.device_info
-        today = datetime.now().strftime('%Y年%m月%d日')
-        
+        today = datetime.now().strftime("%Y年%m月%d日")
+
         # 検索ボックス（PDF用の場合は非表示）
-        search_box = '' if self.for_pdf else f'''            <div class="search-box">
+        search_box = (
+            ""
+            if self.for_pdf
+            else f"""            <div class="search-box">
                 <input type="text" id="searchInput" placeholder="検索..." autocomplete="off">
                 <button type="button" id="searchBtn" onclick="performSearch()">検索</button>
                 <button type="button" id="clearBtn" onclick="clearSearch()" style="display:none;">クリア</button>
                 <span id="searchResults" class="search-results"></span>
-            </div>'''
-        
+            </div>"""
+        )
+
         # JavaScript（PDF用の場合は削除）
-        script_tag = '' if self.for_pdf else f'''    <script>
+        script_tag = (
+            ""
+            if self.for_pdf
+            else f"""    <script>
 {load_search_js()}
 {load_tooltip_js()}
-    </script>'''
+    </script>"""
+        )
 
         # PDF用は軽量CSS（Bootstrap除外）を使用して高速化
         css_content = load_css_for_pdf() if self.for_pdf else load_css()
 
-        return f'''<!DOCTYPE html>
+        return f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -794,9 +850,11 @@ class HTMLExporter:
     </div>
 {script_tag}
 </body>
-</html>'''
+</html>"""
 
-    def _generate_device_info_section(self, section_num: str = "1.1", section_id: str = "global-device_info") -> str:
+    def _generate_device_info_section(
+        self, section_num: str = "1.1", section_id: str = "global-device_info"
+    ) -> str:
         """機器概要セクション（グローバル）"""
         info = self.config.device_info
         license = info.license
@@ -810,23 +868,25 @@ class HTMLExporter:
         license_rows = ""
         if license.support_expiry or license.utm_expiry or license.av_expiry:
             if license.support_expiry:
-                license_rows += f'<tr><td>サポート有効期限</td><td>{self.escape(license.support_expiry)}</td></tr>'
+                license_rows += f"<tr><td>サポート有効期限</td><td>{self.escape(license.support_expiry)}</td></tr>"
             if license.utm_expiry:
-                license_rows += f'<tr><td>UTM Bundle有効期限</td><td>{self.escape(license.utm_expiry)}</td></tr>'
+                license_rows += f"<tr><td>UTM Bundle有効期限</td><td>{self.escape(license.utm_expiry)}</td></tr>"
             if license.av_expiry:
-                license_rows += f'<tr><td>アンチウイルス有効期限</td><td>{self.escape(license.av_expiry)}</td></tr>'
+                license_rows += f"<tr><td>アンチウイルス有効期限</td><td>{self.escape(license.av_expiry)}</td></tr>"
             if license.webfilter_expiry:
-                license_rows += f'<tr><td>Webフィルタ有効期限</td><td>{self.escape(license.webfilter_expiry)}</td></tr>'
+                license_rows += f"<tr><td>Webフィルタ有効期限</td><td>{self.escape(license.webfilter_expiry)}</td></tr>"
             if license.ips_expiry:
-                license_rows += f'<tr><td>IPS有効期限</td><td>{self.escape(license.ips_expiry)}</td></tr>'
+                license_rows += (
+                    f"<tr><td>IPS有効期限</td><td>{self.escape(license.ips_expiry)}</td></tr>"
+                )
         else:
             license_rows = '<tr><td colspan="2">ライセンス情報は設定ファイルから取得できません（別途確認が必要）</td></tr>'
 
         # VDOM/vsysリスト
         vdom_list = self._get_vdom_list()
-        vdom_list_display = ', '.join(vdom_list) if vdom_list else '-'
+        vdom_list_display = ", ".join(vdom_list) if vdom_list else "-"
 
-        return f'''
+        return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} 機器概要</h3>
                 <div class="info-grid">
@@ -860,9 +920,11 @@ class HTMLExporter:
                         </table>
                     </div>
                 </div>
-            </div>'''
+            </div>"""
 
-    def _generate_system_settings_section(self, section_num: str = "1.2", section_id: str = "global-system_settings") -> str:
+    def _generate_system_settings_section(
+        self, section_num: str = "1.2", section_id: str = "global-system_settings"
+    ) -> str:
         """システム設定セクション（グローバル）"""
         settings = self.config.system_settings
         vdom_label = self._get_vdom_label()
@@ -870,12 +932,12 @@ class HTMLExporter:
         admin_rows = ""
         for admin in settings.admin_users:
             trust_hosts = self._list_to_str(admin.trust_hosts)
-            admin_rows += f'''<tr>
+            admin_rows += f"""<tr>
                 <td>{self.escape(admin.username)}</td>
                 <td>{self.escape(admin.profile)}</td>
                 <td>{self.escape(admin.vdom)}</td>
                 <td><code>{self.escape(trust_hosts)}</code></td>
-            </tr>'''
+            </tr>"""
 
         # 管理アクセス情報
         mgmt_ip_display = self.escape(settings.management_ip)
@@ -884,7 +946,7 @@ class HTMLExporter:
         elif "/" not in settings.management_ip:
             mgmt_ip_display += " / -"
 
-        return f'''
+        return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} システム設定</h3>
 
@@ -933,19 +995,37 @@ class HTMLExporter:
                 <div class="warning-box">
                     <strong>注意:</strong> パスワードはセキュリティ上の理由により設定ファイルに含まれていません。管理台帳などで別途管理してください。
                 </div>
-            </div>'''
+            </div>"""
 
-    def _generate_network_section(self, section_num: str = "2.1", section_id: str = "vdom-root-network", vdom: str = None) -> str:
+    def _generate_network_section(
+        self, section_num: str = "2.1", section_id: str = "vdom-root-network", vdom: str = None
+    ) -> str:
         """ネットワーク設定セクション（VDOM単位）"""
         # VDOMでフィルタリング
-        interfaces = self._filter_by_vdom(self.config.interfaces, vdom) if vdom else self.config.interfaces
+        interfaces = (
+            self._filter_by_vdom(self.config.interfaces, vdom) if vdom else self.config.interfaces
+        )
         routes = self._filter_by_vdom(self.config.routes, vdom) if vdom else self.config.routes
-        dhcp_servers = self._filter_by_vdom(self.config.dhcp_servers, vdom) if vdom else self.config.dhcp_servers
+        dhcp_servers = (
+            self._filter_by_vdom(self.config.dhcp_servers, vdom)
+            if vdom
+            else self.config.dhcp_servers
+        )
 
         # ルーティング設定
-        ospf_settings = self._filter_by_vdom(self.config.routing.ospf, vdom) if vdom else self.config.routing.ospf
-        bgp_settings = self._filter_by_vdom(self.config.routing.bgp, vdom) if vdom else self.config.routing.bgp
-        policy_routes = self._filter_by_vdom(self.config.routing.policy_routes, vdom) if vdom else self.config.routing.policy_routes
+        ospf_settings = (
+            self._filter_by_vdom(self.config.routing.ospf, vdom)
+            if vdom
+            else self.config.routing.ospf
+        )
+        bgp_settings = (
+            self._filter_by_vdom(self.config.routing.bgp, vdom) if vdom else self.config.routing.bgp
+        )
+        policy_routes = (
+            self._filter_by_vdom(self.config.routing.policy_routes, vdom)
+            if vdom
+            else self.config.routing.policy_routes
+        )
 
         # インターフェース
         iface_rows = ""
@@ -972,7 +1052,7 @@ class HTMLExporter:
                     status_class = "deny"
                     status_display = iface.status
 
-            iface_rows += f'''<tr>
+            iface_rows += f"""<tr>
                 <td>{self.escape(iface.name)}</td>
                 <td>{self.escape(iface.interface_type)}</td>
                 <td>{self.escape(iface.role) if iface.role else '-'}</td>
@@ -982,14 +1062,17 @@ class HTMLExporter:
                 <td>{self._format_allowed_access(iface.allowed_access)}</td>
                 <td class="{status_class}">{self.escape(status_display)}</td>
                 <td>{self.escape(iface.description) if iface.description else '-'}</td>
-            </tr>'''
+            </tr>"""
 
         # ルーティング
         route_rows = ""
         for route in routes:
             gateway_display = route.gateway or ""
             # blackhole/discard ルートはゲートウェイが空になるため、明示して記載する
-            if not gateway_display and getattr(route, "route_type", "") in ("blackhole", "blackhole6"):
+            if not gateway_display and getattr(route, "route_type", "") in (
+                "blackhole",
+                "blackhole6",
+            ):
                 gateway_display = "blackhole"
 
             interface_display = route.interface or "-"
@@ -998,20 +1081,22 @@ class HTMLExporter:
             distance_display = route.distance if route.distance else "-"
             route_type_display = route.route_type if route.route_type else "-"
 
-            route_rows += f'''<tr>
+            route_rows += f"""<tr>
                 <td>{self.escape(name_display)}</td>
                 <td><code>{self.escape(destination_display)}</code></td>
                 <td><code>{self.escape(gateway_display) if gateway_display else '-'}</code></td>
                 <td>{self.escape(interface_display)}</td>
                 <td>{self.escape(str(distance_display))}</td>
                 <td>{self.escape(route_type_display)}</td>
-            </tr>'''
+            </tr>"""
 
         # DHCP
         dhcp_cards = ""
         for dhcp in dhcp_servers:
-            exclude_ips_display = self._list_to_str(dhcp.exclude_ips) if dhcp.exclude_ips else "なし"
-            dhcp_cards += f'''
+            exclude_ips_display = (
+                self._list_to_str(dhcp.exclude_ips) if dhcp.exclude_ips else "なし"
+            )
+            dhcp_cards += f"""
                 <div class="info-card">
                     <h5>{self.escape(dhcp.interface)}</h5>
                     <table class="table table-sm table-bordered">
@@ -1022,7 +1107,7 @@ class HTMLExporter:
                         <tr><td>DNSサーバー</td><td>{self._list_with_default(dhcp.dns_servers, 'dhcp_dns')}</td></tr>
                         <tr><td>リース時間</td><td>{self._with_default(dhcp.lease_time, 'dhcp_lease_time')}</td></tr>
                     </table>
-                </div>'''
+                </div>"""
 
         # OSPF設定
         ospf_html = self._generate_ospf_html(ospf_settings)
@@ -1037,16 +1122,16 @@ class HTMLExporter:
             dst_display = self._list_to_str(pr.dst_addresses) if pr.dst_addresses else "any"
             gateway_display = pr.gateway or "-"
             interface_display = pr.output_interface or "-"
-            policy_route_rows += f'''<tr>
+            policy_route_rows += f"""<tr>
                 <td>{self.escape(str(pr.sequence_number))}</td>
                 <td>{self.escape(pr.name) if pr.name else '-'}</td>
                 <td>{self.escape(src_display)}</td>
                 <td>{self.escape(dst_display)}</td>
                 <td>{self.escape(interface_display)}</td>
                 <td><code>{self.escape(gateway_display)}</code></td>
-            </tr>'''
+            </tr>"""
 
-        return f'''
+        return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} ネットワーク設定</h3>
 
@@ -1082,21 +1167,21 @@ class HTMLExporter:
                         {policy_route_rows if policy_route_rows else '<tr><td colspan="6">ポリシールート設定なし</td></tr>'}
                     </table>
                 </div>
-            </div>'''
+            </div>"""
 
     def _generate_ospf_html(self, ospf_settings: list) -> str:
         """OSPF設定のHTML生成"""
         if not ospf_settings:
-            return '''
+            return """
                 <h4>OSPF設定</h4>
                 <p>OSPF設定なし</p>
-            '''
+            """
 
-        ospf_html = '<h4>OSPF設定</h4>'
+        ospf_html = "<h4>OSPF設定</h4>"
 
         for ospf in ospf_settings:
             # 基本情報
-            ospf_html += f'''
+            ospf_html += f"""
                 <div class="info-card mb-3">
                     <h5>OSPF基本設定</h5>
                     <table class="table table-sm table-bordered">
@@ -1105,166 +1190,166 @@ class HTMLExporter:
                         <tr><td>デフォルトメトリック</td><td>{self.escape(ospf.default_metric) if ospf.default_metric else '-'}</td></tr>
                         <tr><td>距離</td><td>{self.escape(ospf.distance) if ospf.distance else '-'}</td></tr>
                     </table>
-                </div>'''
+                </div>"""
 
             # エリア
             if ospf.areas:
                 area_rows = ""
                 for area in ospf.areas:
-                    area_rows += f'''<tr>
+                    area_rows += f"""<tr>
                         <td>{self.escape(area.area_id)}</td>
                         <td>{self.escape(area.area_type) if area.area_type else 'normal'}</td>
                         <tr><td colspan="2">認証: {self.escape(area.authentication) if area.authentication else 'なし'}</td></tr>
-                    </tr>'''
-                ospf_html += f'''
+                    </tr>"""
+                ospf_html += f"""
                     <div class="table-responsive">
                         <h5>OSPFエリア</h5>
                         <table class="table table-striped table-hover table-bordered">
                             <tr><th>エリアID</th><th>タイプ</th></tr>
                             {area_rows}
                         </table>
-                    </div>'''
+                    </div>"""
 
             # インターフェース
             if ospf.interfaces:
                 iface_rows = ""
                 for iface in ospf.interfaces:
-                    iface_rows += f'''<tr>
+                    iface_rows += f"""<tr>
                         <td>{self.escape(iface.name)}</td>
                         <td>{self.escape(iface.area) if iface.area else '-'}</td>
                         <td>{self.escape(str(iface.cost)) if iface.cost else '-'}</td>
                         <td>{self.escape(str(iface.priority)) if iface.priority else '-'}</td>
                         <td>{self.escape(iface.network_type) if iface.network_type else '-'}</td>
-                    </tr>'''
-                ospf_html += f'''
+                    </tr>"""
+                ospf_html += f"""
                     <div class="table-responsive">
                         <h5>OSPFインターフェース</h5>
                         <table class="table table-striped table-hover table-bordered">
                             <tr><th>インターフェース</th><th>エリア</th><th>コスト</th><th>優先度</th><th>ネットワークタイプ</th></tr>
                             {iface_rows}
                         </table>
-                    </div>'''
+                    </div>"""
 
             # 再配布
             if ospf.redistributes:
                 redist_rows = ""
                 for redist in ospf.redistributes:
-                    redist_rows += f'''<tr>
+                    redist_rows += f"""<tr>
                         <td>{self.escape(redist.source)}</td>
                         <td>{'有効' if redist.status else '無効'}</td>
                         <td>{self.escape(str(redist.metric)) if redist.metric else '-'}</td>
                         <td>{self.escape(redist.metric_type) if redist.metric_type else '-'}</td>
                         <td>{self.escape(redist.routemap) if redist.routemap else '-'}</td>
-                    </tr>'''
-                ospf_html += f'''
+                    </tr>"""
+                ospf_html += f"""
                     <div class="table-responsive">
                         <h5>OSPF再配布</h5>
                         <table class="table table-striped table-hover table-bordered">
                             <tr><th>ソース</th><th>ステータス</th><th>メトリック</th><th>メトリックタイプ</th><th>ルートマップ</th></tr>
                             {redist_rows}
                         </table>
-                    </div>'''
+                    </div>"""
 
             # パッシブインターフェース
             if ospf.passive_interfaces:
-                passive_list = ', '.join(ospf.passive_interfaces)
-                ospf_html += f'''
+                passive_list = ", ".join(ospf.passive_interfaces)
+                ospf_html += f"""
                     <div class="info-card mb-3">
                         <h5>パッシブインターフェース</h5>
                         <p>{self.escape(passive_list)}</p>
-                    </div>'''
+                    </div>"""
 
         return ospf_html
 
     def _generate_bgp_html(self, bgp_settings: list) -> str:
         """BGP設定のHTML生成"""
         if not bgp_settings:
-            return '''
+            return """
                 <h4>BGP設定</h4>
                 <p>BGP設定なし</p>
-            '''
+            """
 
-        bgp_html = '<h4>BGP設定</h4>'
+        bgp_html = "<h4>BGP設定</h4>"
 
         for bgp in bgp_settings:
             # 基本情報
-            bgp_html += f'''
+            bgp_html += f"""
                 <div class="info-card mb-3">
                     <h5>BGP基本設定</h5>
                     <table class="table table-sm table-bordered">
                         <tr><td>AS番号</td><td><code>{self.escape(bgp.as_number) if bgp.as_number else '-'}</code></td></tr>
                         <tr><td>ルーターID</td><td><code>{self.escape(bgp.router_id) if bgp.router_id else '-'}</code></td></tr>
                     </table>
-                </div>'''
+                </div>"""
 
             # ネイバー
             if bgp.neighbors:
                 neighbor_rows = ""
                 for neighbor in bgp.neighbors:
-                    neighbor_rows += f'''<tr>
+                    neighbor_rows += f"""<tr>
                         <td><code>{self.escape(neighbor.ip)}</code></td>
                         <td>{self.escape(neighbor.remote_as)}</td>
                         <td>{self.escape(neighbor.description) if neighbor.description else '-'}</td>
                         <td>{'有効' if neighbor.activate else '無効'}</td>
                         <td>{self.escape(neighbor.route_map_in) if neighbor.route_map_in else '-'}</td>
                         <td>{self.escape(neighbor.route_map_out) if neighbor.route_map_out else '-'}</td>
-                    </tr>'''
-                bgp_html += f'''
+                    </tr>"""
+                bgp_html += f"""
                     <div class="table-responsive">
                         <h5>BGPネイバー</h5>
                         <table class="table table-striped table-hover table-bordered">
                             <tr><th>IPアドレス</th><th>リモートAS</th><th>説明</th><th>有効</th><th>ルートマップIn</th><th>ルートマップOut</th></tr>
                             {neighbor_rows}
                         </table>
-                    </div>'''
+                    </div>"""
 
             # ネットワーク
             if bgp.networks:
                 network_rows = ""
                 for network in bgp.networks:
-                    network_rows += f'''<tr>
+                    network_rows += f"""<tr>
                         <td><code>{self.escape(network.prefix)}</code></td>
                         <td>{self.escape(network.route_map) if network.route_map else '-'}</td>
-                    </tr>'''
-                bgp_html += f'''
+                    </tr>"""
+                bgp_html += f"""
                     <div class="table-responsive">
                         <h5>BGPネットワーク</h5>
                         <table class="table table-striped table-hover table-bordered">
                             <tr><th>プレフィックス</th><th>ルートマップ</th></tr>
                             {network_rows}
                         </table>
-                    </div>'''
+                    </div>"""
 
             # 再配布
             if bgp.redistributes:
                 redist_rows = ""
                 for redist in bgp.redistributes:
-                    redist_rows += f'''<tr>
+                    redist_rows += f"""<tr>
                         <td>{self.escape(redist.source)}</td>
                         <td>{'有効' if redist.status else '無効'}</td>
                         <td>{self.escape(redist.routemap) if redist.routemap else '-'}</td>
-                    </tr>'''
-                bgp_html += f'''
+                    </tr>"""
+                bgp_html += f"""
                     <div class="table-responsive">
                         <h5>BGP再配布</h5>
                         <table class="table table-striped table-hover table-bordered">
                             <tr><th>ソース</th><th>ステータス</th><th>ルートマップ</th></tr>
                             {redist_rows}
                         </table>
-                    </div>'''
+                    </div>"""
 
         return bgp_html
 
     def _get_zone_class(self, zone: str) -> str:
         """ゾーン名からCSSクラスを取得"""
         zone_lower = zone.lower()
-        if 'trust' in zone_lower and 'untrust' not in zone_lower:
-            return 'tag-trust'
-        elif 'untrust' in zone_lower:
-            return 'tag-untrust'
-        elif 'dmz' in zone_lower:
-            return 'tag-dmz'
-        return ''
+        if "trust" in zone_lower and "untrust" not in zone_lower:
+            return "tag-trust"
+        elif "untrust" in zone_lower:
+            return "tag-untrust"
+        elif "dmz" in zone_lower:
+            return "tag-dmz"
+        return ""
 
     def _format_allowed_access(self, allowed_access: List[str]) -> str:
         """許可アクセスをBootstrapアウトラインボタンで表示"""
@@ -1273,51 +1358,63 @@ class HTMLExporter:
 
         # プロトコルごとのボタン色を定義
         btn_classes = {
-            'https': 'btn-outline-success',      # セキュア（緑）
-            'ssh': 'btn-outline-success',        # セキュア（緑）
-            'http': 'btn-outline-warning',       # 非セキュア（黄）
-            'telnet': 'btn-outline-danger',      # 非セキュア（赤）
-            'ping': 'btn-outline-info',          # 診断（青）
-            'snmp': 'btn-outline-info',          # 監視（青）
-            'fmg-access': 'btn-outline-primary', # FortiManager（紫）
-            'capwap': 'btn-outline-primary',     # 無線AP管理（紫）
-            'radius-acct': 'btn-outline-secondary',  # RADIUS（グレー）
-            'ftm': 'btn-outline-secondary',      # FortiToken（グレー）
+            "https": "btn-outline-success",  # セキュア（緑）
+            "ssh": "btn-outline-success",  # セキュア（緑）
+            "http": "btn-outline-warning",  # 非セキュア（黄）
+            "telnet": "btn-outline-danger",  # 非セキュア（赤）
+            "ping": "btn-outline-info",  # 診断（青）
+            "snmp": "btn-outline-info",  # 監視（青）
+            "fmg-access": "btn-outline-primary",  # FortiManager（紫）
+            "capwap": "btn-outline-primary",  # 無線AP管理（紫）
+            "radius-acct": "btn-outline-secondary",  # RADIUS（グレー）
+            "ftm": "btn-outline-secondary",  # FortiToken（グレー）
         }
 
         buttons = []
         for access in allowed_access:
             access_lower = access.lower()
-            btn_class = btn_classes.get(access_lower, 'btn-outline-secondary')
-            buttons.append(f'<span class="btn {btn_class} btn-sm me-1 mb-1">{self.escape(access)}</span>')
+            btn_class = btn_classes.get(access_lower, "btn-outline-secondary")
+            buttons.append(
+                f'<span class="btn {btn_class} btn-sm me-1 mb-1">{self.escape(access)}</span>'
+            )
 
-        return ' '.join(buttons)
+        return " ".join(buttons)
 
-    def _generate_objects_section(self, section_num: str = "2.2", section_id: str = "vdom-root-objects", vdom: str = None) -> str:
+    def _generate_objects_section(
+        self, section_num: str = "2.2", section_id: str = "vdom-root-objects", vdom: str = None
+    ) -> str:
         """オブジェクト定義セクション（VDOM単位）"""
         # VDOMでフィルタリング
-        addresses = self._filter_by_vdom(self.config.objects.addresses, vdom) if vdom else self.config.objects.addresses
-        services = self._filter_by_vdom(self.config.objects.services, vdom) if vdom else self.config.objects.services
+        addresses = (
+            self._filter_by_vdom(self.config.objects.addresses, vdom)
+            if vdom
+            else self.config.objects.addresses
+        )
+        services = (
+            self._filter_by_vdom(self.config.objects.services, vdom)
+            if vdom
+            else self.config.objects.services
+        )
 
         # アドレスオブジェクト（最初の100件）
         addr_rows = ""
         for addr in addresses[:100]:
-            addr_rows += f'''<tr>
+            addr_rows += f"""<tr>
                 <td>{self.escape(addr.name)}</td>
                 <td>{self.escape(addr.object_type)}</td>
                 <td><code>{self.escape(addr.value)}</code></td>
-            </tr>'''
+            </tr>"""
 
         # サービスオブジェクト（最初の100件）
         svc_rows = ""
         for svc in services[:100]:
-            svc_rows += f'''<tr>
+            svc_rows += f"""<tr>
                 <td>{self.escape(svc.name)}</td>
                 <td>{self.escape(svc.protocol)}</td>
                 <td>{self.escape(svc.port)}</td>
-            </tr>'''
+            </tr>"""
 
-        return f'''
+        return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} オブジェクト定義</h3>
 
@@ -1340,19 +1437,31 @@ class HTMLExporter:
                         {svc_rows if svc_rows else '<tr><td colspan="3">サービスオブジェクト設定なし</td></tr>'}
                     </table>
                 </div>
-            </div>'''
+            </div>"""
 
-    def _generate_policies_section(self, section_num: str = "2.3", section_id: str = "vdom-root-policies", vdom: str = None) -> str:
+    def _generate_policies_section(
+        self, section_num: str = "2.3", section_id: str = "vdom-root-policies", vdom: str = None
+    ) -> str:
         """ポリシーセクション（VDOM単位）"""
         # VDOMでフィルタリング
-        firewall_policies = self._filter_by_vdom(self.config.firewall_policies, vdom) if vdom else self.config.firewall_policies
-        local_in_policies = self._filter_by_vdom(self.config.local_in_policies, vdom) if vdom else self.config.local_in_policies
+        firewall_policies = (
+            self._filter_by_vdom(self.config.firewall_policies, vdom)
+            if vdom
+            else self.config.firewall_policies
+        )
+        local_in_policies = (
+            self._filter_by_vdom(self.config.local_in_policies, vdom)
+            if vdom
+            else self.config.local_in_policies
+        )
         current_vdom = vdom or "root"
 
         policy_rows = []
         for idx, policy in enumerate(firewall_policies, 1):
             # 宛先アドレスの表示（Internet Service名がある場合はそれも含める）
-            destination_display = self._addresses_to_lines_with_tooltip(policy.destination_address, current_vdom)
+            destination_display = self._addresses_to_lines_with_tooltip(
+                policy.destination_address, current_vdom
+            )
             if policy.internet_service_name:
                 # Internet Service名を追加
                 internet_services = []
@@ -1364,14 +1473,17 @@ class HTMLExporter:
                         parts = is_name.split("-", 1)
                         if len(parts) > 1:
                             service_name = parts[1]
-                    internet_services.append(f'<span class="badge bg-info has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(service_name)}</span>')
-                
+                    internet_services.append(
+                        f'<span class="badge bg-info has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(service_name)}</span>'
+                    )
+
                 if destination_display and destination_display != "-":
                     destination_display += "<br>" + " ".join(internet_services)
                 else:
                     destination_display = " ".join(internet_services)
-            
-            policy_rows.append(f'''<tr class="policy-row">
+
+            policy_rows.append(
+                f"""<tr class="policy-row">
                 <td>{idx}</td>
                 <td>{self.escape(policy.policy_id)}</td>
                 <td>{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
@@ -1385,7 +1497,8 @@ class HTMLExporter:
                 <td>{self._security_profiles_to_badges_with_tooltip(policy.security_profiles, current_vdom)}</td>
                 <td>{"有効" if policy.log_enabled else "無効"}</td>
                 <td>{self.escape(policy.description)}</td>
-            </tr>''')
+            </tr>"""
+            )
 
         # Local-in ポリシー
         local_in_rows = []
@@ -1393,13 +1506,18 @@ class HTMLExporter:
             # source_interfaceは文字列の場合とリストの場合がある
             source_if_display = ""
             if isinstance(policy.source_interface, list):
-                source_if_display = self._interfaces_to_lines_with_tooltip(policy.source_interface, current_vdom)
+                source_if_display = self._interfaces_to_lines_with_tooltip(
+                    policy.source_interface, current_vdom
+                )
             elif policy.source_interface:
-                source_if_display = self._interface_with_tooltip(policy.source_interface, current_vdom)
+                source_if_display = self._interface_with_tooltip(
+                    policy.source_interface, current_vdom
+                )
             else:
                 source_if_display = "-"
-            
-            local_in_rows.append(f'''<tr class="policy-row">
+
+            local_in_rows.append(
+                f"""<tr class="policy-row">
                 <td>{idx}</td>
                 <td>{self.escape(policy.policy_id)}</td>
                 <td>{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
@@ -1409,9 +1527,10 @@ class HTMLExporter:
                 <td>{self._services_to_badges_with_tooltip(policy.service, current_vdom)}</td>
                 <td class="{self._get_action_class(policy.action)}">{self.escape(policy.action.value)}</td>
                 <td>{self.escape(policy.description)}</td>
-            </tr>''')
+            </tr>"""
+            )
 
-        return f'''
+        return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} ファイアウォールポリシー</h3>
 
@@ -1466,23 +1585,28 @@ class HTMLExporter:
                         </tbody>
                     </table>
                 </div>
-            </div>'''
+            </div>"""
 
     def _get_action_class(self, action: PolicyAction) -> str:
         """アクションからCSSクラスを取得"""
         if action == PolicyAction.ALLOW:
-            return 'allow'
+            return "allow"
         elif action == PolicyAction.DENY:
-            return 'deny'
+            return "deny"
         elif action == PolicyAction.DROP:
-            return 'drop'
-        return ''
+            return "drop"
+        return ""
 
-
-    def _generate_nat_section(self, section_num: str = "2.4", section_id: str = "vdom-root-nat", vdom: str = None) -> str:
+    def _generate_nat_section(
+        self, section_num: str = "2.4", section_id: str = "vdom-root-nat", vdom: str = None
+    ) -> str:
         """NAT設定セクション（VDOM単位）"""
         # VDOMでフィルタリング
-        nat_policies = self._filter_by_vdom(self.config.nat_policies, vdom) if vdom else self.config.nat_policies
+        nat_policies = (
+            self._filter_by_vdom(self.config.nat_policies, vdom)
+            if vdom
+            else self.config.nat_policies
+        )
 
         # VIP/DNAT
         vip_rows = ""
@@ -1493,27 +1617,29 @@ class HTMLExporter:
             if nat.nat_type in ("vip", "dnat"):
                 port_forward_display = ""
                 if nat.port_forward:
-                    port_forward_display = f"{self.escape(nat.original_port)} → {self.escape(nat.translated_port)}"
+                    port_forward_display = (
+                        f"{self.escape(nat.original_port)} → {self.escape(nat.translated_port)}"
+                    )
                 else:
                     port_forward_display = "なし"
 
-                vip_rows += f'''<tr>
+                vip_rows += f"""<tr>
                     <td>{self.escape(nat.name)}</td>
                     <td>{self.escape(nat.external_interface)}</td>
                     <td><code>{self.escape(nat.external_ip)}</code></td>
                     <td><code>{self.escape(nat.internal_ip)}</code></td>
                     <td>{port_forward_display}</td>
                     <td>{self.escape(nat.description)}</td>
-                </tr>'''
+                </tr>"""
             elif nat.nat_type in ("snat", "ippool"):
-                snat_rows += f'''<tr>
+                snat_rows += f"""<tr>
                     <td>{self.escape(nat.name)}</td>
                     <td><code>{self.escape(nat.translated_source)}</code></td>
                     <td>{self.escape(nat.interface)}</td>
                     <td>{self.escape(nat.description)}</td>
-                </tr>'''
+                </tr>"""
 
-        return f'''
+        return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} NAT設定</h3>
 
@@ -1532,20 +1658,32 @@ class HTMLExporter:
                         {snat_rows if snat_rows else '<tr><td colspan="4">SNAT/IP Pool設定なし</td></tr>'}
                     </table>
                 </div>
-            </div>'''
+            </div>"""
 
-    def _generate_vpn_section(self, section_num: str = "2.5", section_id: str = "vdom-root-vpn", vdom: str = None) -> str:
+    def _generate_vpn_section(
+        self, section_num: str = "2.5", section_id: str = "vdom-root-vpn", vdom: str = None
+    ) -> str:
         """VPN設定セクション（VDOM単位）"""
         # VDOMでフィルタリング
-        ipsec_phase1 = self._filter_by_vdom(self.config.vpn.ipsec_phase1, vdom) if vdom else self.config.vpn.ipsec_phase1
-        ipsec_phase2 = self._filter_by_vdom(self.config.vpn.ipsec_phase2, vdom) if vdom else self.config.vpn.ipsec_phase2
-        ssl_vpn = self._filter_by_vdom(self.config.vpn.ssl_vpn, vdom) if vdom else self.config.vpn.ssl_vpn
+        ipsec_phase1 = (
+            self._filter_by_vdom(self.config.vpn.ipsec_phase1, vdom)
+            if vdom
+            else self.config.vpn.ipsec_phase1
+        )
+        ipsec_phase2 = (
+            self._filter_by_vdom(self.config.vpn.ipsec_phase2, vdom)
+            if vdom
+            else self.config.vpn.ipsec_phase2
+        )
+        ssl_vpn = (
+            self._filter_by_vdom(self.config.vpn.ssl_vpn, vdom) if vdom else self.config.vpn.ssl_vpn
+        )
 
         # IPsec Phase1
         p1_rows = ""
         for p1 in ipsec_phase1:
             ike_version_display = p1.ike_version if p1.ike_version else "-"
-            p1_rows += f'''<tr>
+            p1_rows += f"""<tr>
                 <td>{self.escape(p1.name)}</td>
                 <td><code>{self.escape(p1.remote_gateway)}</code></td>
                 <td>{self.escape(p1.interface)}</td>
@@ -1554,12 +1692,12 @@ class HTMLExporter:
                 <td>{self.escape(p1.dh_group)}</td>
                 <td>{self.escape(p1.lifetime)}</td>
                 <td>{'有' if p1.psk else '無'}</td>
-            </tr>'''
+            </tr>"""
 
         # IPsec Phase2
         p2_rows = ""
         for p2 in ipsec_phase2:
-            p2_rows += f'''<tr>
+            p2_rows += f"""<tr>
                 <td>{self.escape(p2.name)}</td>
                 <td>{self.escape(p2.phase1_name)}</td>
                 <td><code>{self.escape(p2.local_subnet)}</code></td>
@@ -1567,7 +1705,7 @@ class HTMLExporter:
                 <td>{self.escape(p2.encryption)} / {self.escape(p2.authentication)}</td>
                 <td>{self.escape(p2.pfs)}</td>
                 <td>{self.escape(p2.lifetime)}</td>
-            </tr>'''
+            </tr>"""
 
         # SSL-VPN
         ssl_rows = ""
@@ -1577,7 +1715,7 @@ class HTMLExporter:
             realm_display = self.escape(ssl.realm) if ssl.realm else "-"
             portal_display = self.escape(ssl.portal) if ssl.portal else "-"
 
-            ssl_rows += f'''<tr>
+            ssl_rows += f"""<tr>
                 <td>{realm_display} / {portal_display}</td>
                 <td>{self.escape(ssl.listen_port)}</td>
                 <td>{self.escape(ssl.listen_interface)}</td>
@@ -1585,9 +1723,9 @@ class HTMLExporter:
                 <td><code>{self.escape(ssl.tunnel_ip_pool)}</code></td>
                 <td>{self.escape(self._list_to_str(ssl.user_groups))}</td>
                 <td>{mode_display}</td>
-            </tr>'''
+            </tr>"""
 
-        return f'''
+        return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} VPN設定</h3>
 
@@ -1614,39 +1752,68 @@ class HTMLExporter:
                         {ssl_rows if ssl_rows else '<tr><td colspan="7">SSL-VPN設定なし</td></tr>'}
                     </table>
                 </div>
-            </div>'''
+            </div>"""
 
-    def _generate_security_profiles_section(self, section_num: str = "2.6", section_id: str = "vdom-root-security_profiles", vdom: str = None) -> str:
+    def _generate_security_profiles_section(
+        self,
+        section_num: str = "2.6",
+        section_id: str = "vdom-root-security_profiles",
+        vdom: str = None,
+    ) -> str:
         """セキュリティプロファイルセクション（VDOM単位）"""
         # VDOMでフィルタリング
-        security_profiles = self._filter_by_vdom(self.config.security_profiles, vdom) if vdom else self.config.security_profiles
-        antivirus = self._filter_by_vdom(self.config.security_profiles_detail.antivirus, vdom) if vdom else self.config.security_profiles_detail.antivirus
-        webfilter = self._filter_by_vdom(self.config.security_profiles_detail.webfilter, vdom) if vdom else self.config.security_profiles_detail.webfilter
-        app_control = self._filter_by_vdom(self.config.security_profiles_detail.app_control, vdom) if vdom else self.config.security_profiles_detail.app_control
-        ips = self._filter_by_vdom(self.config.security_profiles_detail.ips, vdom) if vdom else self.config.security_profiles_detail.ips
-        ssl_inspection = self._filter_by_vdom(self.config.security_profiles_detail.ssl_inspection, vdom) if vdom else self.config.security_profiles_detail.ssl_inspection
+        security_profiles = (
+            self._filter_by_vdom(self.config.security_profiles, vdom)
+            if vdom
+            else self.config.security_profiles
+        )
+        antivirus = (
+            self._filter_by_vdom(self.config.security_profiles_detail.antivirus, vdom)
+            if vdom
+            else self.config.security_profiles_detail.antivirus
+        )
+        webfilter = (
+            self._filter_by_vdom(self.config.security_profiles_detail.webfilter, vdom)
+            if vdom
+            else self.config.security_profiles_detail.webfilter
+        )
+        app_control = (
+            self._filter_by_vdom(self.config.security_profiles_detail.app_control, vdom)
+            if vdom
+            else self.config.security_profiles_detail.app_control
+        )
+        ips = (
+            self._filter_by_vdom(self.config.security_profiles_detail.ips, vdom)
+            if vdom
+            else self.config.security_profiles_detail.ips
+        )
+        ssl_inspection = (
+            self._filter_by_vdom(self.config.security_profiles_detail.ssl_inspection, vdom)
+            if vdom
+            else self.config.security_profiles_detail.ssl_inspection
+        )
 
         # プロファイル一覧
         profile_rows = ""
         for profile in security_profiles:
-            profile_rows += f'''<tr>
+            profile_rows += f"""<tr>
                 <td>{self.escape(profile.name)}</td>
                 <td>{self.escape(profile.profile_type)}</td>
                 <td>{'有効' if profile.enabled else '無効'}</td>
                 <td>{self.escape(profile.description)}</td>
-            </tr>'''
+            </tr>"""
 
         # 詳細プロファイル - アンチウイルス
         av_rows = ""
         for av in antivirus:
             protocols_display = self._list_to_str(av.protocols) if av.protocols else "-"
-            av_rows += f'''<tr>
+            av_rows += f"""<tr>
                 <td>{self.escape(av.name)}</td>
                 <td>{'有効' if av.enabled else '無効'}</td>
                 <td>{self.escape(av.scan_mode)}</td>
                 <td>{protocols_display}</td>
                 <td>{self.escape(av.action)}</td>
-            </tr>'''
+            </tr>"""
 
         # 詳細プロファイル - Webフィルタ
         wf_rows = ""
@@ -1654,12 +1821,12 @@ class HTMLExporter:
             categories_display = self._list_to_str(wf.categories[:10]) if wf.categories else "-"
             if len(wf.categories) > 10:
                 categories_display += f" ... (他{len(wf.categories) - 10}件)"
-            wf_rows += f'''<tr>
+            wf_rows += f"""<tr>
                 <td>{self.escape(wf.name)}</td>
                 <td>{'有効' if wf.enabled else '無効'}</td>
                 <td>{categories_display}</td>
                 <td>{self.escape(wf.action)}</td>
-            </tr>'''
+            </tr>"""
 
         # 詳細プロファイル - アプリケーションコントロール
         app_rows = ""
@@ -1667,34 +1834,34 @@ class HTMLExporter:
             categories_display = self._list_to_str(app.categories[:10]) if app.categories else "-"
             if len(app.categories) > 10:
                 categories_display += f" ... (他{len(app.categories) - 10}件)"
-            app_rows += f'''<tr>
+            app_rows += f"""<tr>
                 <td>{self.escape(app.name)}</td>
                 <td>{'有効' if app.enabled else '無効'}</td>
                 <td>{categories_display}</td>
                 <td>{self.escape(app.action)}</td>
-            </tr>'''
+            </tr>"""
 
         # 詳細プロファイル - IPS
         ips_rows = ""
         for i in ips:
             signatures_display = f"{len(i.signatures)}件" if i.signatures else "-"
-            ips_rows += f'''<tr>
+            ips_rows += f"""<tr>
                 <td>{self.escape(i.name)}</td>
                 <td>{'有効' if i.enabled else '無効'}</td>
                 <td>{signatures_display}</td>
                 <td>{self.escape(i.action)}</td>
-            </tr>'''
+            </tr>"""
 
         # 詳細プロファイル - SSLインスペクション
         ssl_rows = ""
         for ssl in ssl_inspection:
-            ssl_rows += f'''<tr>
+            ssl_rows += f"""<tr>
                 <td>{self.escape(ssl.name)}</td>
                 <td>{'有効' if ssl.enabled else '無効'}</td>
                 <td>{self.escape(ssl.mode)}</td>
-            </tr>'''
+            </tr>"""
 
-        return f'''
+        return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} セキュリティプロファイル（UTM）</h3>
 
@@ -1745,9 +1912,11 @@ class HTMLExporter:
                         {ssl_rows if ssl_rows else '<tr><td colspan="3">SSLインスペクションプロファイル設定なし</td></tr>'}
                     </table>
                 </div>
-            </div>'''
+            </div>"""
 
-    def _generate_cluster_overview_section(self, section_num: str = "1.1", section_id: str = "global-cluster_overview") -> str:
+    def _generate_cluster_overview_section(
+        self, section_num: str = "1.1", section_id: str = "global-cluster_overview"
+    ) -> str:
         """クラスタ概要セクション（HAクラスタ時のみ表示）"""
         if not self.is_cluster or self.cluster_config is None:
             return ""  # クラスタ構成でない場合は何も出力しない
@@ -1760,7 +1929,7 @@ class HTMLExporter:
         for member in cluster_info.members:
             role_class = "primary" if member.role == HARole.PRIMARY else "secondary"
             role_badge = f'<span class="badge bg-{"success" if member.role == HARole.PRIMARY else "info"}">{member.role.value}</span>'
-            member_rows += f'''<tr>
+            member_rows += f"""<tr>
                 <td>{role_badge}</td>
                 <td><strong>{self.escape(member.hostname)}</strong></td>
                 <td>{self.escape(member.model) if member.model else "-"}</td>
@@ -1769,23 +1938,23 @@ class HTMLExporter:
                 <td><code>{self.escape(member.ha_mgmt_ip) if member.ha_mgmt_ip else "-"}</code></td>
                 <td><code>{self.escape(member.serial_number) if member.serial_number else "-"}</code></td>
                 <td>{self.escape(Path(member.source_file).name)}</td>
-            </tr>'''
+            </tr>"""
 
         # 設定差分テーブル
         diff_rows = ""
         if differences:
             for diff in differences:
-                diff_rows += f'''<tr>
+                diff_rows += f"""<tr>
                     <td>{self.escape(diff.section)}</td>
                     <td>{self.escape(diff.item)}</td>
                     <td><code>{self.escape(diff.primary_value)}</code></td>
                     <td><code>{self.escape(diff.secondary_value)}</code></td>
                     <td>{self.escape(diff.description)}</td>
-                </tr>'''
+                </tr>"""
 
         diff_section = ""
         if diff_rows:
-            diff_section = f'''
+            diff_section = f"""
                 <h4>設定差分</h4>
                 <div class="warning-box">
                     <strong>注意:</strong> Primary/Secondary間で以下の設定差分が検出されました。
@@ -1795,9 +1964,9 @@ class HTMLExporter:
                         <tr><th>セクション</th><th>項目</th><th>Primary</th><th>Secondary</th><th>備考</th></tr>
                         {diff_rows}
                     </table>
-                </div>'''
+                </div>"""
 
-        return f'''
+        return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} クラスタ概要</h3>
 
@@ -1821,69 +1990,69 @@ class HTMLExporter:
                     </table>
                 </div>
                 {diff_section}
-            </div>'''
+            </div>"""
 
     def _generate_ha_section(self, section_num: str = "1.4", section_id: str = "global-ha") -> str:
         """HA設定セクション（グローバル）"""
         ha = self.config.ha
 
         if ha.mode == HAMode.STANDALONE:
-            return f'''
+            return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} HA設定</h3>
                 <p>HA設定なし（スタンドアロン）</p>
-            </div>'''
+            </div>"""
 
         # ハートビートインターフェース
         hb_rows = ""
         if ha.heartbeat_interfaces_detail:
             for hb in ha.heartbeat_interfaces_detail:
-                hb_rows += f'''<tr>
+                hb_rows += f"""<tr>
                     <td>{self.escape(hb.interface)}</td>
                     <td>{self.escape(hb.priority) if hb.priority else "-"}</td>
-                </tr>'''
+                </tr>"""
         else:
             # 詳細情報がない場合はシンプルなリスト表示
             for iface in ha.heartbeat_interfaces:
-                hb_rows += f'''<tr>
+                hb_rows += f"""<tr>
                     <td>{self.escape(iface)}</td>
                     <td>-</td>
-                </tr>'''
+                </tr>"""
 
         hb_section = ""
         if hb_rows:
-            hb_section = f'''
+            hb_section = f"""
                 <h4>ハートビートインターフェース</h4>
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered">
                         <tr><th>インターフェース</th><th>優先度</th></tr>
                         {hb_rows}
                     </table>
-                </div>'''
+                </div>"""
 
         # HA管理インターフェース
         mgmt_rows = ""
         if ha.ha_mgmt_interfaces:
             for mgmt in ha.ha_mgmt_interfaces:
-                mgmt_rows += f'''<tr>
+                mgmt_rows += f"""<tr>
                     <td>{self.escape(mgmt.id)}</td>
                     <td>{self.escape(mgmt.interface)}</td>
                     <td><code>{self.escape(mgmt.dst) if mgmt.dst else '-'}</code></td>
                     <td><code>{self.escape(mgmt.gateway) if mgmt.gateway else '-'}</code></td>
-                </tr>'''
+                </tr>"""
 
         mgmt_section = ""
         if mgmt_rows:
-            mgmt_section = f'''
+            mgmt_section = f"""
                 <h4>HA管理インターフェース</h4>
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered">
                         <tr><th>ID</th><th>インターフェース</th><th>管理IPアドレス</th><th>ゲートウェイ</th></tr>
                         {mgmt_rows}
                     </table>
-                </div>'''
+                </div>"""
 
-        return f'''
+        return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} HA設定</h3>
 
@@ -1920,53 +2089,59 @@ class HTMLExporter:
                 </div>
                 {hb_section}
                 {mgmt_section}
-            </div>'''
+            </div>"""
 
-    def _generate_logging_section(self, section_num: str = "1.5", section_id: str = "global-logging") -> str:
+    def _generate_logging_section(
+        self, section_num: str = "1.5", section_id: str = "global-logging"
+    ) -> str:
         """ログ・監視設定セクション（グローバル）"""
         logging = self.config.logging
 
         # Syslog
         syslog_rows = ""
         for syslog in logging.syslog_servers:
-            log_types_display = self._list_to_str(syslog.log_types) if syslog.log_types else "全種別"
-            syslog_rows += f'''<tr>
+            log_types_display = (
+                self._list_to_str(syslog.log_types) if syslog.log_types else "全種別"
+            )
+            syslog_rows += f"""<tr>
                 <td><code>{self.escape(syslog.server)}</code></td>
                 <td>{self.escape(syslog.port)}</td>
                 <td>{log_types_display}</td>
                 <td>{self.escape(syslog.status)}</td>
-            </tr>'''
+            </tr>"""
 
         # SNMP
         snmp_rows = ""
         for snmp in logging.snmp:
             trap_hosts_display = self._list_to_str(snmp.trap_hosts) if snmp.trap_hosts else "-"
             hosts_display = self._list_to_str(snmp.hosts) if snmp.hosts else "-"
-            snmp_rows += f'''<tr>
+            snmp_rows += f"""<tr>
                 <td>{'有効' if snmp.enabled else '無効'}</td>
                 <td>{self.escape(snmp.version)}</td>
                 <td>{self.escape(snmp.community) if snmp.community else self.escape(snmp.username)}</td>
                 <td>{hosts_display}</td>
                 <td>{trap_hosts_display}</td>
-            </tr>'''
+            </tr>"""
 
         # 集中管理（表形式）
         central_mgmt_rows = ""
         if logging.fortianalyzer_server:
-            status_display = self.escape(logging.fortianalyzer_status) if logging.fortianalyzer_status else "-"
-            central_mgmt_rows += f'''<tr>
+            status_display = (
+                self.escape(logging.fortianalyzer_status) if logging.fortianalyzer_status else "-"
+            )
+            central_mgmt_rows += f"""<tr>
                 <td>FortiAnalyzer</td>
                 <td><code>{self.escape(logging.fortianalyzer_server)}</code></td>
                 <td>{status_display}</td>
-            </tr>'''
+            </tr>"""
         if logging.panorama_server:
-            central_mgmt_rows += f'''<tr>
+            central_mgmt_rows += f"""<tr>
                 <td>Panorama</td>
                 <td><code>{self.escape(logging.panorama_server)}</code></td>
                 <td>-</td>
-            </tr>'''
+            </tr>"""
 
-        return f'''
+        return f"""
             <div id="{section_id}" class="subsection">
                 <h3>{section_num} ログ・監視設定</h3>
 
@@ -1993,4 +2168,4 @@ class HTMLExporter:
                         {snmp_rows if snmp_rows else '<tr><td colspan="5">SNMP設定なし</td></tr>'}
                     </table>
                 </div>
-            </div>'''
+            </div>"""

@@ -76,7 +76,9 @@ class JobProcessor:
                 total_size += input_path.stat().st_size
 
             contents: List[Tuple[str, str]] = []
-            for i, (input_path, original_filename) in enumerate(zip(input_paths, original_filenames)):
+            for i, (input_path, original_filename) in enumerate(
+                zip(input_paths, original_filenames)
+            ):
                 self.update_progress(
                     file_id,
                     10 + (i * 5),
@@ -91,7 +93,9 @@ class JobProcessor:
             config: Union[ConfigModel, ClusterConfig]
 
             if ha_mode == "single" or (ha_mode == "auto" and len(contents) == 1):
-                self.update_progress(file_id, 25, "設定ファイルの形式を判別しています...", stage="detect_parser")
+                self.update_progress(
+                    file_id, 25, "設定ファイルの形式を判別しています...", stage="detect_parser"
+                )
                 filename, content = contents[0]
                 parser = get_parser_for_content(content)
                 if parser is None:
@@ -111,28 +115,47 @@ class JobProcessor:
                     )
                     return
 
-                self.update_progress(file_id, 35, "設定ファイルを解析しています...", stage="parsing")
+                self.update_progress(
+                    file_id, 35, "設定ファイルを解析しています...", stage="parsing"
+                )
                 config = parser.parse_content(content, filename)
                 if getattr(parser, "errors", None):
                     for error in parser.errors:
                         logger.warning(f"パースエラー: {error}")
             else:
-                self.update_progress(file_id, 25, f"HAクラスタ構成を解析中 ({len(contents)} ファイル)...", stage="detect_parser")
+                self.update_progress(
+                    file_id,
+                    25,
+                    f"HAクラスタ構成を解析中 ({len(contents)} ファイル)...",
+                    stage="detect_parser",
+                )
                 cluster_config = parse_ha_cluster_from_contents(contents)
 
                 if cluster_config.is_cluster:
-                    logger.info(f"HAクラスタを検出: グループID={cluster_config.cluster_info.group_id}")
-                    self.update_progress(file_id, 35, "HAクラスタ構成を解析しています...", stage="parsing")
+                    logger.info(
+                        f"HAクラスタを検出: グループID={cluster_config.cluster_info.group_id}"
+                    )
+                    self.update_progress(
+                        file_id, 35, "HAクラスタ構成を解析しています...", stage="parsing"
+                    )
                 else:
-                    logger.info("HAクラスタ構成は検出されませんでした。最初のファイルを使用します。")
-                    self.update_progress(file_id, 35, "設定ファイルを解析しています...", stage="parsing")
+                    logger.info(
+                        "HAクラスタ構成は検出されませんでした。最初のファイルを使用します。"
+                    )
+                    self.update_progress(
+                        file_id, 35, "設定ファイルを解析しています...", stage="parsing"
+                    )
 
                 config = cluster_config
 
             self.update_progress(file_id, 70, "出力ファイルを生成しています...", stage="exporting")
 
             if output_format == "html":
-                exporter = self.html_exporter_cls(config) if sections is None else self.html_exporter_cls(config, sections=sections)
+                exporter = (
+                    self.html_exporter_cls(config)
+                    if sections is None
+                    else self.html_exporter_cls(config, sections=sections)
+                )
                 exporter.export(str(output_path))
             elif output_format == "pdf":
                 if not self.pdf_available or self.pdf_exporter_cls is None:
@@ -151,7 +174,11 @@ class JobProcessor:
                         },
                     )
                     return
-                exporter = self.pdf_exporter_cls(config) if sections is None else self.pdf_exporter_cls(config, sections=sections)
+                exporter = (
+                    self.pdf_exporter_cls(config)
+                    if sections is None
+                    else self.pdf_exporter_cls(config, sections=sections)
+                )
                 exporter.export(str(output_path))
             elif output_format == "excel":
                 if not self.excel_available or self.excel_exporter_cls is None:
@@ -170,7 +197,11 @@ class JobProcessor:
                         },
                     )
                     return
-                exporter = self.excel_exporter_cls(config) if sections is None else self.excel_exporter_cls(config, sections=sections)
+                exporter = (
+                    self.excel_exporter_cls(config)
+                    if sections is None
+                    else self.excel_exporter_cls(config, sections=sections)
+                )
                 exporter.export(str(output_path))
             else:
                 self.update_progress(
@@ -208,7 +239,9 @@ class JobProcessor:
                 "progress_stage": "done",
             }
             self.save_file_metadata(file_id, metadata)
-            logger.info(f"生成完了(非同期): {output_filename} (ID: {file_id}, Path: {normalized_path})")
+            logger.info(
+                f"生成完了(非同期): {output_filename} (ID: {file_id}, Path: {normalized_path})"
+            )
 
             if self.metrics_available:
                 duration = time.time() - start_time
@@ -226,10 +259,13 @@ class JobProcessor:
                 stage="error",
                 extra={
                     "status": "error",
-                    "error": {"code": "INTERNAL_ERROR", "message": "予期しないエラーが発生しました", "details": error_details},
+                    "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "予期しないエラーが発生しました",
+                        "details": error_details,
+                    },
                 },
             )
             if self.metrics_available:
                 self.record_error("INTERNAL_ERROR", "upload_async")
                 self.record_processed_file(output_format, "error")
-

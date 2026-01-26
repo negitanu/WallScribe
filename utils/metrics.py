@@ -7,6 +7,7 @@ Prometheusメトリクスモジュール
 # オプショナルインポート（prometheus_clientがインストールされていない場合でも動作）
 try:
     from prometheus_client import Counter, Histogram, Gauge, generate_latest
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -15,22 +16,27 @@ except ImportError:
     class _MockCounter:
         def __init__(self, *args, **kwargs):
             pass
+
         def labels(self, **kwargs):
             return self
+
         def inc(self, value=1):
             pass
 
     class _MockHistogram:
         def __init__(self, *args, **kwargs):
             pass
+
         def labels(self, **kwargs):
             return self
+
         def observe(self, value):
             pass
 
     class _MockGauge:
         def __init__(self, *args, **kwargs):
             pass
+
         def set(self, value):
             pass
 
@@ -46,53 +52,36 @@ from typing import Optional
 
 # リクエストメトリクス
 request_count = Counter(
-    'wallscribe_requests_total',
-    'Total number of requests',
-    ['method', 'endpoint', 'status']
+    "wallscribe_requests_total", "Total number of requests", ["method", "endpoint", "status"]
 )
 
 request_duration = Histogram(
-    'wallscribe_request_duration_seconds',
-    'Request duration in seconds',
-    ['method', 'endpoint']
+    "wallscribe_request_duration_seconds", "Request duration in seconds", ["method", "endpoint"]
 )
 
 # ファイル処理メトリクス
 file_upload_count = Counter(
-    'wallscribe_file_uploads_total',
-    'Total number of file uploads',
-    ['format', 'device_type']
+    "wallscribe_file_uploads_total", "Total number of file uploads", ["format", "device_type"]
 )
 
 file_processing_duration = Histogram(
-    'wallscribe_file_processing_seconds',
-    'File processing duration in seconds',
-    ['format', 'device_type']
+    "wallscribe_file_processing_seconds",
+    "File processing duration in seconds",
+    ["format", "device_type"],
 )
 
-file_size_bytes = Histogram(
-    'wallscribe_file_size_bytes',
-    'Uploaded file size in bytes',
-    ['format']
-)
+file_size_bytes = Histogram("wallscribe_file_size_bytes", "Uploaded file size in bytes", ["format"])
 
 # エラーメトリクス
 error_count = Counter(
-    'wallscribe_errors_total',
-    'Total number of errors',
-    ['error_type', 'endpoint']
+    "wallscribe_errors_total", "Total number of errors", ["error_type", "endpoint"]
 )
 
 # システムメトリクス
-active_jobs = Gauge(
-    'wallscribe_active_jobs',
-    'Number of active processing jobs'
-)
+active_jobs = Gauge("wallscribe_active_jobs", "Number of active processing jobs")
 
 processed_files_total = Counter(
-    'wallscribe_processed_files_total',
-    'Total number of processed files',
-    ['format', 'status']
+    "wallscribe_processed_files_total", "Total number of processed files", ["format", "status"]
 )
 
 

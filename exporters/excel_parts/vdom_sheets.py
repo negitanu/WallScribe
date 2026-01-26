@@ -13,6 +13,7 @@ try:
     from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
 except ImportError:  # pragma: no cover
     from exporters.excel_styles import PatternFill  # type: ignore
+
     Worksheet = Any  # type: ignore
 
 
@@ -28,7 +29,17 @@ class ExcelVdomSheetsMixin:
             return
 
         ws = self._create_sheet("IF", vdom)
-        headers = ["インターフェース名", "タイプ", "役割", "IPアドレス", "VLAN ID", "ゾーン", "許可アクセス", "状態", "説明"]
+        headers = [
+            "インターフェース名",
+            "タイプ",
+            "役割",
+            "IPアドレス",
+            "VLAN ID",
+            "ゾーン",
+            "許可アクセス",
+            "状態",
+            "説明",
+        ]
         self._set_header_row(ws, headers)
 
         for row_idx, iface in enumerate(interfaces, 2):
@@ -39,8 +50,20 @@ class ExcelVdomSheetsMixin:
             self._set_cell(ws, row_idx, 5, iface.vlan_id, center=True)
             self._set_cell(ws, row_idx, 6, iface.zone, center=True)
             self._set_cell(ws, row_idx, 7, self._list_to_str(iface.allowed_access, ", "))
-            status_enabled = iface.status and iface.status.lower() in ("up", "enable", "enabled", "有効")
-            self._set_status_cell(ws, row_idx, 8, status_enabled, enabled_text=iface.status or "up", disabled_text=iface.status or "down")
+            status_enabled = iface.status and iface.status.lower() in (
+                "up",
+                "enable",
+                "enabled",
+                "有効",
+            )
+            self._set_status_cell(
+                ws,
+                row_idx,
+                8,
+                status_enabled,
+                enabled_text=iface.status or "up",
+                disabled_text=iface.status or "down",
+            )
             self._set_cell(ws, row_idx, 9, iface.description)
 
         self._auto_column_width(ws)
@@ -61,13 +84,23 @@ class ExcelVdomSheetsMixin:
 
         if routes:
             self._set_section_title(ws, row_idx, 1, "スタティックルート", colspan=6)
-            headers = ["ルート名", "宛先ネットワーク", "ゲートウェイ", "インターフェース", "ディスタンス", "タイプ"]
+            headers = [
+                "ルート名",
+                "宛先ネットワーク",
+                "ゲートウェイ",
+                "インターフェース",
+                "ディスタンス",
+                "タイプ",
+            ]
             self._set_header_row(ws, headers, row_idx + 1)
             row_idx += 2
 
             for route in routes:
                 gateway_display = route.gateway
-                if not gateway_display and getattr(route, "route_type", "") in ("blackhole", "blackhole6"):
+                if not gateway_display and getattr(route, "route_type", "") in (
+                    "blackhole",
+                    "blackhole6",
+                ):
                     gateway_display = "blackhole"
 
                 self._set_cell(ws, row_idx, 1, route.name)
@@ -88,7 +121,16 @@ class ExcelVdomSheetsMixin:
 
         if policy_routes:
             self._set_section_title(ws, row_idx, 1, "ポリシールート", colspan=8)
-            headers = ["Seq", "送信元", "宛先", "プロトコル", "入力IF", "出力IF", "ゲートウェイ", "状態"]
+            headers = [
+                "Seq",
+                "送信元",
+                "宛先",
+                "プロトコル",
+                "入力IF",
+                "出力IF",
+                "ゲートウェイ",
+                "状態",
+            ]
             self._set_header_row(ws, headers, row_idx + 1)
             row_idx += 2
 
@@ -193,7 +235,14 @@ class ExcelVdomSheetsMixin:
 
         if bgp.neighbors:
             self._set_section_title(ws, row_idx, 1, "BGPネイバー", colspan=6)
-            headers = ["ネイバーIP", "リモートAS", "説明", "Next-Hop-Self", "ルートマップ(IN)", "ルートマップ(OUT)"]
+            headers = [
+                "ネイバーIP",
+                "リモートAS",
+                "説明",
+                "Next-Hop-Self",
+                "ルートマップ(IN)",
+                "ルートマップ(OUT)",
+            ]
             self._set_header_row(ws, headers, row_idx + 1)
             row_idx += 2
             for neighbor in bgp.neighbors:
@@ -308,7 +357,22 @@ class ExcelVdomSheetsMixin:
 
         if policies:
             self._set_section_title(ws, row_idx, 1, "ファイアウォールポリシー", colspan=14)
-            headers = ["No", "ID", "ポリシー名", "送信元IF", "宛先IF", "送信元アドレス", "宛先アドレス", "サービス", "アクション", "NAT", "ログ", "セキュリティ", "有効", "説明"]
+            headers = [
+                "No",
+                "ID",
+                "ポリシー名",
+                "送信元IF",
+                "宛先IF",
+                "送信元アドレス",
+                "宛先アドレス",
+                "サービス",
+                "アクション",
+                "NAT",
+                "ログ",
+                "セキュリティ",
+                "有効",
+                "説明",
+            ]
             self._set_header_row(ws, headers, row_idx + 1)
             row_idx += 2
 
@@ -333,7 +397,18 @@ class ExcelVdomSheetsMixin:
 
         if local_in_policies:
             self._set_section_title(ws, row_idx, 1, "Local-in ポリシー", colspan=10)
-            headers = ["No", "ID", "ポリシー名", "送信元IF", "送信元アドレス", "宛先アドレス", "サービス", "アクション", "有効", "説明"]
+            headers = [
+                "No",
+                "ID",
+                "ポリシー名",
+                "送信元IF",
+                "送信元アドレス",
+                "宛先アドレス",
+                "サービス",
+                "アクション",
+                "有効",
+                "説明",
+            ]
             self._set_header_row(ws, headers, row_idx + 1)
             row_idx += 2
 
@@ -365,7 +440,21 @@ class ExcelVdomSheetsMixin:
             return
 
         ws = self._create_sheet("NAT", vdom)
-        headers = ["ルール名", "タイプ", "元送信元", "元宛先", "変換後送信元", "変換後宛先", "外部IF", "外部IP", "内部IP", "ポートFW", "元ポート", "変換後ポート", "説明"]
+        headers = [
+            "ルール名",
+            "タイプ",
+            "元送信元",
+            "元宛先",
+            "変換後送信元",
+            "変換後宛先",
+            "外部IF",
+            "外部IP",
+            "内部IP",
+            "ポートFW",
+            "元ポート",
+            "変換後ポート",
+            "説明",
+        ]
         self._set_header_row(ws, headers)
 
         for row_idx, nat in enumerate(nat_policies, 2):
@@ -399,7 +488,17 @@ class ExcelVdomSheetsMixin:
 
         if ipsec_p1:
             self._set_section_title(ws, row_idx, 1, "IPsec Phase1", colspan=9)
-            p1_headers = ["VPN名", "リモートGW", "IF", "IKE", "暗号化", "認証", "DH", "ライフタイム", "PSK"]
+            p1_headers = [
+                "VPN名",
+                "リモートGW",
+                "IF",
+                "IKE",
+                "暗号化",
+                "認証",
+                "DH",
+                "ライフタイム",
+                "PSK",
+            ]
             self._set_header_row(ws, p1_headers, row_idx + 1)
             row_idx += 2
             for p1 in ipsec_p1:
@@ -411,13 +510,24 @@ class ExcelVdomSheetsMixin:
                 self._set_cell(ws, row_idx, 6, p1.authentication, center=True)
                 self._set_cell(ws, row_idx, 7, p1.dh_group, center=True)
                 self._set_cell(ws, row_idx, 8, p1.lifetime, center=True)
-                self._set_status_cell(ws, row_idx, 9, bool(p1.psk), enabled_text="有", disabled_text="無")
+                self._set_status_cell(
+                    ws, row_idx, 9, bool(p1.psk), enabled_text="有", disabled_text="無"
+                )
                 row_idx += 1
             row_idx += 1
 
         if ipsec_p2:
             self._set_section_title(ws, row_idx, 1, "IPsec Phase2", colspan=8)
-            p2_headers = ["VPN名", "Phase1", "暗号化", "認証", "PFS", "ライフタイム", "ローカル", "リモート"]
+            p2_headers = [
+                "VPN名",
+                "Phase1",
+                "暗号化",
+                "認証",
+                "PFS",
+                "ライフタイム",
+                "ローカル",
+                "リモート",
+            ]
             self._set_header_row(ws, p2_headers, row_idx + 1)
             row_idx += 2
             for p2 in ipsec_p2:
@@ -434,7 +544,16 @@ class ExcelVdomSheetsMixin:
 
         if ssl_vpn:
             self._set_section_title(ws, row_idx, 1, "SSL-VPN / GlobalProtect", colspan=8)
-            ssl_headers = ["レルム", "ポータル", "ポート", "IF", "認証", "IPプール", "ユーザーグループ", "モード"]
+            ssl_headers = [
+                "レルム",
+                "ポータル",
+                "ポート",
+                "IF",
+                "認証",
+                "IPプール",
+                "ユーザーグループ",
+                "モード",
+            ]
             self._set_header_row(ws, ssl_headers, row_idx + 1)
             row_idx += 2
             for ssl in ssl_vpn:
@@ -475,7 +594,17 @@ class ExcelVdomSheetsMixin:
             return
 
         ws = self._create_sheet("DHCP", vdom)
-        headers = ["インターフェース", "開始IP", "終了IP", "サブネットマスク", "除外IP", "ゲートウェイ", "DNSサーバー", "リース時間", "状態"]
+        headers = [
+            "インターフェース",
+            "開始IP",
+            "終了IP",
+            "サブネットマスク",
+            "除外IP",
+            "ゲートウェイ",
+            "DNSサーバー",
+            "リース時間",
+            "状態",
+        ]
         self._set_header_row(ws, headers)
 
         for row_idx, dhcp in enumerate(dhcp_servers, 2):
@@ -483,11 +612,20 @@ class ExcelVdomSheetsMixin:
             self._set_cell(ws, row_idx, 2, dhcp.start_ip)
             self._set_cell(ws, row_idx, 3, dhcp.end_ip)
             self._set_cell(ws, row_idx, 4, dhcp.netmask)
-            self._set_cell(ws, row_idx, 5, self._list_to_str(dhcp.exclude_ips, ", ") if dhcp.exclude_ips else "-")
+            self._set_cell(
+                ws,
+                row_idx,
+                5,
+                self._list_to_str(dhcp.exclude_ips, ", ") if dhcp.exclude_ips else "-",
+            )
             self._set_cell(ws, row_idx, 6, dhcp.gateway or "-")
-            self._set_cell(ws, row_idx, 7, self._list_to_str(dhcp.dns_servers, ", ") if dhcp.dns_servers else "-")
+            self._set_cell(
+                ws,
+                row_idx,
+                7,
+                self._list_to_str(dhcp.dns_servers, ", ") if dhcp.dns_servers else "-",
+            )
             self._set_cell(ws, row_idx, 8, dhcp.lease_time or "-")
-            self._set_status_cell(ws, row_idx, 9, dhcp.status if hasattr(dhcp, 'status') else True)
+            self._set_status_cell(ws, row_idx, 9, dhcp.status if hasattr(dhcp, "status") else True)
 
         self._auto_column_width(ws)
-

@@ -17,22 +17,22 @@ class TestDetectEncoding:
 
     def test_detect_utf8(self):
         """UTF-8の検出"""
-        data = "テスト文字列".encode('utf-8')
+        data = "テスト文字列".encode("utf-8")
         content, encoding = detect_encoding(data)
-        assert encoding == 'utf-8'
+        assert encoding == "utf-8"
         assert content == "テスト文字列"
 
     def test_detect_utf8_bom(self):
         """UTF-8 BOMの検出"""
-        data = "テスト文字列".encode('utf-8-sig')
+        data = "テスト文字列".encode("utf-8-sig")
         content, encoding = detect_encoding(data)
-        assert encoding in ('utf-8', 'utf-8-sig')
+        assert encoding in ("utf-8", "utf-8-sig")
         assert "テスト文字列" in content
 
     def test_detect_cp932(self):
         """Shift-JIS (CP932) の検出"""
         # CP932特有の文字列を使用
-        data = "日本語テスト".encode('cp932')
+        data = "日本語テスト".encode("cp932")
         content, encoding = detect_encoding(data)
         # UTF-8で失敗した後にCP932で成功するはず
         assert "日本語テスト" in content
@@ -41,7 +41,7 @@ class TestDetectEncoding:
         """ASCII文字列の検出"""
         data = b"Hello World"
         content, encoding = detect_encoding(data)
-        assert encoding == 'utf-8'  # ASCIIはUTF-8互換
+        assert encoding == "utf-8"  # ASCIIはUTF-8互換
         assert content == "Hello World"
 
 
@@ -491,7 +491,10 @@ class TestPaloAltoParser:
         assert config.ha.preempt is True
         assert "ethernet1/1" in config.ha.monitor_interfaces
         assert config.ha.heartbeat_interfaces == ["ethernet1/5", "ethernet1/6"]
-        assert any(x.id == "HA1" and x.interface == "ethernet1/5" and x.gateway == "192.0.2.1" for x in config.ha.ha_mgmt_interfaces)
+        assert any(
+            x.id == "HA1" and x.interface == "ethernet1/5" and x.gateway == "192.0.2.1"
+            for x in config.ha.ha_mgmt_interfaces
+        )
 
     def test_parse_policy_action_default_deny(self):
         """action 未定義のポリシーは deny 扱いになること"""

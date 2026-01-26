@@ -83,4 +83,3 @@ def register(app, get_metrics) -> None:
     def liveness_check():
         """ライブネスチェック（アプリケーションが応答するか）"""
         return jsonify({"status": "alive", "timestamp": datetime.now().isoformat()}), 200
-

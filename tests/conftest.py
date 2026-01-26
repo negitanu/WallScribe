@@ -8,13 +8,34 @@ import pytest
 from pathlib import Path
 
 from models.config import (
-    ConfigModel, DeviceInfo, DeviceType, OperationMode, HAMode,
-    SystemSettings, AdminUser, Interface, Route, DHCPServer,
-    Objects, AddressObject, AddressGroup, ServiceObject, ServiceGroup,
-    FirewallPolicy, NATPolicy, PolicyAction,
-    VPNSettings, IPSecPhase1, IPSecPhase2, SSLVPNSettings,
-    SecurityProfile, SecurityProfiles, HASettings,
-    LoggingSettings, SyslogServer, SNMPSettings
+    ConfigModel,
+    DeviceInfo,
+    DeviceType,
+    OperationMode,
+    HAMode,
+    SystemSettings,
+    AdminUser,
+    Interface,
+    Route,
+    DHCPServer,
+    Objects,
+    AddressObject,
+    AddressGroup,
+    ServiceObject,
+    ServiceGroup,
+    FirewallPolicy,
+    NATPolicy,
+    PolicyAction,
+    VPNSettings,
+    IPSecPhase1,
+    IPSecPhase2,
+    SSLVPNSettings,
+    SecurityProfile,
+    SecurityProfiles,
+    HASettings,
+    LoggingSettings,
+    SyslogServer,
+    SNMPSettings,
 )
 
 
@@ -164,7 +185,7 @@ def sample_config_model():
         operation_mode=OperationMode.NAT_ROUTE,
         device_type=DeviceType.FORTIGATE,
         vdom_enabled=False,
-        vdom_list=["root"]
+        vdom_list=["root"],
     )
 
     # System Settings
@@ -180,29 +201,53 @@ def sample_config_model():
         dns_secondary="8.8.4.4",
         timezone="Asia/Tokyo",
         admin_users=[
-            AdminUser(username="admin", profile="super_admin", vdom="root", trust_hosts=["0.0.0.0/0"])
-        ]
+            AdminUser(
+                username="admin", profile="super_admin", vdom="root", trust_hosts=["0.0.0.0/0"]
+            )
+        ],
     )
 
     # Interfaces
     config.interfaces = [
-        Interface(name="port1", interface_type="physical", ip_address="192.168.1.1/24",
-                  zone="WAN", vdom="root", role="wan", allowed_access=["https", "ssh", "ping"]),
-        Interface(name="port2", interface_type="physical", ip_address="10.0.0.1/24",
-                  zone="LAN", vdom="root", role="lan", allowed_access=["ping"]),
+        Interface(
+            name="port1",
+            interface_type="physical",
+            ip_address="192.168.1.1/24",
+            zone="WAN",
+            vdom="root",
+            role="wan",
+            allowed_access=["https", "ssh", "ping"],
+        ),
+        Interface(
+            name="port2",
+            interface_type="physical",
+            ip_address="10.0.0.1/24",
+            zone="LAN",
+            vdom="root",
+            role="lan",
+            allowed_access=["ping"],
+        ),
     ]
 
     # Routes
     config.routes = [
-        Route(name="default", destination="0.0.0.0/0", gateway="192.168.1.254",
-              interface="port1", distance="10", vdom="root")
+        Route(
+            name="default",
+            destination="0.0.0.0/0",
+            gateway="192.168.1.254",
+            interface="port1",
+            distance="10",
+            vdom="root",
+        )
     ]
 
     # Objects
     config.objects = Objects(
         addresses=[
             AddressObject(name="Server-A", object_type="subnet", value="10.0.0.10/32", vdom="root"),
-            AddressObject(name="Network-Internal", object_type="subnet", value="10.0.0.0/24", vdom="root"),
+            AddressObject(
+                name="Network-Internal", object_type="subnet", value="10.0.0.0/24", vdom="root"
+            ),
         ],
         address_groups=[
             AddressGroup(name="Internal-Servers", members=["Server-A"], vdom="root"),
@@ -212,7 +257,7 @@ def sample_config_model():
         ],
         service_groups=[
             ServiceGroup(name="Web-Services", members=["HTTP", "HTTPS", "TCP-8080"], vdom="root"),
-        ]
+        ],
     )
 
     # Policies
@@ -229,7 +274,7 @@ def sample_config_model():
             nat_enabled=True,
             log_enabled=True,
             vdom="root",
-            enabled=True
+            enabled=True,
         )
     ]
 
@@ -244,7 +289,7 @@ def sample_config_model():
             port_forward=True,
             original_port="443",
             translated_port="443",
-            vdom="root"
+            vdom="root",
         )
     ]
 
@@ -260,7 +305,7 @@ def sample_config_model():
                 authentication="sha256",
                 dh_group="14",
                 lifetime="86400",
-                psk=True
+                psk=True,
             )
         ],
         ipsec_phase2=[
@@ -272,9 +317,9 @@ def sample_config_model():
                 pfs="14",
                 lifetime="43200",
                 local_subnet="10.0.0.0/24",
-                remote_subnet="10.1.0.0/24"
+                remote_subnet="10.1.0.0/24",
             )
-        ]
+        ],
     )
 
     # HA
@@ -282,10 +327,8 @@ def sample_config_model():
 
     # Logging
     config.logging = LoggingSettings(
-        syslog_servers=[
-            SyslogServer(server="192.168.1.200", port="514", status="enabled")
-        ],
-        local_logging=True
+        syslog_servers=[SyslogServer(server="192.168.1.200", port="514", status="enabled")],
+        local_logging=True,
     )
 
     config.source_file = "test_config.conf"

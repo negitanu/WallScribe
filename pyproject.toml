@@ -1,6 +1,6 @@
 [tool.black]
 line-length = 100
-target-version = ['py38', 'py39', 'py310', 'py311']
+target-version = ['py314']
 include = '\.pyi?$'
 exclude = '''
 /(
@@ -22,7 +22,7 @@ skip = [".venv", "venv", "build", "dist", "__pycache__", ".pytest_cache", "htmlc
 known_first_party = ["parsers", "models", "exporters", "utils", "web"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false

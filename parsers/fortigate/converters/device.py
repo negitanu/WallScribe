@@ -10,11 +10,7 @@ from models.config import ConfigModel, OperationMode, AdminUser
 from parsers.utils import get_nested, ip_to_cidr
 
 
-def convert_device_info(
-    config_model: ConfigModel,
-    parsed_config: Dict,
-    vdoms: List[str]
-) -> None:
+def convert_device_info(config_model: ConfigModel, parsed_config: Dict, vdoms: List[str]) -> None:
     """機器情報を変換
 
     Args:
@@ -40,10 +36,7 @@ def convert_device_info(
     config_model.device_info.vdom_list = vdoms if vdoms else ["root"]
 
 
-def convert_system_settings(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_system_settings(config_model: ConfigModel, parsed_config: Dict) -> None:
     """システム設定を変換
 
     Args:
@@ -78,9 +71,7 @@ def convert_system_settings(
                 if isinstance(server_data, dict) and "server" in server_data:
                     server_value = server_data["server"]
                     if isinstance(server_value, str):
-                        config_model.system_settings.ntp_servers.append(
-                            server_value.strip('"')
-                        )
+                        config_model.system_settings.ntp_servers.append(server_value.strip('"'))
                     elif isinstance(server_value, list):
                         # リスト形式の場合（複数のサーバーが設定されている場合）
                         for svr in server_value:
@@ -94,7 +85,7 @@ def convert_system_settings(
                 admin_user = AdminUser(
                     username=admin_data.get("_name", admin_name),
                     profile=admin_data.get("accprofile", ""),
-                    vdom=admin_data.get("vdom", "")
+                    vdom=admin_data.get("vdom", ""),
                 )
                 # Trust hosts
                 for i in range(1, 11):
@@ -113,10 +104,14 @@ def convert_system_settings(
                     ip6 = iface_data.get("ip6-address", "") or iface_data.get("ip6", "")
                     if ip4:
                         ip = ip4
-                        config_model.system_settings.management_interface = iface_data.get("_name", iface_name)
+                        config_model.system_settings.management_interface = iface_data.get(
+                            "_name", iface_name
+                        )
                         ip_parts = ip.split() if isinstance(ip, str) else ip
                         if ip_parts:
-                            config_model.system_settings.management_ip = ip_parts[0] if isinstance(ip_parts, list) else ip_parts
+                            config_model.system_settings.management_ip = (
+                                ip_parts[0] if isinstance(ip_parts, list) else ip_parts
+                            )
                         # 許可プロトコル
                         if isinstance(allowaccess, str):
                             config_model.system_settings.allowed_protocols = allowaccess.split()
@@ -124,6 +119,8 @@ def convert_system_settings(
                             config_model.system_settings.allowed_protocols = allowaccess
                     elif ip6:
                         # IPv6管理IPはCIDR形式のまま保持（prefixlenが分かるため）
-                        config_model.system_settings.management_interface = iface_data.get("_name", iface_name)
+                        config_model.system_settings.management_interface = iface_data.get(
+                            "_name", iface_name
+                        )
                         config_model.system_settings.management_ip = ip_to_cidr(ip6)
                     break

@@ -28,24 +28,24 @@ class TestExcelStyles:
     def test_vdom_colors_structure(self):
         """VDOMカラーパレットの構造"""
         for color in VDOM_COLORS:
-            assert 'header_bg' in color
-            assert 'header_text' in color
-            assert 'accent' in color
-            assert 'tab_color' in color
+            assert "header_bg" in color
+            assert "header_text" in color
+            assert "accent" in color
+            assert "tab_color" in color
 
     def test_global_color_structure(self):
         """グローバルカラーの構造"""
-        assert 'header_bg' in GLOBAL_COLOR
-        assert 'header_text' in GLOBAL_COLOR
-        assert 'tab_color' in GLOBAL_COLOR
+        assert "header_bg" in GLOBAL_COLOR
+        assert "header_text" in GLOBAL_COLOR
+        assert "tab_color" in GLOBAL_COLOR
 
     def test_colors_structure(self):
         """カラーパレットの構造"""
-        assert 'primary_dark' in COLORS
-        assert 'section_bg' in COLORS
-        assert 'allow_bg' in COLORS
-        assert 'deny_bg' in COLORS
-        assert 'drop_bg' in COLORS
+        assert "primary_dark" in COLORS
+        assert "section_bg" in COLORS
+        assert "allow_bg" in COLORS
+        assert "deny_bg" in COLORS
+        assert "drop_bg" in COLORS
 
     def test_header_font(self):
         """ヘッダーフォント"""

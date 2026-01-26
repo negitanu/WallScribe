@@ -118,7 +118,10 @@ def register(app) -> None:
         except (ValueError, AttributeError):
             return (
                 jsonify(
-                    {"success": False, "error": {"code": "INVALID_FILE_ID", "message": "無効なファイルIDです"}}
+                    {
+                        "success": False,
+                        "error": {"code": "INVALID_FILE_ID", "message": "無効なファイルIDです"},
+                    }
                 ),
                 400,
             )
@@ -127,7 +130,10 @@ def register(app) -> None:
         if file_info is None:
             return (
                 jsonify(
-                    {"success": False, "error": {"code": "FILE_NOT_FOUND", "message": "ファイルが見つかりません"}}
+                    {
+                        "success": False,
+                        "error": {"code": "FILE_NOT_FOUND", "message": "ファイルが見つかりません"},
+                    }
                 ),
                 404,
             )
@@ -150,4 +156,3 @@ def register(app) -> None:
     @app.route("/api/v1/progress/<file_id>")
     def get_progress_v1(file_id):
         return get_progress(file_id)
-

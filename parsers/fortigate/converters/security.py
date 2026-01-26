@@ -7,17 +7,19 @@
 from typing import Dict
 
 from models.config import (
-    ConfigModel, SecurityProfile,
-    AntivirusProfile, WebFilterProfile, AppControlProfile, AppControlEntry,
-    IPSProfile, SSLInspectionProfile
+    ConfigModel,
+    SecurityProfile,
+    AntivirusProfile,
+    WebFilterProfile,
+    AppControlProfile,
+    AppControlEntry,
+    IPSProfile,
+    SSLInspectionProfile,
 )
 from parsers.utils import get_nested, get_app_name, get_app_info
 
 
-def convert_security_profiles(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_security_profiles(config_model: ConfigModel, parsed_config: Dict) -> None:
     """セキュリティプロファイルを変換
 
     Args:
@@ -33,11 +35,7 @@ def convert_security_profiles(
         _add_profiles_from_config(config_model, vdom_cfg, vdom_name)
 
 
-def _add_profiles_from_config(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_profiles_from_config(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """プロファイルを追加"""
     _add_basic_profiles(config_model, config, vdom)
     _add_antivirus_profiles(config_model, config, vdom)
@@ -47,11 +45,7 @@ def _add_profiles_from_config(
     _add_ssl_inspection_profiles(config_model, config, vdom)
 
 
-def _add_basic_profiles(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_basic_profiles(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """基本プロファイル一覧を追加"""
     profile_types = [
         ("antivirus profile", "antivirus"),
@@ -70,16 +64,12 @@ def _add_basic_profiles(
                         name=profile_data.get("_name", profile_name),
                         profile_type=profile_type,
                         vdom=vdom,
-                        description=profile_data.get("comment", "")
+                        description=profile_data.get("comment", ""),
                     )
                     config_model.security_profiles.append(profile)
 
 
-def _add_antivirus_profiles(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_antivirus_profiles(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """アンチウイルスプロファイル詳細を追加"""
     av_profiles = get_nested(config, "antivirus profile", default={})
     if isinstance(av_profiles, dict):
@@ -96,24 +86,19 @@ def _add_antivirus_profiles(
                     name=profile_data.get("_name", profile_name),
                     scan_mode=profile_data.get("scan-mode", ""),
                     protocols=protocols,
-                    vdom=vdom
+                    vdom=vdom,
                 )
                 config_model.security_profiles_detail.antivirus.append(av_profile)
 
 
-def _add_webfilter_profiles(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_webfilter_profiles(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """Webフィルタプロファイル詳細を追加"""
     wf_profiles = get_nested(config, "webfilter profile", default={})
     if isinstance(wf_profiles, dict):
         for profile_name, profile_data in wf_profiles.items():
             if isinstance(profile_data, dict):
                 wf_profile = WebFilterProfile(
-                    name=profile_data.get("_name", profile_name),
-                    vdom=vdom
+                    name=profile_data.get("_name", profile_name), vdom=vdom
                 )
                 # FortiGuardカテゴリ設定
                 ftgd_wf = profile_data.get("ftgd-wf", {})
@@ -128,11 +113,7 @@ def _add_webfilter_profiles(
                 config_model.security_profiles_detail.webfilter.append(wf_profile)
 
 
-def _add_app_control_profiles(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_app_control_profiles(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """アプリケーションコントロールプロファイル詳細を追加"""
     app_profiles = get_nested(config, "application list", default={})
     if isinstance(app_profiles, dict):
@@ -163,13 +144,11 @@ def _add_app_control_profiles(
                                             app_name=app_info.get("app_name", ""),
                                             category=app_info.get("category", ""),
                                             risk=app_info.get("risk", ""),
-                                            action=action
+                                            action=action,
                                         )
                                     else:
                                         entry = AppControlEntry(
-                                            app_id=app_id,
-                                            app_name=app_id,
-                                            action=action
+                                            app_id=app_id, app_name=app_id, action=action
                                         )
                                     applications.append(entry)
 
@@ -177,16 +156,12 @@ def _add_app_control_profiles(
                     name=profile_data.get("_name", profile_name),
                     categories=categories,
                     applications=applications,
-                    vdom=vdom
+                    vdom=vdom,
                 )
                 config_model.security_profiles_detail.app_control.append(app_profile)
 
 
-def _add_ips_profiles(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_ips_profiles(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """IPSプロファイル詳細を追加"""
     ips_profiles = get_nested(config, "ips sensor", default={})
     if isinstance(ips_profiles, dict):
@@ -205,16 +180,12 @@ def _add_ips_profiles(
                     name=profile_data.get("_name", profile_name),
                     signatures=signatures,
                     action=profile_data.get("action", ""),
-                    vdom=vdom
+                    vdom=vdom,
                 )
                 config_model.security_profiles_detail.ips.append(ips_profile)
 
 
-def _add_ssl_inspection_profiles(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_ssl_inspection_profiles(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """SSLインスペクションプロファイル詳細を追加"""
     ssl_profiles = get_nested(config, "firewall ssl-ssh-profile", default={})
     if isinstance(ssl_profiles, dict):
@@ -223,10 +194,7 @@ def _add_ssl_inspection_profiles(
                 mode = _detect_ssl_inspection_mode(profile_data)
 
                 ssl_profile = SSLInspectionProfile(
-                    name=profile_data.get("_name", profile_name),
-                    enabled=True,
-                    mode=mode,
-                    vdom=vdom
+                    name=profile_data.get("_name", profile_name), enabled=True, mode=mode, vdom=vdom
                 )
                 config_model.security_profiles_detail.ssl_inspection.append(ssl_profile)
 

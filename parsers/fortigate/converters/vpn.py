@@ -10,10 +10,7 @@ from models.config import ConfigModel, IPSecPhase1, IPSecPhase2, SSLVPNSettings
 from parsers.utils import get_nested, parse_proposal
 
 
-def convert_vpn(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_vpn(config_model: ConfigModel, parsed_config: Dict) -> None:
     """VPN設定を変換
 
     Args:
@@ -29,11 +26,7 @@ def convert_vpn(
         _add_vpn_from_config(config_model, vdom_cfg, vdom_name)
 
 
-def _add_vpn_from_config(
-    config_model: ConfigModel,
-    config: Dict,
-    vdom: str
-) -> None:
+def _add_vpn_from_config(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """VPN設定を追加"""
     vpn_config = get_nested(config, "vpn", default={})
 
@@ -43,10 +36,7 @@ def _add_vpn_from_config(
     _add_ssl_vpn_portal(config_model, vpn_config, vdom)
 
 
-def _add_ipsec_phase1(
-    config_model: ConfigModel,
-    vpn_config: Dict
-) -> None:
+def _add_ipsec_phase1(config_model: ConfigModel, vpn_config: Dict) -> None:
     """IPsec Phase1設定を追加"""
     phase1 = get_nested(vpn_config, "ipsec phase1-interface", default={})
     if isinstance(phase1, dict):
@@ -71,15 +61,12 @@ def _add_ipsec_phase1(
                     dpd=p1_data.get("dpd", ""),
                     psk=bool(p1_data.get("psksecret", "")),
                     local_id=p1_data.get("localid", ""),
-                    remote_id=p1_data.get("peerid", "")
+                    remote_id=p1_data.get("peerid", ""),
                 )
                 config_model.vpn.ipsec_phase1.append(p1)
 
 
-def _add_ipsec_phase2(
-    config_model: ConfigModel,
-    vpn_config: Dict
-) -> None:
+def _add_ipsec_phase2(config_model: ConfigModel, vpn_config: Dict) -> None:
     """IPsec Phase2設定を追加"""
     phase2 = get_nested(vpn_config, "ipsec phase2-interface", default={})
     if isinstance(phase2, dict):
@@ -100,16 +87,12 @@ def _add_ipsec_phase2(
                     pfs=str(p2_data.get("pfs", "")),
                     lifetime=str(p2_data.get("keylifeseconds", "")),
                     local_subnet=p2_data.get("src-subnet", ""),
-                    remote_subnet=p2_data.get("dst-subnet", "")
+                    remote_subnet=p2_data.get("dst-subnet", ""),
                 )
                 config_model.vpn.ipsec_phase2.append(p2)
 
 
-def _add_ssl_vpn_settings(
-    config_model: ConfigModel,
-    vpn_config: Dict,
-    vdom: str
-) -> None:
+def _add_ssl_vpn_settings(config_model: ConfigModel, vpn_config: Dict, vdom: str) -> None:
     """SSL-VPN設定を追加"""
     ssl_settings = get_nested(vpn_config, "ssl settings", default={})
     if isinstance(ssl_settings, dict) and ssl_settings:
@@ -135,16 +118,12 @@ def _add_ssl_vpn_settings(
             tunnel_ip_pool=tunnel_pools,
             user_groups=user_groups,
             mode="tunnel",  # デフォルト
-            vdom=vdom
+            vdom=vdom,
         )
         config_model.vpn.ssl_vpn.append(ssl_vpn)
 
 
-def _add_ssl_vpn_portal(
-    config_model: ConfigModel,
-    vpn_config: Dict,
-    vdom: str
-) -> None:
+def _add_ssl_vpn_portal(config_model: ConfigModel, vpn_config: Dict, vdom: str) -> None:
     """SSL-VPNポータル設定を追加"""
     ssl_portal = get_nested(vpn_config, "ssl web portal", default={})
     if isinstance(ssl_portal, dict):
@@ -157,9 +136,7 @@ def _add_ssl_vpn_portal(
                     mode = "web"
 
                 ssl_vpn = SSLVPNSettings(
-                    portal=portal_data.get("_name", portal_name),
-                    mode=mode,
-                    vdom=vdom
+                    portal=portal_data.get("_name", portal_name), mode=mode, vdom=vdom
                 )
                 # ポータルごとに追加（設定がある場合のみ）
                 if portal_data.get("tunnel-mode") or portal_data.get("web-mode"):

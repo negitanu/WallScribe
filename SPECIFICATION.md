@@ -754,7 +754,7 @@ gunicorn -w 4 -b 0.0.0.0:8080 app:app
 
 ### 7.1 動作環境
 
-- Python 3.8 以上
+- Python 3.14 のみ
 - OS: Windows / Linux / macOS
 
 ### 7.2 依存パッケージ

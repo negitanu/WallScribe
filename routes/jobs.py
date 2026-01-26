@@ -71,7 +71,9 @@ def register(app, limiter) -> None:
                     "file_id": file_id,
                     "filename": info.get("filename"),
                     "status": info.get("status", "processing"),
-                    "created_at": info.get("created_at").isoformat() if info.get("created_at") else None,
+                    "created_at": (
+                        info.get("created_at").isoformat() if info.get("created_at") else None
+                    ),
                     "file_count": info.get("file_count"),
                     "progress_percent": info.get("progress_percent"),
                     "progress_message": info.get("progress_message"),
@@ -222,4 +224,3 @@ def register(app, limiter) -> None:
             pass
 
         return jsonify({"success": True, "file_id": file_id, "deleted_files": deleted})
-

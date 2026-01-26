@@ -17,6 +17,7 @@ try:
     from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
 except ImportError:  # pragma: no cover
     from exporters.excel_styles import Alignment, Border, Side  # type: ignore
+
     Worksheet = Any  # type: ignore
 
 
@@ -138,7 +139,9 @@ class ExcelCommonMixin:
         cell.border = Border(bottom=Side(style="medium", color=self._current_color["header_bg"]))
         ws.row_dimensions[row].height = 26
         if colspan > 1:
-            ws.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + colspan - 1)
+            ws.merge_cells(
+                start_row=row, start_column=col, end_row=row, end_column=col + colspan - 1
+            )
         return cell
 
     def _auto_column_width(self, ws: Worksheet, min_width: int = 8, max_width: int = 50):
@@ -176,4 +179,3 @@ class ExcelCommonMixin:
         if not items:
             return "-"
         return separator.join(str(item) for item in items)
-

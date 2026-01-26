@@ -39,28 +39,20 @@ class FortiGateParser(BaseConfigParser):
 
     def __init__(self):
         super().__init__()
-        self.raw_config: Dict[str, Any] = {
-            "header": {},
-            "global": [],
-            "vdom": {}
-        }
-        self.parsed_config: Dict[str, Any] = {
-            "header": {},
-            "global": {},
-            "vdom": {}
-        }
+        self.raw_config: Dict[str, Any] = {"header": {}, "global": [], "vdom": {}}
+        self.parsed_config: Dict[str, Any] = {"header": {}, "global": {}, "vdom": {}}
         self.vdoms: List[str] = []
 
     @staticmethod
     def detect_file_type(file_path: str) -> bool:
         """ファイル形式を判定"""
         path = Path(file_path)
-        return path.suffix.lower() == '.conf'
+        return path.suffix.lower() == ".conf"
 
     @staticmethod
     def detect_content_type(content: str) -> bool:
         """ファイル内容から形式を判定"""
-        return '#config-version=' in content or 'config system global' in content
+        return "#config-version=" in content or "config system global" in content
 
     def parse(self, file_path: str) -> ConfigModel:
         """設定ファイルをパース"""
@@ -105,35 +97,40 @@ class FortiGateParser(BaseConfigParser):
             stripped = line.strip()
 
             # ヘッダー情報
-            if '#config-version=' in line:
+            if "#config-version=" in line:
                 self._parse_header_line(line)
                 continue
 
-            if 'config global' in stripped:
+            if "config global" in stripped:
                 global_flag = True
                 skip_flag = False
                 continue
-            elif no_vdom_flag and 'config system global' in stripped:
+            elif no_vdom_flag and "config system global" in stripped:
                 global_flag = True
                 # 以降の行も global として処理する
 
-            if 'config vdom' in stripped:
+            if "config vdom" in stripped:
                 global_flag = False
                 vdom_flag = True
                 vdom_name_flag = True
                 continue
-            elif no_vdom_flag and 'config system object-tagging' in stripped:
+            elif no_vdom_flag and "config system object-tagging" in stripped:
                 global_flag = False
                 vdom_flag = True
                 self.raw_config["vdom"]["root"] = []
                 vdom_name = "root"
 
-            if 'vdom-mode multi-vdom' in stripped:
+            if "vdom-mode multi-vdom" in stripped:
                 no_vdom_flag = False
 
             # 最小構成（config firewall policy だけ等）の場合、
             # 明示的な "config system global" が無くても global として扱う
-            if no_vdom_flag and (not global_flag) and (not vdom_flag) and stripped.startswith("config "):
+            if (
+                no_vdom_flag
+                and (not global_flag)
+                and (not vdom_flag)
+                and stripped.startswith("config ")
+            ):
                 global_flag = True
 
             if global_flag:
@@ -141,7 +138,7 @@ class FortiGateParser(BaseConfigParser):
                 continue
 
             if vdom_flag:
-                if 'edit' in stripped and vdom_name_flag:
+                if "edit" in stripped and vdom_name_flag:
                     parts = stripped.split()
                     if len(parts) > 1:
                         vdom_name = parts[1].strip('"')
@@ -162,41 +159,43 @@ class FortiGateParser(BaseConfigParser):
 
     def _parse_header_line(self, line: str) -> None:
         """ヘッダー行をパース
-        
+
         ヘッダー行の例:
         #config-version=FG33E1-7.4.8-FW-build2795-250523:opmode=0:vdom=1:user=admin
         #config-version=FGT60F-7.2.5-FW-build1517:opmode=0:vdom=0:user=admin
         """
-        if '#config-version=' in line:
+        if "#config-version=" in line:
             # config-version=の後の部分を抽出
-            config_version_part = line.split('#config-version=', 1)[1].split(':', 1)[0]
-            
+            config_version_part = line.split("#config-version=", 1)[1].split(":", 1)[0]
+
             # モデル名とOSバージョンを抽出
             # パターン1: FG33E1-7.4.8-FW-build2795-250523 のような形式
             # パターン2: FGT60F-7.2.5-FW-build1517 のような形式
             # パターン3: FG-XXX-7.4.8-FW-build2795 のような形式
             # NOTE: (FG|FGT) の順だと "FGT" に対して "FG" が先にマッチし、
             #       model_code が "T60F" のように崩れるため、長い方を先に置く。
-            match = re.search(r'^(FGT|FG)([A-Z0-9]+)-(\d+\.\d+\.\d+)-FW', config_version_part)
+            match = re.search(r"^(FGT|FG)([A-Z0-9]+)-(\d+\.\d+\.\d+)-FW", config_version_part)
             if match:
                 prefix = match.group(1)  # FG または FGT
                 model_code = match.group(2)  # 33E1, 60F など
                 os_version = match.group(3)  # 7.4.8 など
-                
+
                 # モデル名を構築（FortiGate-3301E のような形式に変換）
                 # モデルコードから読みやすい形式に変換を試みる
                 model_name = self._format_model_name(prefix, model_code)
                 self.raw_config["header"]["model"] = model_name
                 self.raw_config["header"]["version"] = os_version
-                
+
                 # ビルド番号も抽出（オプション）
-                build_match = re.search(r'-build(\d+)', config_version_part)
+                build_match = re.search(r"-build(\d+)", config_version_part)
                 if build_match:
                     self.raw_config["header"]["build"] = build_match.group(1)
             else:
                 # フォールバック: より柔軟なパターンマッチング
                 # FG33E1-7.4.8 のような形式を直接抽出
-                fallback_match = re.search(r'(FGT[A-Z0-9]+|FG[A-Z0-9]+)-(\d+\.\d+\.\d+)', config_version_part)
+                fallback_match = re.search(
+                    r"(FGT[A-Z0-9]+|FG[A-Z0-9]+)-(\d+\.\d+\.\d+)", config_version_part
+                )
                 if fallback_match:
                     model_code_full = fallback_match.group(1)  # FG33E1 または FGT60F
                     os_version = fallback_match.group(2)
@@ -210,15 +209,15 @@ class FortiGateParser(BaseConfigParser):
                     self.raw_config["header"]["model"] = model_name
                     self.raw_config["header"]["version"] = os_version
 
-            if 'opmode=' in line:
-                opmode_match = re.search(r'opmode=(\d+)', line)
+            if "opmode=" in line:
+                opmode_match = re.search(r"opmode=(\d+)", line)
                 if opmode_match:
                     self.raw_config["header"]["opmode"] = opmode_match.group(1)
 
-            if 'vdom=' in line:
-                vdom_match = re.search(r':vdom=(\d+)', line)
+            if "vdom=" in line:
+                vdom_match = re.search(r":vdom=(\d+)", line)
                 if vdom_match:
-                    self.raw_config["header"]["vdom_enabled"] = vdom_match.group(1) == '1'
+                    self.raw_config["header"]["vdom_enabled"] = vdom_match.group(1) == "1"
 
     def _format_model_name(self, prefix: str, model_code: str) -> str:
         """モデルコードから読みやすいモデル名に変換
@@ -236,7 +235,7 @@ class FortiGateParser(BaseConfigParser):
 
         # FortiOSのconfig-versionヘッダーでは、機種コードが省略形になることがある。
         # 例: FG33E1 は FortiGate 3301E を指す（= 2桁数字 + 1文字 + 1桁数字 の並び）
-        compact_match = re.fullmatch(r'(\d{2})([A-Z])(\d)', model_code)
+        compact_match = re.fullmatch(r"(\d{2})([A-Z])(\d)", model_code)
         if compact_match:
             two_digits, series_letter, last_digit = compact_match.groups()
             # 33E1 -> 3301E（文字の位置を末尾へ、数字は 2桁 + 0 + 1桁 の並び）
@@ -250,7 +249,9 @@ class FortiGateParser(BaseConfigParser):
         """ヘッダー情報をパース"""
         self.parsed_config["header"] = self.raw_config.get("header", {})
 
-    def _parse_config_tree(self, config_lines: List[str], line_count: int = 0) -> Tuple[Dict[str, Any], int]:
+    def _parse_config_tree(
+        self, config_lines: List[str], line_count: int = 0
+    ) -> Tuple[Dict[str, Any], int]:
         """設定ツリーを再帰的にパース"""
         result: Dict[str, Any] = {}
         current_name: Optional[str] = None
@@ -271,7 +272,9 @@ class FortiGateParser(BaseConfigParser):
             if command == "config":
                 if len(parts) > 1:
                     config_name = parts[1]
-                    result[config_name], line_count = self._parse_config_tree(config_lines, line_count)
+                    result[config_name], line_count = self._parse_config_tree(
+                        config_lines, line_count
+                    )
                 continue
 
             if command == "set":
@@ -326,7 +329,7 @@ class FortiGateParser(BaseConfigParser):
         for char in value_str:
             if char == '"':
                 in_quotes = not in_quotes
-            elif char == ' ' and not in_quotes:
+            elif char == " " and not in_quotes:
                 if current:
                     values.append(current.strip('"'))
                     current = ""

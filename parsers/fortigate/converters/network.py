@@ -7,18 +7,24 @@
 from typing import Dict, List, Any
 
 from models.config import (
-    ConfigModel, Interface, Route, DHCPServer,
-    OSPFSettings, OSPFArea, OSPFInterface, OSPFRedistribute,
-    BGPSettings, BGPNeighbor, BGPNetwork, BGPRedistribute,
-    PolicyRoute
+    ConfigModel,
+    Interface,
+    Route,
+    DHCPServer,
+    OSPFSettings,
+    OSPFArea,
+    OSPFInterface,
+    OSPFRedistribute,
+    BGPSettings,
+    BGPNeighbor,
+    BGPNetwork,
+    BGPRedistribute,
+    PolicyRoute,
 )
 from parsers.utils import get_nested, ip_to_cidr
 
 
-def convert_interfaces(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_interfaces(config_model: ConfigModel, parsed_config: Dict) -> None:
     """インターフェースを変換
 
     Args:
@@ -46,7 +52,7 @@ def convert_interfaces(
                     vdom=iface_data.get("vdom", "root"),
                     role=iface_data.get("role", ""),
                     status="up" if iface_data.get("status") != "down" else "down",
-                    description=iface_data.get("description", "")
+                    description=iface_data.get("description", ""),
                 )
 
                 # IP Address (IPv4/IPv6)
@@ -72,10 +78,7 @@ def convert_interfaces(
                 config_model.interfaces.append(iface)
 
 
-def convert_routes(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_routes(config_model: ConfigModel, parsed_config: Dict) -> None:
     """ルーティングを変換
 
     Args:
@@ -103,10 +106,7 @@ def convert_routes(
 
 
 def _add_routes_from_config(
-    config_model: ConfigModel,
-    router_static: Dict,
-    vdom: str,
-    route_type: str = "static"
+    config_model: ConfigModel, router_static: Dict, vdom: str, route_type: str = "static"
 ) -> None:
     """ルート設定を追加"""
     if isinstance(router_static, dict):
@@ -121,27 +121,28 @@ def _add_routes_from_config(
                 blackhole_val = str(route_data.get("blackhole", "")).strip().lower()
                 is_blackhole = blackhole_val in ("enable", "enabled", "1", "yes", "true", "on")
                 effective_route_type = (
-                    "blackhole6" if is_blackhole and route_type == "static6"
-                    else "blackhole" if is_blackhole
-                    else route_type
+                    "blackhole6"
+                    if is_blackhole and route_type == "static6"
+                    else "blackhole" if is_blackhole else route_type
                 )
 
                 route = Route(
                     name=route_data.get("_name", route_id),
                     destination=dst,
-                    gateway="" if is_blackhole else (route_data.get("gateway", "") or route_data.get("gateway6", "")),
+                    gateway=(
+                        ""
+                        if is_blackhole
+                        else (route_data.get("gateway", "") or route_data.get("gateway6", ""))
+                    ),
                     interface=route_data.get("device", ""),
                     distance=str(route_data.get("distance", "")),
                     vdom=vdom,
-                    route_type=effective_route_type
+                    route_type=effective_route_type,
                 )
                 config_model.routes.append(route)
 
 
-def convert_dhcp(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_dhcp(config_model: ConfigModel, parsed_config: Dict) -> None:
     """DHCP設定を変換
 
     Args:
@@ -159,11 +160,7 @@ def convert_dhcp(
         _add_dhcp_from_config(config_model, dhcp_server, vdom_name)
 
 
-def _add_dhcp_from_config(
-    config_model: ConfigModel,
-    dhcp_server: Dict,
-    vdom: str
-) -> None:
+def _add_dhcp_from_config(config_model: ConfigModel, dhcp_server: Dict, vdom: str) -> None:
     """DHCP設定を追加"""
     if isinstance(dhcp_server, dict):
         for dhcp_id, dhcp_data in dhcp_server.items():
@@ -173,7 +170,7 @@ def _add_dhcp_from_config(
                     netmask=dhcp_data.get("netmask", ""),
                     gateway=dhcp_data.get("default-gateway", ""),
                     lease_time=str(dhcp_data.get("lease-time", "")),
-                    vdom=vdom
+                    vdom=vdom,
                 )
 
                 # IP Range（ネストされた構造を処理）
@@ -208,10 +205,7 @@ def _add_dhcp_from_config(
                 config_model.dhcp_servers.append(dhcp)
 
 
-def convert_ospf(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_ospf(config_model: ConfigModel, parsed_config: Dict) -> None:
     """OSPF設定を変換
 
     Args:
@@ -251,10 +245,11 @@ def _parse_ospf_config(ospf_config: Dict, vdom: str) -> OSPFSettings:
     """OSPF設定をパース"""
     ospf = OSPFSettings(
         router_id=ospf_config.get("router-id", ""),
-        default_information_originate=ospf_config.get("default-information-originate", "") == "enable",
+        default_information_originate=ospf_config.get("default-information-originate", "")
+        == "enable",
         default_metric=str(ospf_config.get("default-metric", "")),
         distance=str(ospf_config.get("distance", "")),
-        vdom=vdom
+        vdom=vdom,
     )
 
     # Areas
@@ -265,7 +260,7 @@ def _parse_ospf_config(ospf_config: Dict, vdom: str) -> OSPFSettings:
                 area = OSPFArea(
                     area_id=area_data.get("_name", area_id),
                     area_type=area_data.get("stub-type", "normal"),
-                    authentication=area_data.get("authentication", "")
+                    authentication=area_data.get("authentication", ""),
                 )
                 ospf.areas.append(area)
 
@@ -284,7 +279,7 @@ def _parse_ospf_config(ospf_config: Dict, vdom: str) -> OSPFSettings:
                     dead_interval=str(iface_data.get("dead-interval", "")),
                     network_type=iface_data.get("network-type", ""),
                     authentication=iface_data.get("authentication", ""),
-                    passive=iface_data.get("passive", "") == "enable"
+                    passive=iface_data.get("passive", "") == "enable",
                 )
                 ospf.interfaces.append(iface)
 
@@ -309,7 +304,11 @@ def _parse_ospf_config(ospf_config: Dict, vdom: str) -> OSPFSettings:
 
     # Redistributes
     for proto in ["connected", "static", "bgp", "rip", "isis"]:
-        redistribute = ospf_config.get("redistribute", {}).get(proto, {}) if isinstance(ospf_config.get("redistribute"), dict) else {}
+        redistribute = (
+            ospf_config.get("redistribute", {}).get(proto, {})
+            if isinstance(ospf_config.get("redistribute"), dict)
+            else {}
+        )
         # 直接取得も試みる
         if not redistribute:
             redistribute_section = get_nested(ospf_config, f"redistribute {proto}", default={})
@@ -318,13 +317,15 @@ def _parse_ospf_config(ospf_config: Dict, vdom: str) -> OSPFSettings:
         if isinstance(redistribute, dict):
             status = redistribute.get("status", "") == "enable"
             if status or redistribute:
-                ospf.redistributes.append(OSPFRedistribute(
-                    protocol=proto,
-                    status=status,
-                    metric=str(redistribute.get("metric", "")),
-                    metric_type=str(redistribute.get("metric-type", "")),
-                    routemap=redistribute.get("routemap", "")
-                ))
+                ospf.redistributes.append(
+                    OSPFRedistribute(
+                        protocol=proto,
+                        status=status,
+                        metric=str(redistribute.get("metric", "")),
+                        metric_type=str(redistribute.get("metric-type", "")),
+                        routemap=redistribute.get("routemap", ""),
+                    )
+                )
 
     # Passive interfaces
     passive_iface = ospf_config.get("passive-interface", [])
@@ -336,10 +337,7 @@ def _parse_ospf_config(ospf_config: Dict, vdom: str) -> OSPFSettings:
     return ospf
 
 
-def convert_bgp(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_bgp(config_model: ConfigModel, parsed_config: Dict) -> None:
     """BGP設定を変換
 
     Args:
@@ -368,7 +366,7 @@ def _parse_bgp_config(bgp_config: Dict, vdom: str) -> BGPSettings:
     bgp = BGPSettings(
         as_number=str(bgp_config.get("as", "")),
         router_id=bgp_config.get("router-id", ""),
-        vdom=vdom
+        vdom=vdom,
     )
 
     # Neighbors
@@ -387,7 +385,7 @@ def _parse_bgp_config(bgp_config: Dict, vdom: str) -> BGPSettings:
                     route_map_in=neighbor_data.get("route-map-in", ""),
                     route_map_out=neighbor_data.get("route-map-out", ""),
                     activate=neighbor_data.get("activate", "") != "disable",
-                    shutdown=neighbor_data.get("shutdown", "") == "enable"
+                    shutdown=neighbor_data.get("shutdown", "") == "enable",
                 )
                 bgp.neighbors.append(neighbor)
 
@@ -399,10 +397,7 @@ def _parse_bgp_config(bgp_config: Dict, vdom: str) -> BGPSettings:
                 prefix = net_data.get("prefix", "")
                 if prefix:
                     prefix = ip_to_cidr(prefix)
-                network = BGPNetwork(
-                    prefix=prefix,
-                    route_map=net_data.get("route-map", "")
-                )
+                network = BGPNetwork(prefix=prefix, route_map=net_data.get("route-map", ""))
                 bgp.networks.append(network)
 
     # Redistributes
@@ -411,19 +406,16 @@ def _parse_bgp_config(bgp_config: Dict, vdom: str) -> BGPSettings:
         if isinstance(redistribute, dict):
             status = redistribute.get("status", "") == "enable"
             if status or redistribute:
-                bgp.redistributes.append(BGPRedistribute(
-                    protocol=proto,
-                    status=status,
-                    route_map=redistribute.get("route-map", "")
-                ))
+                bgp.redistributes.append(
+                    BGPRedistribute(
+                        protocol=proto, status=status, route_map=redistribute.get("route-map", "")
+                    )
+                )
 
     return bgp
 
 
-def convert_policy_routes(
-    config_model: ConfigModel,
-    parsed_config: Dict
-) -> None:
+def convert_policy_routes(config_model: ConfigModel, parsed_config: Dict) -> None:
     """ポリシールートを変換
 
     Args:
@@ -441,11 +433,7 @@ def convert_policy_routes(
         _add_policy_routes(config_model, policy_route, vdom_name)
 
 
-def _add_policy_routes(
-    config_model: ConfigModel,
-    policy_route: Dict,
-    vdom: str
-) -> None:
+def _add_policy_routes(config_model: ConfigModel, policy_route: Dict, vdom: str) -> None:
     """ポリシールート設定を追加"""
     if isinstance(policy_route, dict):
         for route_id, route_data in policy_route.items():
@@ -485,6 +473,6 @@ def _add_policy_routes(
                     action=route_data.get("action", "permit"),
                     status=route_data.get("status", "") != "disable",
                     comments=route_data.get("comments", ""),
-                    vdom=vdom
+                    vdom=vdom,
                 )
                 config_model.routing.policy_routes.append(policy)

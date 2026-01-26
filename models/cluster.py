@@ -14,6 +14,7 @@ from models.config import ConfigModel, HAMode
 
 class HARole(Enum):
     """HA役割"""
+
     PRIMARY = "Primary"
     SECONDARY = "Secondary"
     UNKNOWN = "Unknown"
@@ -22,6 +23,7 @@ class HARole(Enum):
 @dataclass
 class HAMemberInfo:
     """HAクラスタメンバー情報"""
+
     hostname: str = ""
     role: HARole = HARole.UNKNOWN
     priority: str = ""
@@ -41,6 +43,7 @@ class HAMemberInfo:
 @dataclass
 class HAClusterInfo:
     """HAクラスタ全体情報"""
+
     cluster_name: str = ""
     group_id: str = ""
     ha_mode: HAMode = HAMode.STANDALONE
@@ -68,6 +71,7 @@ class HAClusterInfo:
 @dataclass
 class ConfigDifference:
     """設定差分情報"""
+
     section: str = ""
     item: str = ""
     primary_value: str = ""
@@ -82,6 +86,7 @@ class ClusterConfig:
     複数のFortiGate/Palo Alto設定を統合し、
     クラスタ全体として1つのパラメータシートを生成するためのデータモデル
     """
+
     cluster_info: HAClusterInfo = field(default_factory=HAClusterInfo)
     primary_config: Optional[ConfigModel] = None
     config_differences: List[ConfigDifference] = field(default_factory=list)

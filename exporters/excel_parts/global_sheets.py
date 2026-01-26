@@ -17,6 +17,7 @@ try:
     from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
 except ImportError:  # pragma: no cover
     from exporters.excel_styles import Font, Alignment, PatternFill  # type: ignore
+
     Worksheet = Any  # type: ignore
 
 
@@ -55,7 +56,16 @@ class ExcelGlobalSheetsMixin:
 
         member_start = len(data) + 5
         self._set_section_title(ws, member_start, 1, "クラスタメンバー", colspan=8)
-        member_headers = ["役割", "ホスト名", "モデル", "OSバージョン", "優先度", "HA管理IP", "シリアル番号", "設定ファイル"]
+        member_headers = [
+            "役割",
+            "ホスト名",
+            "モデル",
+            "OSバージョン",
+            "優先度",
+            "HA管理IP",
+            "シリアル番号",
+            "設定ファイル",
+        ]
         self._set_header_row(ws, member_headers, member_start + 1)
 
         for row_idx, member in enumerate(cluster_info.members, member_start + 2):
@@ -66,7 +76,9 @@ class ExcelGlobalSheetsMixin:
             self._set_cell(ws, row_idx, 5, member.priority if member.priority else "-", center=True)
             self._set_cell(ws, row_idx, 6, member.ha_mgmt_ip or "-")
             self._set_cell(ws, row_idx, 7, member.serial_number or "-")
-            self._set_cell(ws, row_idx, 8, Path(member.source_file).name if member.source_file else "-")
+            self._set_cell(
+                ws, row_idx, 8, Path(member.source_file).name if member.source_file else "-"
+            )
 
         differences = self.cluster_config.config_differences
         if differences:
@@ -96,7 +108,11 @@ class ExcelGlobalSheetsMixin:
         ws.row_dimensions[1].height = 40
 
         ws.merge_cells("A2:C2")
-        sub_cell = ws.cell(row=2, column=1, value=f"作成日: {today}  |  ソース: {Path(self.config.source_file).name}")
+        sub_cell = ws.cell(
+            row=2,
+            column=1,
+            value=f"作成日: {today}  |  ソース: {Path(self.config.source_file).name}",
+        )
         sub_cell.font = self.CELL_FONT_SECONDARY
         ws.row_dimensions[2].height = 22
 
@@ -133,7 +149,10 @@ class ExcelGlobalSheetsMixin:
             ("インターフェース数", len(self.config.interfaces)),
             ("ルート数", len(self.config.routes)),
             ("ファイアウォールポリシー数", len(self.config.firewall_policies)),
-            ("オブジェクト数", len(self.config.objects.addresses) + len(self.config.objects.services)),
+            (
+                "オブジェクト数",
+                len(self.config.objects.addresses) + len(self.config.objects.services),
+            ),
             ("NAT設定数", len(self.config.nat_policies)),
         ]
 
@@ -323,7 +342,9 @@ class ExcelGlobalSheetsMixin:
         elif ha.heartbeat_interfaces:
             self._set_section_title(ws, row_idx, 1, "ハートビートインターフェース", colspan=2)
             row_idx += 1
-            cell = ws.cell(row=row_idx, column=1, value=self._list_to_str(ha.heartbeat_interfaces, ", "))
+            cell = ws.cell(
+                row=row_idx, column=1, value=self._list_to_str(ha.heartbeat_interfaces, ", ")
+            )
             cell.font = self.CELL_FONT
             cell.border = self.THIN_BORDER
             row_idx += 1
@@ -356,8 +377,20 @@ class ExcelGlobalSheetsMixin:
             self._set_cell(ws, row_idx, 1, syslog.server)
             self._set_cell(ws, row_idx, 2, syslog.port, center=True)
             self._set_cell(ws, row_idx, 3, syslog.facility, center=True)
-            status_enabled = syslog.status and syslog.status.lower() in ("enable", "enabled", "有効", "up")
-            self._set_status_cell(ws, row_idx, 4, status_enabled, enabled_text=syslog.status or "enable", disabled_text=syslog.status or "disable")
+            status_enabled = syslog.status and syslog.status.lower() in (
+                "enable",
+                "enabled",
+                "有効",
+                "up",
+            )
+            self._set_status_cell(
+                ws,
+                row_idx,
+                4,
+                status_enabled,
+                enabled_text=syslog.status or "enable",
+                disabled_text=syslog.status or "disable",
+            )
             self._set_cell(ws, row_idx, 5, self._list_to_str(syslog.log_types, ", "))
             self._set_cell(ws, row_idx, 6, syslog.vdom, center=True)
             row_idx += 1
@@ -417,4 +450,3 @@ class ExcelGlobalSheetsMixin:
             value_cell.border = self.THIN_BORDER
 
         self._auto_column_width(ws)
-

@@ -11,6 +11,7 @@ from pathlib import Path
 
 # Flaskアプリをインポート（テスト設定で）
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app import app, allowed_file, get_file_extension
@@ -19,18 +20,19 @@ from app import app, allowed_file, get_file_extension
 @pytest.fixture
 def client():
     """Flaskテストクライアント"""
-    app.config['TESTING'] = True
-    app.config['UPLOAD_FOLDER'] = '/tmp/test_uploads'
+    app.config["TESTING"] = True
+    app.config["UPLOAD_FOLDER"] = "/tmp/test_uploads"
 
     # テスト用アップロードフォルダを作成
-    Path(app.config['UPLOAD_FOLDER']).mkdir(parents=True, exist_ok=True)
+    Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
 
     with app.test_client() as client:
         yield client
 
     # クリーンアップ
     import shutil
-    shutil.rmtree(app.config['UPLOAD_FOLDER'], ignore_errors=True)
+
+    shutil.rmtree(app.config["UPLOAD_FOLDER"], ignore_errors=True)
 
 
 class TestAllowedFile:
@@ -80,11 +82,11 @@ class TestIndexRoute:
 
     def test_index_page(self, client):
         """インデックスページの表示"""
-        response = client.get('/')
+        response = client.get("/")
 
         assert response.status_code == 200
         # HTMLが返されることを確認
-        assert b'<!DOCTYPE html>' in response.data or b'<html' in response.data
+        assert b"<!DOCTYPE html>" in response.data or b"<html" in response.data
 
 
 class TestUploadRoute:
@@ -92,117 +94,114 @@ class TestUploadRoute:
 
     def test_upload_no_file(self, client):
         """ファイルなしでアップロード"""
-        response = client.post('/upload')
+        response = client.post("/upload")
 
         assert response.status_code == 400
         data = json.loads(response.data)
-        assert data['success'] is False
-        assert data['error']['code'] == 'NO_FILE'
+        assert data["success"] is False
+        assert data["error"]["code"] == "NO_FILE"
 
     def test_upload_empty_filename(self, client):
         """空のファイル名でアップロード"""
-        data = {'config_file': (io.BytesIO(b''), '')}
-        response = client.post('/upload', data=data, content_type='multipart/form-data')
+        data = {"config_file": (io.BytesIO(b""), "")}
+        response = client.post("/upload", data=data, content_type="multipart/form-data")
 
         assert response.status_code == 400
         data = json.loads(response.data)
-        assert data['success'] is False
-        assert data['error']['code'] == 'NO_FILE'
+        assert data["success"] is False
+        assert data["error"]["code"] == "NO_FILE"
 
     def test_upload_unsupported_format(self, client):
         """サポート外形式のアップロード"""
-        data = {
-            'config_file': (io.BytesIO(b'test content'), 'config.txt')
-        }
-        response = client.post('/upload', data=data, content_type='multipart/form-data')
+        data = {"config_file": (io.BytesIO(b"test content"), "config.txt")}
+        response = client.post("/upload", data=data, content_type="multipart/form-data")
 
         assert response.status_code == 400
         result = json.loads(response.data)
-        assert result['success'] is False
-        assert result['error']['code'] == 'UNSUPPORTED_FORMAT'
+        assert result["success"] is False
+        assert result["error"]["code"] == "UNSUPPORTED_FORMAT"
 
     def test_upload_invalid_content(self, client):
         """無効な内容のアップロード"""
-        data = {
-            'config_file': (io.BytesIO(b'invalid content'), 'config.conf')
-        }
-        response = client.post('/upload', data=data, content_type='multipart/form-data')
+        data = {"config_file": (io.BytesIO(b"invalid content"), "config.conf")}
+        response = client.post("/upload", data=data, content_type="multipart/form-data")
 
         assert response.status_code == 400
         result = json.loads(response.data)
-        assert result['success'] is False
+        assert result["success"] is False
 
     def test_upload_valid_fortigate(self, client, sample_fortigate_config):
         """有効なFortiGate設定のアップロード"""
         data = {
-            'config_file': (io.BytesIO(sample_fortigate_config.encode('utf-8')), 'config.conf'),
-            'output_format': 'html'
+            "config_file": (io.BytesIO(sample_fortigate_config.encode("utf-8")), "config.conf"),
+            "output_format": "html",
         }
-        response = client.post('/upload', data=data, content_type='multipart/form-data')
+        response = client.post("/upload", data=data, content_type="multipart/form-data")
 
         assert response.status_code == 200
         result = json.loads(response.data)
-        assert result['success'] is True
-        assert 'file_id' in result
-        assert 'download_url' in result
-        assert result['device_type'] == 'FortiGate'
+        assert result["success"] is True
+        assert "file_id" in result
+        assert "download_url" in result
+        assert result["device_type"] == "FortiGate"
 
     def test_upload_valid_paloalto(self, client, sample_paloalto_config):
         """有効なPalo Alto設定のアップロード"""
         data = {
-            'config_file': (io.BytesIO(sample_paloalto_config.encode('utf-8')), 'config.xml'),
-            'output_format': 'html'
+            "config_file": (io.BytesIO(sample_paloalto_config.encode("utf-8")), "config.xml"),
+            "output_format": "html",
         }
-        response = client.post('/upload', data=data, content_type='multipart/form-data')
+        response = client.post("/upload", data=data, content_type="multipart/form-data")
 
         assert response.status_code == 200
         result = json.loads(response.data)
-        assert result['success'] is True
-        assert result['device_type'] == 'Palo Alto'
+        assert result["success"] is True
+        assert result["device_type"] == "Palo Alto"
 
     def test_upload_excel_format(self, client, sample_fortigate_config):
         """Excel形式での出力"""
         if not getattr(__import__("app"), "EXCEL_AVAILABLE", True):
             pytest.skip("openpyxl が未導入のため excel 出力テストをスキップ")
         data = {
-            'config_file': (io.BytesIO(sample_fortigate_config.encode('utf-8')), 'config.conf'),
-            'output_format': 'excel'
+            "config_file": (io.BytesIO(sample_fortigate_config.encode("utf-8")), "config.conf"),
+            "output_format": "excel",
         }
-        response = client.post('/upload', data=data, content_type='multipart/form-data')
+        response = client.post("/upload", data=data, content_type="multipart/form-data")
 
         assert response.status_code == 200
         result = json.loads(response.data)
-        assert result['success'] is True
-        assert result['filename'].endswith('.xlsx')
+        assert result["success"] is True
+        assert result["filename"].endswith(".xlsx")
 
     def test_upload_pdf_format(self, client, sample_fortigate_config):
         """PDF形式での出力"""
         if not getattr(__import__("app"), "PDF_AVAILABLE", True):
             pytest.skip("weasyprint が未導入のため pdf 出力テストをスキップ")
         data = {
-            'config_file': (io.BytesIO(sample_fortigate_config.encode('utf-8')), 'config.conf'),
-            'output_format': 'pdf'
+            "config_file": (io.BytesIO(sample_fortigate_config.encode("utf-8")), "config.conf"),
+            "output_format": "pdf",
         }
-        response = client.post('/upload', data=data, content_type='multipart/form-data')
+        response = client.post("/upload", data=data, content_type="multipart/form-data")
 
         assert response.status_code == 200
         result = json.loads(response.data)
-        assert result['success'] is True
-        assert result['filename'].endswith('.pdf')
+        assert result["success"] is True
+        assert result["filename"].endswith(".pdf")
 
     def test_upload_with_sections(self, client, sample_fortigate_config):
         """セクション指定でのアップロード"""
         import json as json_module
+
         data = {
-            'config_file': (io.BytesIO(sample_fortigate_config.encode('utf-8')), 'config.conf'),
-            'output_format': 'html',
-            'sections': json_module.dumps(['device_info', 'policies'])
+            "config_file": (io.BytesIO(sample_fortigate_config.encode("utf-8")), "config.conf"),
+            "output_format": "html",
+            "sections": json_module.dumps(["device_info", "policies"]),
         }
-        response = client.post('/upload', data=data, content_type='multipart/form-data')
+        response = client.post("/upload", data=data, content_type="multipart/form-data")
 
         assert response.status_code == 200
         result = json.loads(response.data)
-        assert result['success'] is True
+        assert result["success"] is True
 
     def test_upload_with_internet_service(self, client):
         """Internet Serviceを含むポリシーのアップロード"""
@@ -225,29 +224,29 @@ config firewall policy
 end
 """
         data = {
-            'config_file': (io.BytesIO(config_content.encode('utf-8')), 'config.conf'),
-            'output_format': 'html'
+            "config_file": (io.BytesIO(config_content.encode("utf-8")), "config.conf"),
+            "output_format": "html",
         }
-        response = client.post('/upload', data=data, content_type='multipart/form-data')
+        response = client.post("/upload", data=data, content_type="multipart/form-data")
 
         assert response.status_code == 200
         result = json.loads(response.data)
-        assert result['success'] is True
-        assert result['device_type'] == 'FortiGate'
+        assert result["success"] is True
+        assert result["device_type"] == "FortiGate"
 
     def test_upload_unsupported_output_format(self, client, sample_fortigate_config):
         """サポート外出力形式"""
         data = {
-            'config_file': (io.BytesIO(sample_fortigate_config.encode('utf-8')), 'config.conf'),
-            'output_format': 'json'
+            "config_file": (io.BytesIO(sample_fortigate_config.encode("utf-8")), "config.conf"),
+            "output_format": "json",
         }
-        response = client.post('/upload', data=data, content_type='multipart/form-data')
+        response = client.post("/upload", data=data, content_type="multipart/form-data")
 
         assert response.status_code == 400
         result = json.loads(response.data)
-        assert result['success'] is False
+        assert result["success"] is False
         # 出力形式のバリデーションエラー
-        assert result['error']['code'] in ('INVALID_OUTPUT_FORMAT', 'UNSUPPORTED_FORMAT')
+        assert result["error"]["code"] in ("INVALID_OUTPUT_FORMAT", "UNSUPPORTED_FORMAT")
 
 
 class TestDownloadRoute:
@@ -255,20 +254,20 @@ class TestDownloadRoute:
 
     def test_download_invalid_file_id(self, client):
         """無効なファイルID"""
-        response = client.get('/download/invalid-id')
+        response = client.get("/download/invalid-id")
 
         assert response.status_code == 400
         result = json.loads(response.data)
-        assert result['error']['code'] == 'INVALID_FILE_ID'
+        assert result["error"]["code"] == "INVALID_FILE_ID"
 
     def test_download_nonexistent_file(self, client):
         """存在しないファイル"""
         # 有効なUUID形式だが存在しないID
-        response = client.get('/download/12345678-1234-1234-1234-123456789abc')
+        response = client.get("/download/12345678-1234-1234-1234-123456789abc")
 
         assert response.status_code == 404
         result = json.loads(response.data)
-        assert result['error']['code'] == 'FILE_NOT_FOUND'
+        assert result["error"]["code"] == "FILE_NOT_FOUND"
 
 
 class TestPreviewRoute:
@@ -276,13 +275,13 @@ class TestPreviewRoute:
 
     def test_preview_invalid_file_id(self, client):
         """無効なファイルID"""
-        response = client.get('/preview/invalid-id')
+        response = client.get("/preview/invalid-id")
 
         assert response.status_code == 400
 
     def test_preview_nonexistent_file(self, client):
         """存在しないファイル"""
-        response = client.get('/preview/12345678-1234-1234-1234-123456789abc')
+        response = client.get("/preview/12345678-1234-1234-1234-123456789abc")
 
         assert response.status_code == 404
 
@@ -292,19 +291,19 @@ class TestStatusRoute:
 
     def test_status_invalid_file_id(self, client):
         """無効なファイルID"""
-        response = client.get('/api/status/invalid-id')
+        response = client.get("/api/status/invalid-id")
 
         assert response.status_code == 400
         result = json.loads(response.data)
-        assert result['error']['code'] == 'INVALID_FILE_ID'
+        assert result["error"]["code"] == "INVALID_FILE_ID"
 
     def test_status_nonexistent_file(self, client):
         """存在しないファイル"""
-        response = client.get('/api/status/12345678-1234-1234-1234-123456789abc')
+        response = client.get("/api/status/12345678-1234-1234-1234-123456789abc")
 
         assert response.status_code == 404
         result = json.loads(response.data)
-        assert result['error']['code'] == 'FILE_NOT_FOUND'
+        assert result["error"]["code"] == "FILE_NOT_FOUND"
 
 
 class TestSecurityHeaders:
@@ -312,12 +311,12 @@ class TestSecurityHeaders:
 
     def test_security_headers(self, client):
         """セキュリティヘッダーの存在確認"""
-        response = client.get('/')
+        response = client.get("/")
 
-        assert response.headers.get('X-Content-Type-Options') == 'nosniff'
-        assert response.headers.get('X-Frame-Options') == 'DENY'
-        assert response.headers.get('X-XSS-Protection') == '1; mode=block'
-        assert 'Content-Security-Policy' in response.headers
+        assert response.headers.get("X-Content-Type-Options") == "nosniff"
+        assert response.headers.get("X-Frame-Options") == "DENY"
+        assert response.headers.get("X-XSS-Protection") == "1; mode=block"
+        assert "Content-Security-Policy" in response.headers
 
 
 class TestErrorHandlers:
@@ -325,7 +324,7 @@ class TestErrorHandlers:
 
     def test_404_error(self, client):
         """404エラー"""
-        response = client.get('/nonexistent-page')
+        response = client.get("/nonexistent-page")
 
         assert response.status_code == 404
 

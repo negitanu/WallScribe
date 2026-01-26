@@ -38,7 +38,7 @@ class PDFExporter:
 
     def __init__(self, config: Union[ConfigModel, ClusterConfig], sections: List[str] = None):
         """PDFエクスポーターを初期化
-        
+
         Args:
             config: 設定データモデル
             sections: 出力するセクションのリスト（Noneの場合は全セクション）
@@ -117,7 +117,7 @@ class PDFExporter:
             hostname = self.config.device_info.hostname or "Unknown"
         created_date = datetime.now().strftime("%Y-%m-%d")
 
-        return f'''
+        return f"""
         @page {{
             @top-center {{
                 content: "パラメータシート - {hostname} ({created_date})";
@@ -126,7 +126,7 @@ class PDFExporter:
                 font-family: 'Noto Sans CJK JP', 'Noto Sans CJK', 'Meiryo', sans-serif;
             }}
         }}
-        '''
+        """
 
     @staticmethod
     def _get_pdf_css() -> str:
@@ -136,7 +136,7 @@ class PDFExporter:
         if _pdf_css_cache is None:
             css_path = STATIC_DIR / "css" / "pdf.css"
             try:
-                _pdf_css_cache = css_path.read_text(encoding='utf-8')
+                _pdf_css_cache = css_path.read_text(encoding="utf-8")
                 logger.debug("PDF用CSSをキャッシュに読み込みました")
             except FileNotFoundError:
                 logger.warning(f"PDF用CSSファイルが見つかりません: {css_path}")
@@ -164,20 +164,20 @@ class PDFExporter:
     def _get_font_config() -> FontConfiguration:
         """FontConfigurationを返す（キャッシュから再利用）"""
         global _font_config_cache
-        
+
         if _font_config_cache is None:
             _font_config_cache = FontConfiguration()
             logger.debug("FontConfigurationをキャッシュに作成しました")
-        
+
         return _font_config_cache
 
     @staticmethod
     def _get_fallback_pdf_css() -> str:
         """フォールバック用の最小限PDF CSS"""
-        return '''
+        return """
         @page { size: A3 landscape; margin: 1.5cm; }
         body { font-family: sans-serif; font-size: 9pt; }
         table { width: 100%; border-collapse: collapse; font-size: 7pt; }
         th, td { border: 1px solid #ddd; padding: 4px; }
         section { page-break-inside: avoid; }
-        '''
+        """

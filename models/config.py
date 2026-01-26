@@ -12,6 +12,7 @@ from enum import Enum
 
 class DeviceType(Enum):
     """機器タイプ"""
+
     FORTIGATE = "FortiGate"
     PALOALTO = "Palo Alto"
     UNKNOWN = "Unknown"
@@ -19,6 +20,7 @@ class DeviceType(Enum):
 
 class OperationMode(Enum):
     """動作モード"""
+
     NAT_ROUTE = "NAT/Route"
     TRANSPARENT = "Transparent"
     UNKNOWN = "Unknown"
@@ -26,6 +28,7 @@ class OperationMode(Enum):
 
 class HAMode(Enum):
     """HAモード"""
+
     STANDALONE = "Standalone"
     ACTIVE_PASSIVE = "Active-Passive"
     ACTIVE_ACTIVE = "Active-Active"
@@ -34,6 +37,7 @@ class HAMode(Enum):
 
 class PolicyAction(Enum):
     """ポリシーアクション"""
+
     ALLOW = "allow"
     DENY = "deny"
     DROP = "drop"
@@ -43,6 +47,7 @@ class PolicyAction(Enum):
 @dataclass
 class LicenseInfo:
     """ライセンス情報"""
+
     support_expiry: str = ""
     utm_expiry: str = ""
     av_expiry: str = ""
@@ -53,6 +58,7 @@ class LicenseInfo:
 @dataclass
 class DeviceInfo:
     """機器概要"""
+
     hostname: str = ""
     model: str = ""
     os_version: str = ""
@@ -67,6 +73,7 @@ class DeviceInfo:
 @dataclass
 class AdminUser:
     """管理者アカウント"""
+
     username: str = ""
     profile: str = ""
     vdom: str = ""
@@ -76,6 +83,7 @@ class AdminUser:
 @dataclass
 class SystemSettings:
     """システム設定"""
+
     management_ip: str = ""
     management_netmask: str = ""
     management_interface: str = ""
@@ -92,6 +100,7 @@ class SystemSettings:
 @dataclass
 class Interface:
     """インターフェース"""
+
     name: str = ""
     alias: str = ""
     interface_type: str = ""  # physical, vlan, lag, loopback, tunnel
@@ -109,6 +118,7 @@ class Interface:
 @dataclass
 class Route:
     """ルーティング"""
+
     name: str = ""
     destination: str = ""
     gateway: str = ""
@@ -123,6 +133,7 @@ class Route:
 @dataclass
 class OSPFArea:
     """OSPFエリア"""
+
     area_id: str = ""
     area_type: str = "normal"  # normal, stub, nssa
     authentication: str = ""
@@ -132,6 +143,7 @@ class OSPFArea:
 @dataclass
 class OSPFInterface:
     """OSPFインターフェース"""
+
     name: str = ""
     interface: str = ""
     area: str = ""
@@ -147,6 +159,7 @@ class OSPFInterface:
 @dataclass
 class OSPFRedistribute:
     """OSPF再配布設定"""
+
     protocol: str = ""  # connected, static, bgp, rip
     status: bool = False
     metric: str = ""
@@ -157,6 +170,7 @@ class OSPFRedistribute:
 @dataclass
 class OSPFSettings:
     """OSPF設定"""
+
     router_id: str = ""
     default_information_originate: bool = False
     default_metric: str = ""
@@ -171,6 +185,7 @@ class OSPFSettings:
 @dataclass
 class BGPNeighbor:
     """BGPネイバー"""
+
     ip: str = ""
     remote_as: str = ""
     description: str = ""
@@ -187,6 +202,7 @@ class BGPNeighbor:
 @dataclass
 class BGPNetwork:
     """BGPネットワーク"""
+
     prefix: str = ""
     route_map: str = ""
 
@@ -194,6 +210,7 @@ class BGPNetwork:
 @dataclass
 class BGPRedistribute:
     """BGP再配布設定"""
+
     protocol: str = ""  # connected, static, ospf, rip
     status: bool = False
     route_map: str = ""
@@ -202,6 +219,7 @@ class BGPRedistribute:
 @dataclass
 class BGPSettings:
     """BGP設定"""
+
     as_number: str = ""
     router_id: str = ""
     neighbors: List[BGPNeighbor] = field(default_factory=list)
@@ -213,6 +231,7 @@ class BGPSettings:
 @dataclass
 class PolicyRoute:
     """ポリシールート"""
+
     seq_num: str = ""
     src: str = ""
     src_negate: bool = False
@@ -231,6 +250,7 @@ class PolicyRoute:
 @dataclass
 class RoutingSettings:
     """ルーティング設定（まとめ）"""
+
     ospf: List[OSPFSettings] = field(default_factory=list)
     ospf6: List[OSPFSettings] = field(default_factory=list)
     bgp: List[BGPSettings] = field(default_factory=list)
@@ -240,6 +260,7 @@ class RoutingSettings:
 @dataclass
 class DHCPServer:
     """DHCPサーバー設定"""
+
     interface: str = ""
     start_ip: str = ""
     end_ip: str = ""
@@ -254,6 +275,7 @@ class DHCPServer:
 @dataclass
 class AddressObject:
     """アドレスオブジェクト"""
+
     name: str = ""
     object_type: str = ""  # subnet, iprange, fqdn, wildcard
     value: str = ""
@@ -264,6 +286,7 @@ class AddressObject:
 @dataclass
 class AddressGroup:
     """アドレスグループ"""
+
     name: str = ""
     members: List[str] = field(default_factory=list)
     vdom: str = "root"
@@ -273,6 +296,7 @@ class AddressGroup:
 @dataclass
 class ServiceObject:
     """サービスオブジェクト"""
+
     name: str = ""
     protocol: str = ""  # TCP, UDP, ICMP, IP
     port: str = ""
@@ -283,6 +307,7 @@ class ServiceObject:
 @dataclass
 class ServiceGroup:
     """サービスグループ"""
+
     name: str = ""
     members: List[str] = field(default_factory=list)
     vdom: str = "root"
@@ -292,6 +317,7 @@ class ServiceGroup:
 @dataclass
 class Objects:
     """オブジェクト定義"""
+
     addresses: List[AddressObject] = field(default_factory=list)
     address_groups: List[AddressGroup] = field(default_factory=list)
     services: List[ServiceObject] = field(default_factory=list)
@@ -301,6 +327,7 @@ class Objects:
 @dataclass
 class FirewallPolicy:
     """ファイアウォールポリシー"""
+
     policy_id: str = ""
     name: str = ""
     source_interface: List[str] = field(default_factory=list)
@@ -322,6 +349,7 @@ class FirewallPolicy:
 @dataclass
 class NATPolicy:
     """NATポリシー"""
+
     name: str = ""
     nat_type: str = ""  # snat, dnat, static, vip, ippool, central-snat
     pool_type: str = ""  # overload, one-to-one, fixed-port-range, port-block-allocation
@@ -346,6 +374,7 @@ class NATPolicy:
 @dataclass
 class LocalInPolicy:
     """Local-in ポリシー"""
+
     policy_id: str = ""
     name: str = ""
     source_interface: str = ""
@@ -362,6 +391,7 @@ class LocalInPolicy:
 @dataclass
 class IPSecPhase1:
     """IPsec Phase1設定"""
+
     name: str = ""
     remote_gateway: str = ""
     interface: str = ""
@@ -380,6 +410,7 @@ class IPSecPhase1:
 @dataclass
 class IPSecPhase2:
     """IPsec Phase2設定"""
+
     name: str = ""
     phase1_name: str = ""
     proposal: str = ""  # 暗号化/認証アルゴリズム
@@ -394,6 +425,7 @@ class IPSecPhase2:
 @dataclass
 class SSLVPNSettings:
     """SSL-VPN設定"""
+
     realm: str = ""
     portal: str = ""
     listen_port: str = ""
@@ -408,6 +440,7 @@ class SSLVPNSettings:
 @dataclass
 class VPNSettings:
     """VPN設定"""
+
     ipsec_phase1: List[IPSecPhase1] = field(default_factory=list)
     ipsec_phase2: List[IPSecPhase2] = field(default_factory=list)
     ssl_vpn: List[SSLVPNSettings] = field(default_factory=list)
@@ -416,6 +449,7 @@ class VPNSettings:
 @dataclass
 class AntivirusProfile:
     """アンチウイルスプロファイル"""
+
     name: str = ""
     enabled: bool = True
     scan_mode: str = ""
@@ -427,6 +461,7 @@ class AntivirusProfile:
 @dataclass
 class WebFilterProfile:
     """Webフィルタプロファイル"""
+
     name: str = ""
     enabled: bool = True
     categories: List[str] = field(default_factory=list)
@@ -437,6 +472,7 @@ class WebFilterProfile:
 @dataclass
 class AppControlEntry:
     """アプリケーションコントロールエントリ"""
+
     app_id: str = ""
     app_name: str = ""
     category: str = ""
@@ -447,6 +483,7 @@ class AppControlEntry:
 @dataclass
 class AppControlProfile:
     """アプリケーションコントロールプロファイル"""
+
     name: str = ""
     enabled: bool = True
     categories: List[str] = field(default_factory=list)
@@ -458,6 +495,7 @@ class AppControlProfile:
 @dataclass
 class IPSProfile:
     """IPSプロファイル"""
+
     name: str = ""
     enabled: bool = True
     signatures: List[str] = field(default_factory=list)
@@ -468,6 +506,7 @@ class IPSProfile:
 @dataclass
 class SSLInspectionProfile:
     """SSLインスペクションプロファイル"""
+
     name: str = ""
     enabled: bool = True
     mode: str = ""  # certificate-inspection, deep-inspection
@@ -477,6 +516,7 @@ class SSLInspectionProfile:
 @dataclass
 class SecurityProfile:
     """セキュリティプロファイル（統合）"""
+
     name: str = ""
     profile_type: str = ""  # antivirus, webfilter, ips, ssl-inspection, app-control
     enabled: bool = True
@@ -487,6 +527,7 @@ class SecurityProfile:
 @dataclass
 class SecurityProfiles:
     """セキュリティプロファイル（詳細）"""
+
     antivirus: List[AntivirusProfile] = field(default_factory=list)
     webfilter: List[WebFilterProfile] = field(default_factory=list)
     app_control: List[AppControlProfile] = field(default_factory=list)
@@ -497,6 +538,7 @@ class SecurityProfiles:
 @dataclass
 class HAHeartbeatInterface:
     """HAハートビートインターフェース"""
+
     interface: str = ""
     priority: str = ""
 
@@ -511,6 +553,7 @@ class HAManagementInterface:
     - dst: 管理IPアドレス（CIDR形式またはIPアドレス単体）
     - gateway: デフォルトゲートウェイ
     """
+
     id: str = ""
     interface: str = ""
     dst: str = ""  # 管理IPアドレス（例: 192.168.1.10/24）
@@ -520,6 +563,7 @@ class HAManagementInterface:
 @dataclass
 class HASettings:
     """高可用性設定"""
+
     mode: HAMode = HAMode.STANDALONE
     group_id: str = ""
     group_name: str = ""
@@ -543,6 +587,7 @@ class HASettings:
 @dataclass
 class SyslogServer:
     """Syslogサーバー"""
+
     server: str = ""
     port: str = "514"
     facility: str = ""
@@ -554,6 +599,7 @@ class SyslogServer:
 @dataclass
 class SNMPSettings:
     """SNMP設定"""
+
     enabled: bool = False
     community: str = ""
     hosts: List[str] = field(default_factory=list)
@@ -565,6 +611,7 @@ class SNMPSettings:
 @dataclass
 class LoggingSettings:
     """ログ・監視設定"""
+
     syslog_servers: List[SyslogServer] = field(default_factory=list)
     snmp: List[SNMPSettings] = field(default_factory=list)
     fortianalyzer_server: str = ""
@@ -577,6 +624,7 @@ class LoggingSettings:
 @dataclass
 class ConfigModel:
     """統一設定データモデル"""
+
     device_info: DeviceInfo = field(default_factory=DeviceInfo)
     system_settings: SystemSettings = field(default_factory=SystemSettings)
     interfaces: List[Interface] = field(default_factory=list)

@@ -101,7 +101,15 @@ def register(
                         files = [f]
 
             if not files or all(f.filename == "" for f in files):
-                return jsonify({"success": False, "error": {"code": "NO_FILE", "message": "ファイルが選択されていません"}}), 400
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {"code": "NO_FILE", "message": "ファイルが選択されていません"},
+                        }
+                    ),
+                    400,
+                )
 
             valid_files = [f for f in files if f.filename and allowed_file(f.filename)]
             if not valid_files:
@@ -122,7 +130,15 @@ def register(
             output_format = request.form.get("output_format", "html")
             is_valid_format, format_error = validate_output_format(output_format)
             if not is_valid_format:
-                return jsonify({"success": False, "error": {"code": "INVALID_OUTPUT_FORMAT", "message": format_error}}), 400
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {"code": "INVALID_OUTPUT_FORMAT", "message": format_error},
+                        }
+                    ),
+                    400,
+                )
 
             # 依存関係チェック（オプショナル出力）
             if output_format == "pdf" and not pdf_available:
@@ -157,13 +173,23 @@ def register(
             ha_mode = request.form.get("ha_mode", "auto")
             is_valid_ha_mode, ha_mode_error = validate_ha_mode(ha_mode)
             if not is_valid_ha_mode:
-                return jsonify({"success": False, "error": {"code": "INVALID_HA_MODE", "message": ha_mode_error}}), 400
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {"code": "INVALID_HA_MODE", "message": ha_mode_error},
+                        }
+                    ),
+                    400,
+                )
 
             sections_json = request.form.get("sections", "[]")
             try:
                 sections_list = json.loads(sections_json)
                 sections: Optional[List[str]] = (
-                    [s for s in sections_list if isinstance(s, str)] if isinstance(sections_list, list) else None
+                    [s for s in sections_list if isinstance(s, str)]
+                    if isinstance(sections_list, list)
+                    else None
                 )
             except json.JSONDecodeError:
                 sections = None
@@ -173,12 +199,24 @@ def register(
                 file_data = f.read()
                 f.seek(0)
 
-                is_valid_size, size_error = validate_file_size(file_data, app.config["MAX_CONTENT_LENGTH"])
+                is_valid_size, size_error = validate_file_size(
+                    file_data, app.config["MAX_CONTENT_LENGTH"]
+                )
                 if not is_valid_size:
-                    return jsonify({"success": False, "error": {"code": "FILE_TOO_LARGE", "message": size_error}}), 400
+                    return (
+                        jsonify(
+                            {
+                                "success": False,
+                                "error": {"code": "FILE_TOO_LARGE", "message": size_error},
+                            }
+                        ),
+                        400,
+                    )
 
                 original_filename = secure_filename(f.filename)
-                is_valid_content, content_error = validate_file_content(file_data, original_filename)
+                is_valid_content, content_error = validate_file_content(
+                    file_data, original_filename
+                )
                 if not is_valid_content:
                     return (
                         jsonify(
@@ -308,4 +346,3 @@ def register(
     def upload_file_async_legacy():
         """ファイルアップロード・変換処理（非同期、複数ファイル対応）- 旧エンドポイント"""
         return upload_file_async()
-

@@ -23,24 +23,25 @@ class TestRateLimiting:
         try:
             # モック環境でテスト
             import app
-            assert hasattr(app, 'limiter')
-            assert hasattr(app, 'LIMITER_AVAILABLE')
+
+            assert hasattr(app, "limiter")
+            assert hasattr(app, "LIMITER_AVAILABLE")
         except ImportError as e:
             # 他の依存関係のエラーは無視
-            if 'flask_limiter' not in str(e):
+            if "flask_limiter" not in str(e):
                 raise
 
     def test_rate_limit_configuration(self):
         """レート制限の設定確認"""
         # 環境変数で設定可能であることを確認
-        original_env = os.environ.get('RATE_LIMIT_DEFAULT')
-        
+        original_env = os.environ.get("RATE_LIMIT_DEFAULT")
+
         try:
-            os.environ['RATE_LIMIT_DEFAULT'] = '50 per hour'
+            os.environ["RATE_LIMIT_DEFAULT"] = "50 per hour"
             # 設定が読み込まれることを確認（実際の動作確認は統合テストで）
-            assert os.environ.get('RATE_LIMIT_DEFAULT') == '50 per hour'
+            assert os.environ.get("RATE_LIMIT_DEFAULT") == "50 per hour"
         finally:
             if original_env:
-                os.environ['RATE_LIMIT_DEFAULT'] = original_env
-            elif 'RATE_LIMIT_DEFAULT' in os.environ:
-                del os.environ['RATE_LIMIT_DEFAULT']
+                os.environ["RATE_LIMIT_DEFAULT"] = original_env
+            elif "RATE_LIMIT_DEFAULT" in os.environ:
+                del os.environ["RATE_LIMIT_DEFAULT"]

@@ -80,7 +80,9 @@ def register(app) -> None:
             )
 
         logger.info(f"ファイルダウンロード: {file_path_resolved}")
-        return send_file(file_path_resolved, as_attachment=True, download_name=file_info["filename"])
+        return send_file(
+            file_path_resolved, as_attachment=True, download_name=file_info["filename"]
+        )
 
     @app.route("/api/v1/download/<file_id>")
     def download_file_v1(file_id):
@@ -153,4 +155,3 @@ def register(app) -> None:
     def preview_file_v1(file_id):
         """生成ファイルのプレビュー（v1 エイリアス）"""
         return preview_file(file_id)
-

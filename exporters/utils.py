@@ -20,11 +20,11 @@ STATIC_DIR = Path(__file__).parent.parent / "static"
 class CacheManager:
     """キャッシュ管理（スレッドセーフなシングルトン）"""
 
-    _instance: Optional['CacheManager'] = None
+    _instance: Optional["CacheManager"] = None
     _lock: Lock = Lock()
     _caches: Dict[str, Any]
 
-    def __new__(cls) -> 'CacheManager':
+    def __new__(cls) -> "CacheManager":
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -56,11 +56,11 @@ class CacheManager:
 
 def load_isdb() -> Dict[str, str]:
     """ISDBのCSVを読み込み、ID→アプリケーション名のマッピングを返す
-    
+
     appid.csvファイルを使用して、app_id→app_nameのマッピングを返す
     """
     cache = CacheManager()
-    cached = cache.get('isdb')
+    cached = cache.get("isdb")
     if cached is not None:
         return cached
 
@@ -68,11 +68,11 @@ def load_isdb() -> Dict[str, str]:
     isdb_path = STATIC_DIR / "data" / "appid.csv"
 
     try:
-        with open(isdb_path, 'r', encoding='utf-8') as f:
+        with open(isdb_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                isdb_id = row.get('app_id', '')
-                app_name = row.get('app_name', '')
+                isdb_id = row.get("app_id", "")
+                app_name = row.get("app_name", "")
                 if isdb_id and app_name:
                     isdb_data[isdb_id] = app_name
         logger.debug(f"ISDBをキャッシュに読み込みました: {len(isdb_data)}件")
@@ -81,14 +81,14 @@ def load_isdb() -> Dict[str, str]:
     except csv.Error as e:
         logger.warning(f"ISDB CSV解析エラー: {e}")
 
-    cache.set('isdb', isdb_data)
+    cache.set("isdb", isdb_data)
     return isdb_data
 
 
 def load_css() -> str:
     """CSSを読み込み（Bootstrap + カスタムCSS）"""
     cache = CacheManager()
-    cached = cache.get('css')
+    cached = cache.get("css")
     if cached is not None:
         return cached
 
@@ -97,20 +97,20 @@ def load_css() -> str:
     # Bootstrap CSS
     bootstrap_path = STATIC_DIR / "css" / "bootstrap.min.css"
     try:
-        css_parts.append(bootstrap_path.read_text(encoding='utf-8'))
+        css_parts.append(bootstrap_path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         logger.warning(f"Bootstrap CSSファイルが見つかりません: {bootstrap_path}")
 
     # カスタムCSS
     css_path = STATIC_DIR / "css" / "parameter_sheet.css"
     try:
-        css_parts.append(css_path.read_text(encoding='utf-8'))
+        css_parts.append(css_path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         logger.warning(f"CSSファイルが見つかりません: {css_path}")
         css_parts.append(_get_fallback_css())
 
-    css_content = '\n'.join(css_parts)
-    cache.set('css', css_content)
+    css_content = "\n".join(css_parts)
+    cache.set("css", css_content)
     logger.debug("CSSをキャッシュに読み込みました")
     return css_content
 
@@ -123,7 +123,7 @@ def load_css_for_pdf() -> str:
     これにより、WeasyPrintのCSS解析時間を大幅に削減します。
     """
     cache = CacheManager()
-    cached = cache.get('css_for_pdf')
+    cached = cache.get("css_for_pdf")
     if cached is not None:
         return cached
 
@@ -135,12 +135,12 @@ def load_css_for_pdf() -> str:
     # カスタムCSS（parameter_sheet.cssのPDF互換部分）
     css_path = STATIC_DIR / "css" / "parameter_sheet.css"
     try:
-        css_parts.append(css_path.read_text(encoding='utf-8'))
+        css_parts.append(css_path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         logger.warning(f"CSSファイルが見つかりません: {css_path}")
 
-    css_content = '\n'.join(css_parts)
-    cache.set('css_for_pdf', css_content)
+    css_content = "\n".join(css_parts)
+    cache.set("css_for_pdf", css_content)
     logger.debug("PDF用CSSをキャッシュに読み込みました")
     return css_content
 
@@ -151,7 +151,7 @@ def _get_minimal_bootstrap_for_pdf() -> str:
     フルBootstrap (232KB) の代わりに、実際に使用するクラスのみを含む
     軽量版 (~5KB) を返します。
     """
-    return '''
+    return """
 /* Minimal Bootstrap for PDF - Essential styles only */
 
 /* Base resets */
@@ -211,24 +211,24 @@ def _get_minimal_bootstrap_for_pdf() -> str:
 
 /* Code */
 code { font-size: 87.5%; color: #e83e8c; word-wrap: break-word; }
-'''
+"""
 
 
 def load_search_js() -> str:
     """検索機能のJavaScriptを読み込み"""
     cache = CacheManager()
-    cached = cache.get('search_js')
+    cached = cache.get("search_js")
     if cached is not None:
         return cached
 
     js_path = STATIC_DIR / "js" / "search.js"
     try:
-        js_content = js_path.read_text(encoding='utf-8')
+        js_content = js_path.read_text(encoding="utf-8")
     except FileNotFoundError:
         logger.warning(f"検索JSファイルが見つかりません: {js_path}")
-        js_content = '// Search functionality not available'
+        js_content = "// Search functionality not available"
 
-    cache.set('search_js', js_content)
+    cache.set("search_js", js_content)
     logger.debug("検索JSをキャッシュに読み込みました")
     return js_content
 
@@ -236,32 +236,32 @@ def load_search_js() -> str:
 def load_tooltip_js() -> str:
     """ツールチップ機能のJavaScriptを読み込み"""
     cache = CacheManager()
-    cached = cache.get('tooltip_js')
+    cached = cache.get("tooltip_js")
     if cached is not None:
         return cached
 
     js_path = STATIC_DIR / "js" / "tooltip.js"
     try:
-        js_content = js_path.read_text(encoding='utf-8')
+        js_content = js_path.read_text(encoding="utf-8")
     except FileNotFoundError:
         logger.warning(f"ツールチップJSファイルが見つかりません: {js_path}")
-        js_content = '// Tooltip functionality not available'
+        js_content = "// Tooltip functionality not available"
 
-    cache.set('tooltip_js', js_content)
+    cache.set("tooltip_js", js_content)
     logger.debug("ツールチップJSをキャッシュに読み込みました")
     return js_content
 
 
 def _get_fallback_css() -> str:
     """フォールバック用の最小限CSS"""
-    return '''
+    return """
     body { font-family: sans-serif; margin: 20px; }
     table { width: 100%; border-collapse: collapse; margin: 15px 0; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
     th { background-color: #f8f9fa; }
     h1, h2, h3 { color: #1a5276; }
     section { margin-bottom: 25px; padding: 15px; background: white; border-radius: 8px; }
-    '''
+    """
 
 
 class HtmlFormatter:
@@ -304,10 +304,7 @@ class HtmlFormatter:
 
     @classmethod
     def to_badges(
-        cls,
-        items: List[str],
-        color_map: Dict[str, str],
-        extract_key: bool = False
+        cls, items: List[str], color_map: Dict[str, str], extract_key: bool = False
     ) -> str:
         """リストをBootstrapバッジに変換"""
         if not items:

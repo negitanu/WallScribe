@@ -117,4 +117,3 @@ def update_progress(
     if "created_at" not in metadata:
         metadata["created_at"] = datetime.now()
     save_file_metadata(file_id, metadata)
-

@@ -33,4 +33,3 @@ def register(app) -> None:
         if file_info is None:
             return redirect(url_for("index"))
         return render_template("result.html", file_id=file_id, file_info=file_info)
-

@@ -36,15 +36,36 @@ def register_error_handlers(app) -> None:
 
     @app.errorhandler(413)
     def request_entity_too_large(_error):
-        return jsonify({"success": False, "error": {"code": "FILE_TOO_LARGE", "message": "ファイルサイズが50MBを超えています"}}), 413
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error": {
+                        "code": "FILE_TOO_LARGE",
+                        "message": "ファイルサイズが50MBを超えています",
+                    },
+                }
+            ),
+            413,
+        )
 
     @app.errorhandler(404)
     def not_found(_error):
-        return render_template("error.html", error={"code": "404", "message": "ページが見つかりません"}), 404
+        return (
+            render_template(
+                "error.html", error={"code": "404", "message": "ページが見つかりません"}
+            ),
+            404,
+        )
 
     @app.errorhandler(500)
     def internal_error(_error):
-        return render_template("error.html", error={"code": "500", "message": "サーバー内部エラーが発生しました"}), 500
+        return (
+            render_template(
+                "error.html", error={"code": "500", "message": "サーバー内部エラーが発生しました"}
+            ),
+            500,
+        )
 
 
 def register_request_hooks(app, *, metrics_available: bool, record_request) -> None:
@@ -88,7 +109,12 @@ def register_request_hooks(app, *, metrics_available: bool, record_request) -> N
                 import time
 
                 duration = time.time() - getattr(request, "_start_time", time.time())
-                record_request(method=request.method, endpoint=request.endpoint, status=response.status_code, duration=duration)
+                record_request(
+                    method=request.method,
+                    endpoint=request.endpoint,
+                    status=response.status_code,
+                    duration=duration,
+                )
             except Exception:
                 pass
 
@@ -113,4 +139,3 @@ def swagger_setup(app, *, swagger_available: bool):
     except Exception as e:
         logger.warning(f"Swagger設定エラー: {e}")
         return None, False
-
