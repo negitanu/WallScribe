@@ -60,6 +60,8 @@ COPY web/ ./web/
 COPY static/ ./static/
 COPY utils/ ./utils/
 COPY api/ ./api/
+COPY routes/ ./routes/
+COPY jobs/ ./jobs/
 COPY gunicorn_config.py ./
 
 # アップロードディレクトリとフォントキャッシュディレクトリを作成
