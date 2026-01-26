@@ -14,7 +14,6 @@ flake8-docstrings>=1.7.0
 
 # 型チェック
 mypy>=1.8.0
-types-all>=0.1.0
 
 # テスト
 pytest>=7.0.0
