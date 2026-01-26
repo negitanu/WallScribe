@@ -5,14 +5,15 @@ Prometheusメトリクスのテスト
 """
 
 import pytest
+
 from utils.metrics import (
-    get_metrics,
-    record_request,
-    record_file_upload,
-    record_error,
-    set_active_jobs,
-    record_processed_file,
     PROMETHEUS_AVAILABLE,
+    get_metrics,
+    record_error,
+    record_file_upload,
+    record_processed_file,
+    record_request,
+    set_active_jobs,
 )
 
 

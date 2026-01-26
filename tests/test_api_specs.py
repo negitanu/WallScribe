@@ -5,6 +5,7 @@ API仕様のテスト
 """
 
 import pytest
+
 from api.specs import API_SPEC
 
 

@@ -9,17 +9,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from models.config import ConfigModel, PolicyAction, HAMode, DeviceType, FirewallPolicy
-from models.cluster import ClusterConfig, HARole
 from exporters.utils import (
     STATIC_DIR,
-    load_isdb,
+    HtmlFormatter,
     load_css,
     load_css_for_pdf,
+    load_isdb,
     load_search_js,
     load_tooltip_js,
-    HtmlFormatter,
 )
+from models.cluster import ClusterConfig, HARole
+from models.config import ConfigModel, DeviceType, FirewallPolicy, HAMode, PolicyAction
 
 logger = logging.getLogger(__name__)
 

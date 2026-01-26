@@ -6,7 +6,7 @@
 
 from typing import Dict, List
 
-from models.config import ConfigModel, OperationMode, AdminUser
+from models.config import AdminUser, ConfigModel, OperationMode
 from parsers.utils import get_nested, ip_to_cidr
 
 

@@ -4,13 +4,14 @@
 構造化ログ設定のテスト
 """
 
-import pytest
 import json
 import logging
 import sys
 from io import StringIO
 
-from utils.logging_config import StructuredLogger, JSONFormatter, get_logger
+import pytest
+
+from utils.logging_config import JSONFormatter, StructuredLogger, get_logger
 
 
 class TestJSONFormatter:

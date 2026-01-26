@@ -7,16 +7,16 @@
 from typing import Dict
 
 from models.config import (
-    ConfigModel,
-    SecurityProfile,
     AntivirusProfile,
-    WebFilterProfile,
-    AppControlProfile,
     AppControlEntry,
+    AppControlProfile,
+    ConfigModel,
     IPSProfile,
+    SecurityProfile,
     SSLInspectionProfile,
+    WebFilterProfile,
 )
-from parsers.utils import get_nested, get_app_name, get_app_info
+from parsers.utils import get_app_info, get_app_name, get_nested
 
 
 def convert_security_profiles(config_model: ConfigModel, parsed_config: Dict) -> None:

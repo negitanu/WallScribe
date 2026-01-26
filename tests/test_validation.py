@@ -5,11 +5,12 @@
 """
 
 import pytest
+
 from utils.validation import (
     validate_file_content,
     validate_file_size,
-    validate_output_format,
     validate_ha_mode,
+    validate_output_format,
 )
 
 

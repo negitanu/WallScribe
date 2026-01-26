@@ -4,22 +4,22 @@
 ネットワーク設定コンバーター（インターフェース、ルート、DHCP、OSPF、BGP）
 """
 
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from models.config import (
-    ConfigModel,
-    Interface,
-    Route,
-    DHCPServer,
-    OSPFSettings,
-    OSPFArea,
-    OSPFInterface,
-    OSPFRedistribute,
-    BGPSettings,
     BGPNeighbor,
     BGPNetwork,
     BGPRedistribute,
+    BGPSettings,
+    ConfigModel,
+    DHCPServer,
+    Interface,
+    OSPFArea,
+    OSPFInterface,
+    OSPFRedistribute,
+    OSPFSettings,
     PolicyRoute,
+    Route,
 )
 from parsers.utils import get_nested, ip_to_cidr
 

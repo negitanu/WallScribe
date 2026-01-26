@@ -12,7 +12,7 @@ from pathlib import Path
 
 from flask import jsonify, request
 
-from utils.storage import load_file_metadata, delete_file_metadata
+from utils.storage import delete_file_metadata, load_file_metadata
 
 logger = logging.getLogger(__name__)
 

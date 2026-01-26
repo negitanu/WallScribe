@@ -6,7 +6,7 @@
 
 import pytest
 
-from parsers.utils import ip_to_cidr, to_list, get_nested, parse_proposal
+from parsers.utils import get_nested, ip_to_cidr, parse_proposal, to_list
 
 
 class TestIPToCIDR:

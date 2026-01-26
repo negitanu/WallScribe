@@ -4,29 +4,28 @@
 Excel パーツ（common, global_sheets, vdom_sheets）のテスト
 """
 
-import pytest
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import sys
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from models.cluster import ClusterConfig, HAClusterInfo, HAMemberInfo, HARole
 from models.config import (
     ConfigModel,
     DeviceInfo,
     DeviceType,
-    HAMode,
-    HASettings,
-    PolicyAction,
-    SystemSettings,
-    Interface,
-    Objects,
     FirewallPolicy,
     HAManagementInterface,
+    HAMode,
+    HASettings,
+    Interface,
+    Objects,
+    PolicyAction,
+    SystemSettings,
 )
-from models.cluster import ClusterConfig, HAClusterInfo, HAMemberInfo, HARole
-
 
 # openpyxlが利用可能かチェック
 try:
@@ -232,7 +231,7 @@ class TestExcelStylesIntegration:
 
     def test_import_styles(self):
         """excel_styles.pyのインポート"""
-        from exporters.excel_styles import VDOM_COLORS, GLOBAL_COLOR
+        from exporters.excel_styles import GLOBAL_COLOR, VDOM_COLORS
 
         assert VDOM_COLORS is not None
         assert GLOBAL_COLOR is not None
@@ -245,7 +244,7 @@ class TestExcelStylesIntegration:
 
     def test_color_structure(self):
         """カラー構造の確認"""
-        from exporters.excel_styles import VDOM_COLORS, GLOBAL_COLOR
+        from exporters.excel_styles import GLOBAL_COLOR, VDOM_COLORS
 
         # 各カラーに必要なキーが存在
         for color in VDOM_COLORS:

@@ -4,38 +4,39 @@
 テスト用共通フィクスチャ
 """
 
-import pytest
 from pathlib import Path
 
+import pytest
+
 from models.config import (
+    AddressGroup,
+    AddressObject,
+    AdminUser,
     ConfigModel,
     DeviceInfo,
     DeviceType,
-    OperationMode,
-    HAMode,
-    SystemSettings,
-    AdminUser,
-    Interface,
-    Route,
     DHCPServer,
-    Objects,
-    AddressObject,
-    AddressGroup,
-    ServiceObject,
-    ServiceGroup,
     FirewallPolicy,
-    NATPolicy,
-    PolicyAction,
-    VPNSettings,
+    HAMode,
+    HASettings,
+    Interface,
     IPSecPhase1,
     IPSecPhase2,
-    SSLVPNSettings,
+    LoggingSettings,
+    NATPolicy,
+    Objects,
+    OperationMode,
+    PolicyAction,
+    Route,
     SecurityProfile,
     SecurityProfiles,
-    HASettings,
-    LoggingSettings,
-    SyslogServer,
+    ServiceGroup,
+    ServiceObject,
     SNMPSettings,
+    SSLVPNSettings,
+    SyslogServer,
+    SystemSettings,
+    VPNSettings,
 )
 
 

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 try:
-    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill  # type: ignore
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side  # type: ignore
 
     OPENPYXL_AVAILABLE = True
 except ImportError:  # pragma: no cover - openpyxl未導入環境向け

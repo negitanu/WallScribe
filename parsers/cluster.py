@@ -9,9 +9,9 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, cast
 
+from models.cluster import ClusterConfig, ConfigDifference, HAClusterInfo, HAMemberInfo, HARole
 from models.config import ConfigModel, HAMode
-from models.cluster import ClusterConfig, HAClusterInfo, HAMemberInfo, HARole, ConfigDifference
-from parsers.base import get_parser_for_file, get_parser_for_content, detect_encoding
+from parsers.base import detect_encoding, get_parser_for_content, get_parser_for_file
 
 logger = logging.getLogger(__name__)
 

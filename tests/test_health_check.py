@@ -4,9 +4,10 @@
 ヘルスチェックエンドポイントのテスト
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 
 # オプショナルな依存関係がない場合でもテストできるようにする

@@ -4,9 +4,10 @@
 エクスポーターのテスト
 """
 
-import pytest
 import tempfile
 from pathlib import Path
+
+import pytest
 
 from exporters.html import HTMLExporter
 
@@ -26,7 +27,7 @@ try:
 except ImportError:
     PDFExporter = None  # type: ignore[assignment]
     PDF_AVAILABLE = False
-from exporters.utils import HtmlFormatter, CacheManager
+from exporters.utils import CacheManager, HtmlFormatter
 
 
 class TestHtmlFormatter:

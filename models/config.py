@@ -6,8 +6,8 @@ FortiGate と Palo Alto の設定を統一フォーマットで表現する
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class DeviceType(Enum):

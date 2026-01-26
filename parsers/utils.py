@@ -6,8 +6,8 @@ FortiGate と Palo Alto パーサーで共通して使用する関数
 """
 
 import csv
-import os
 import ipaddress
+import os
 from typing import Any, Dict, List, Optional, Union
 
 # アプリケーションIDマッピングのキャッシュ

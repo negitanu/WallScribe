@@ -5,16 +5,16 @@
 """
 
 import argparse
-import sys
 import logging
+import sys
 from pathlib import Path
 from typing import Union
 
-from parsers.base import get_parser_for_file
-from parsers.cluster import parse_ha_cluster
+from exporters.html import HTMLExporter
 from models.cluster import ClusterConfig
 from models.config import ConfigModel
-from exporters.html import HTMLExporter
+from parsers.base import get_parser_for_file
+from parsers.cluster import parse_ha_cluster
 
 try:
     import exporters.excel as excel_module  # type: ignore

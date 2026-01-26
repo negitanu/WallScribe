@@ -4,20 +4,21 @@
 HAクラスタパーサーのテスト
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from models.cluster import ClusterConfig, HAClusterInfo, HAMemberInfo, HARole
+from models.config import ConfigModel, DeviceInfo, HAManagementInterface, HAMode, HASettings
 from parsers.cluster import (
-    parse_ha_cluster,
-    parse_ha_cluster_from_contents,
-    _get_ha_mgmt_info,
+    _build_cluster_config,
+    _detect_config_differences,
     _detect_ha_cluster,
     _determine_ha_roles,
-    _detect_config_differences,
-    _build_cluster_config,
+    _get_ha_mgmt_info,
+    parse_ha_cluster,
+    parse_ha_cluster_from_contents,
 )
-from models.config import ConfigModel, HAMode, HASettings, DeviceInfo, HAManagementInterface
-from models.cluster import ClusterConfig, HAClusterInfo, HAMemberInfo, HARole
 
 
 class TestParseHaCluster:

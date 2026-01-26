@@ -6,7 +6,7 @@ Prometheusメトリクスモジュール
 
 # オプショナルインポート（prometheus_clientがインストールされていない場合でも動作）
 try:
-    from prometheus_client import Counter, Histogram, Gauge, generate_latest
+    from prometheus_client import Counter, Gauge, Histogram, generate_latest
 
     PROMETHEUS_AVAILABLE = True
 except ImportError:

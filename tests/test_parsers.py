@@ -6,10 +6,10 @@
 
 import pytest
 
+from models.config import DeviceType, HAMode, OperationMode, PolicyAction
 from parsers.base import detect_encoding, get_parser_for_content
 from parsers.fortigate import FortiGateParser
 from parsers.paloalto import PaloAltoParser
-from models.config import DeviceType, OperationMode, PolicyAction, HAMode
 
 
 class TestDetectEncoding:

@@ -6,8 +6,8 @@ HAクラスタ構成データモデル
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from models.config import ConfigModel, HAMode
 

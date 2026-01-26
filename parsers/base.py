@@ -4,10 +4,10 @@
 基底パーサークラス
 """
 
+import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, Tuple
-import logging
 
 from models.config import ConfigModel, DeviceType
 

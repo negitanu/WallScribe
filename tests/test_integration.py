@@ -5,10 +5,11 @@
 新しく実装した機能の統合テスト
 """
 
-import pytest
 import os
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -18,7 +19,7 @@ class TestIntegration:
 
     def test_logging_config_import(self):
         """ログ設定モジュールのインポートテスト"""
-        from utils.logging_config import StructuredLogger, JSONFormatter, get_logger
+        from utils.logging_config import JSONFormatter, StructuredLogger, get_logger
 
         assert StructuredLogger is not None
         assert JSONFormatter is not None
@@ -28,11 +29,11 @@ class TestIntegration:
     def test_metrics_import(self):
         """メトリクスモジュールのインポートテスト"""
         from utils.metrics import (
-            get_metrics,
-            record_request,
-            record_file_upload,
-            record_error,
             PROMETHEUS_AVAILABLE,
+            get_metrics,
+            record_error,
+            record_file_upload,
+            record_request,
         )
 
         assert get_metrics is not None
@@ -58,7 +59,7 @@ class TestIntegration:
 
     def test_exceptions_import(self):
         """例外クラスのインポートテスト"""
-        from exceptions import WallScribeError, ParseError, ExportError, ValidationError, FileError
+        from exceptions import ExportError, FileError, ParseError, ValidationError, WallScribeError
 
         assert WallScribeError is not None
         assert ParseError is not None
@@ -71,8 +72,8 @@ class TestIntegration:
         from utils.validation import (
             validate_file_content,
             validate_file_size,
-            validate_output_format,
             validate_ha_mode,
+            validate_output_format,
         )
 
         assert validate_file_content is not None

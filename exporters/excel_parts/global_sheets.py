@@ -13,10 +13,10 @@ from typing import Any
 from models.config import HAMode
 
 try:
-    from openpyxl.styles import Font, Alignment, PatternFill  # type: ignore
+    from openpyxl.styles import Alignment, Font, PatternFill  # type: ignore
     from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
 except ImportError:  # pragma: no cover
-    from exporters.excel_styles import Font, Alignment, PatternFill  # type: ignore
+    from exporters.excel_styles import Alignment, Font, PatternFill  # type: ignore
 
     Worksheet = Any  # type: ignore
 

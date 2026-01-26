@@ -7,13 +7,13 @@ Excelスタイル定義のテスト
 import pytest
 
 from exporters.excel_styles import (
-    VDOM_COLORS,
-    GLOBAL_COLOR,
-    COLORS,
-    HEADER_FONT,
-    HEADER_FILL,
     ACTION_FILLS,
     ACTION_FONTS,
+    COLORS,
+    GLOBAL_COLOR,
+    HEADER_FILL,
+    HEADER_FONT,
+    VDOM_COLORS,
 )
 from models.config import PolicyAction
 

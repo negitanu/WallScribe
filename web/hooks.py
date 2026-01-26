@@ -6,8 +6,8 @@ Flask アプリのフック/ハンドラ登録
 
 from __future__ import annotations
 
-import os
 import logging
+import os
 from pathlib import Path
 
 from flask import jsonify, render_template, request
@@ -128,6 +128,7 @@ def swagger_setup(app, *, swagger_available: bool):
 
     try:
         from flasgger import Swagger
+
         from api.specs import API_SPEC
 
         swagger = Swagger(app, template=API_SPEC)

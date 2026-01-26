@@ -8,12 +8,12 @@ from typing import Any, Dict, List, Tuple
 
 from models.config import (
     ConfigModel,
-    HASettings,
-    HAMode,
     HAHeartbeatInterface,
     HAManagementInterface,
-    SyslogServer,
+    HAMode,
+    HASettings,
     SNMPSettings,
+    SyslogServer,
 )
 from parsers.utils import get_nested
 

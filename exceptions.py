@@ -4,7 +4,7 @@
 カスタム例外クラス
 """
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class WallScribeError(Exception):

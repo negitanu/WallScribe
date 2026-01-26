@@ -12,10 +12,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
-from parsers.base import detect_encoding, get_parser_for_content
-from parsers.cluster import parse_ha_cluster_from_contents
 from models.cluster import ClusterConfig
 from models.config import ConfigModel
+from parsers.base import detect_encoding, get_parser_for_content
+from parsers.cluster import parse_ha_cluster_from_contents
 
 logger = logging.getLogger(__name__)
 

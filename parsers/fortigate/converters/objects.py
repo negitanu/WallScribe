@@ -6,7 +6,7 @@
 
 from typing import Dict
 
-from models.config import ConfigModel, AddressObject, AddressGroup, ServiceObject, ServiceGroup
+from models.config import AddressGroup, AddressObject, ConfigModel, ServiceGroup, ServiceObject
 from parsers.utils import get_nested, ip_to_cidr
 
 

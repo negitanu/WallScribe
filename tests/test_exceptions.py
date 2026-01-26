@@ -5,7 +5,8 @@
 """
 
 import pytest
-from exceptions import WallScribeError, ParseError, ExportError, ValidationError, FileError
+
+from exceptions import ExportError, FileError, ParseError, ValidationError, WallScribeError
 
 
 class TestWallScribeError:

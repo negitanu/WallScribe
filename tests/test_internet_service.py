@@ -6,10 +6,10 @@ Internet Service関連のテスト
 
 import pytest
 
-from parsers.fortigate import FortiGateParser
 from exporters.html import HTMLExporter
 from exporters.utils import load_isdb
 from models.config import ConfigModel, FirewallPolicy, PolicyAction
+from parsers.fortigate import FortiGateParser
 
 
 class TestInternetServiceParsing:
