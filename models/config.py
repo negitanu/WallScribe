@@ -7,7 +7,7 @@ FortiGate と Palo Alto の設定を統一フォーマットで表現する
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 
 class DeviceType(Enum):
@@ -90,6 +90,7 @@ class SystemSettings:
     allowed_protocols: List[str] = field(default_factory=list)
     https_port: str = "443"
     ssh_port: str = "22"
+    central_nat: bool = False
     ntp_servers: List[str] = field(default_factory=list)
     dns_primary: str = ""
     dns_secondary: str = ""
@@ -644,6 +645,7 @@ class ConfigModel:
     # メタデータ
     source_file: str = ""
     parse_errors: List[str] = field(default_factory=list)
+    default_fields: Set[str] = field(default_factory=set)
 
     def get_summary(self) -> Dict[str, Any]:
         """設定のサマリー情報を取得"""

@@ -453,10 +453,13 @@ class ExcelVdomSheetsMixin:
             "ポートFW",
             "元ポート",
             "変換後ポート",
+            "NAT IP Pool",
+            "プロトコル",
             "説明",
         ]
         self._set_header_row(ws, headers)
 
+        protocol_map = {"0": "ALL", "6": "TCP", "17": "UDP", "1": "ICMP"}
         for row_idx, nat in enumerate(nat_policies, 2):
             self._set_cell(ws, row_idx, 1, nat.name)
             self._set_cell(ws, row_idx, 2, nat.nat_type, center=True)
@@ -470,7 +473,10 @@ class ExcelVdomSheetsMixin:
             self._set_status_cell(ws, row_idx, 10, nat.port_forward)
             self._set_cell(ws, row_idx, 11, nat.original_port, center=True)
             self._set_cell(ws, row_idx, 12, nat.translated_port, center=True)
-            self._set_cell(ws, row_idx, 13, nat.description)
+            self._set_cell(ws, row_idx, 13, nat.nat_ippool)
+            protocol_display = protocol_map.get(str(nat.protocol).strip(), nat.protocol)
+            self._set_cell(ws, row_idx, 14, protocol_display, center=True)
+            self._set_cell(ws, row_idx, 15, nat.description)
 
         self._auto_column_width(ws)
 

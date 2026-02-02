@@ -165,6 +165,24 @@ class TestObjects:
         assert objects.addresses[0].name == "Server-A"
 
 
+class TestSystemSettings:
+    """SystemSettingsのテスト"""
+
+    def test_default_values(self):
+        """デフォルト値の確認"""
+        settings = SystemSettings()
+
+        assert settings.central_nat is False
+        assert settings.https_port == "443"
+        assert settings.ssh_port == "22"
+
+    def test_central_nat_enabled(self):
+        """Central NAT有効の確認"""
+        settings = SystemSettings(central_nat=True)
+
+        assert settings.central_nat is True
+
+
 class TestHASettings:
     """HASettingsのテスト"""
 
@@ -205,6 +223,17 @@ class TestConfigModel:
         assert config.firewall_policies == []
         assert config.source_file == ""
         assert config.parse_errors == []
+        assert config.default_fields == set()
+
+    def test_default_fields_tracking(self):
+        """デフォルト値追跡の確認"""
+        config = ConfigModel()
+        config.default_fields.add("ha.priority")
+        config.default_fields.add("system_settings.https_port")
+
+        assert "ha.priority" in config.default_fields
+        assert "system_settings.https_port" in config.default_fields
+        assert "ha.hb_interval" not in config.default_fields
 
     def test_get_summary(self, sample_config_model):
         """サマリーの取得"""

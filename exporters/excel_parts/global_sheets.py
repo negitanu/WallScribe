@@ -22,6 +22,12 @@ except ImportError:  # pragma: no cover
 
 
 class ExcelGlobalSheetsMixin:
+    def _annotate_default(self, value, field_path: str) -> str:
+        """デフォルト値の場合にアノテーションを追加"""
+        if field_path in self.config.default_fields:
+            return f"{value}（デフォルト値）"
+        return str(value)
+
     def _create_cluster_overview_sheet(self):
         """クラスタ概要シートを作成（HAクラスタ時のみ）"""
         if not self.is_cluster or self.cluster_config is None:
@@ -119,12 +125,14 @@ class ExcelGlobalSheetsMixin:
         self._set_section_title(ws, 4, 1, "機器情報", colspan=2)
 
         info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+        nat_mode = "Central NAT" if self.config.system_settings.central_nat else "Policy Base NAT"
         device_data = [
             ("ホスト名", info.hostname),
             ("モデル", info.model),
             ("シリアル番号", info.serial_number or "設定ファイルから取得不可"),
             ("OSバージョン", info.os_version),
             ("動作モード", info.operation_mode.value),
+            ("NATモード", nat_mode),
             ("VDOM/vsys", "有効" if info.vdom_enabled else "無効"),
             ("VDOM/vsysリスト", ", ".join(info.vdom_list) if info.vdom_list else "-"),
         ]
@@ -188,8 +196,14 @@ class ExcelGlobalSheetsMixin:
             ("管理用IPアドレス", settings.management_ip),
             ("サブネットマスク", settings.management_netmask),
             ("管理インターフェース", settings.management_interface),
-            ("HTTPSポート", settings.https_port or "443"),
-            ("SSHポート", settings.ssh_port or "22"),
+            (
+                "HTTPSポート",
+                self._annotate_default(settings.https_port or "443", "system_settings.https_port"),
+            ),
+            (
+                "SSHポート",
+                self._annotate_default(settings.ssh_port or "22", "system_settings.ssh_port"),
+            ),
             ("許可プロトコル", self._list_to_str(settings.allowed_protocols, ", ")),
         ]
 
@@ -259,7 +273,11 @@ class ExcelGlobalSheetsMixin:
             ("HAモード", ha.mode.value, False),
             ("グループID", ha.group_id, False),
             ("グループ名", ha.group_name or "-", False),
-            ("優先度", ha.priority if ha.priority else "-", False),
+            (
+                "優先度",
+                self._annotate_default(ha.priority, "ha.priority") if ha.priority else "-",
+                False,
+            ),
             ("プリエンプト", ha.preempt, True),
             ("HA管理ステータス", ha.ha_mgmt_status, True),
         ]
@@ -287,8 +305,20 @@ class ExcelGlobalSheetsMixin:
         sync_data = [
             ("セッション同期", ha.session_sync, True),
             ("セッションピックアップ", ha.session_pickup, True),
-            ("ハートビート間隔", ha.hb_interval if ha.hb_interval else "-", False),
-            ("ハートビート損失閾値", ha.hb_lost_threshold if ha.hb_lost_threshold else "-", False),
+            (
+                "ハートビート間隔",
+                self._annotate_default(ha.hb_interval, "ha.hb_interval")
+                if ha.hb_interval
+                else "-",
+                False,
+            ),
+            (
+                "ハートビート損失閾値",
+                self._annotate_default(ha.hb_lost_threshold, "ha.hb_lost_threshold")
+                if ha.hb_lost_threshold
+                else "-",
+                False,
+            ),
             ("暗号化", ha.encryption, True),
             ("認証", ha.authentication, True),
         ]

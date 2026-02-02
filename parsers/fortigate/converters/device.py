@@ -63,6 +63,27 @@ def convert_system_settings(config_model: ConfigModel, parsed_config: Dict) -> N
     config_model.system_settings.https_port = str(admin_https_port) if admin_https_port else "443"
     config_model.system_settings.ssh_port = str(admin_ssh_port) if admin_ssh_port else "22"
 
+    # デフォルト値の追跡
+    if not admin_https_port:
+        config_model.default_fields.add("system_settings.https_port")
+    if not admin_ssh_port:
+        config_model.default_fields.add("system_settings.ssh_port")
+
+    # Central NAT設定
+    # グローバルのsystem settingsとVDOM内のsystem settingsの両方を確認
+    system_settings = get_nested(global_cfg, "system settings", default={})
+    central_nat = system_settings.get("central-nat", "")
+    if not central_nat:
+        # VDOM内の設定も確認
+        vdoms = parsed_config.get("vdom", {})
+        for vdom_data in vdoms.values():
+            if isinstance(vdom_data, dict):
+                vdom_settings = get_nested(vdom_data, "system settings", default={})
+                central_nat = vdom_settings.get("central-nat", "")
+                if central_nat:
+                    break
+    config_model.system_settings.central_nat = central_nat == "enable"
+
     # NTP
     if "ntpsync" in system_ntp:
         ntp_servers = system_ntp.get("ntpserver", {})

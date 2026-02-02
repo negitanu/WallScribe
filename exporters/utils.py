@@ -303,6 +303,14 @@ class HtmlFormatter:
         return f'<span class="text-muted">{cls.escape(default)}</span>'
 
     @classmethod
+    def with_default_annotation(cls, value: Optional[Any], is_default: bool) -> str:
+        """値がデフォルトの場合はアノテーションを追加（グレー表示）"""
+        escaped = cls.escape(value)
+        if is_default:
+            return f'{escaped}<span class="text-muted">（デフォルト値）</span>'
+        return escaped
+
+    @classmethod
     def to_badges(
         cls, items: List[str], color_map: Dict[str, str], extract_key: bool = False
     ) -> str:

@@ -90,6 +90,18 @@ def convert_ha(config_model: ConfigModel, parsed_config: Dict) -> None:
             password=password if password else "",
         )
 
+        # デフォルト値の追跡
+        if not priority_raw:
+            config_model.default_fields.add("ha.priority")
+        if not hb_interval_raw:
+            config_model.default_fields.add("ha.hb_interval")
+        if not hb_lost_threshold_raw:
+            config_model.default_fields.add("ha.hb_lost_threshold")
+        if ha_config.get("override", "") != "enable":
+            config_model.default_fields.add("ha.preempt")
+        if ha_config.get("session-pickup", "") != "enable":
+            config_model.default_fields.add("ha.session_pickup")
+
 
 def _parse_hbdev(hbdev: Any) -> Tuple[List[str], List[HAHeartbeatInterface]]:
     """ハートビートデバイス設定をパース

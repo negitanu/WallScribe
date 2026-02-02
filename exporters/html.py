@@ -198,6 +198,17 @@ class HTMLExporter:
         """指定VDOMの項目のみをフィルタリング"""
         return [item for item in items if getattr(item, "vdom", "root") == vdom]
 
+    def _with_default_annotation(self, value: Any, field_path: str) -> str:
+        """値がデフォルトの場合にアノテーションを追加"""
+        is_default = field_path in self.config.default_fields
+        return HtmlFormatter.with_default_annotation(value, is_default)
+
+    @staticmethod
+    def _format_protocol_number(protocol: str) -> str:
+        """プロトコル番号を名前に変換"""
+        protocol_map = {"0": "ALL", "6": "TCP", "17": "UDP", "1": "ICMP"}
+        return protocol_map.get(str(protocol).strip(), str(protocol))
+
     def _build_object_lookups(self) -> None:
         """オブジェクト名から詳細情報を引くための辞書を構築"""
         # アドレスオブジェクト辞書: {(vdom, name): AddressObject}
@@ -899,6 +910,7 @@ class HTMLExporter:
                             <tr><td>シリアル番号</td><td>{self.escape(info.serial_number) if info.serial_number else '設定ファイルから取得不可'}</td></tr>
                             <tr><td>OSバージョン</td><td>{self.escape(info.os_version)}</td></tr>
                             <tr><td>動作モード</td><td>{self.escape(info.operation_mode.value)}</td></tr>
+                            <tr><td>NATモード</td><td>{'Central NAT' if self.config.system_settings.central_nat else 'Policy Base NAT'}</td></tr>
                             <tr><td>{vdom_label}</td><td>{'有効' if info.vdom_enabled else '無効'} ({vdom_list_display})</td></tr>
                         </table>
                     </div>
@@ -959,8 +971,8 @@ class HTMLExporter:
                             <tr><td>管理用IPアドレス</td><td><code>{mgmt_ip_display}</code></td></tr>
                             <tr><td>管理インターフェース</td><td>{self.escape(settings.management_interface) or '<span class="text-muted">-</span>'}</td></tr>
                             <tr><td>許可プロトコル</td><td>{self._format_allowed_access(settings.allowed_protocols)}</td></tr>
-                            <tr><td>HTTPSポート</td><td>{self._with_default(settings.https_port, 'https_port')}</td></tr>
-                            <tr><td>SSHポート</td><td>{self._with_default(settings.ssh_port, 'ssh_port')}</td></tr>
+                            <tr><td>HTTPSポート</td><td>{self._with_default_annotation(settings.https_port, 'system_settings.https_port')}</td></tr>
+                            <tr><td>SSHポート</td><td>{self._with_default_annotation(settings.ssh_port, 'system_settings.ssh_port')}</td></tr>
                         </table>
                     </div>
                 </div>
@@ -1612,6 +1624,8 @@ class HTMLExporter:
         vip_rows = ""
         # SNAT/IP Pool
         snat_rows = ""
+        # Central SNAT Map
+        central_snat_rows = ""
 
         for nat in nat_policies:
             if nat.nat_type in ("vip", "dnat"):
@@ -1631,6 +1645,19 @@ class HTMLExporter:
                     <td>{port_forward_display}</td>
                     <td>{self.escape(nat.description)}</td>
                 </tr>"""
+            elif nat.nat_type == "central-snat":
+                protocol_display = self._format_protocol_number(nat.protocol) if nat.protocol else "ALL"
+                status_display = "有効" if nat.enabled else "無効"
+                central_snat_rows += f"""<tr>
+                    <td>{self.escape(nat.name)}</td>
+                    <td>{self.escape(nat.original_source)}</td>
+                    <td>{self.escape(nat.original_destination)}</td>
+                    <td>{self.escape(nat.nat_ippool)}</td>
+                    <td>{self.escape(protocol_display)}</td>
+                    <td>{self.escape(nat.interface)}</td>
+                    <td>{status_display}</td>
+                    <td>{self.escape(nat.description)}</td>
+                </tr>"""
             elif nat.nat_type in ("snat", "ippool"):
                 snat_rows += f"""<tr>
                     <td>{self.escape(nat.name)}</td>
@@ -1638,6 +1665,18 @@ class HTMLExporter:
                     <td>{self.escape(nat.interface)}</td>
                     <td>{self.escape(nat.description)}</td>
                 </tr>"""
+
+        # Central SNAT Mapセクション
+        central_snat_section = ""
+        if central_snat_rows or self.config.system_settings.central_nat:
+            central_snat_section = f"""
+                <h4>Central SNAT Map</h4>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered">
+                        <tr><th>ID</th><th>送信元</th><th>宛先</th><th>NAT IP Pool</th><th>プロトコル</th><th>インターフェース</th><th>状態</th><th>備考</th></tr>
+                        {central_snat_rows if central_snat_rows else '<tr><td colspan="8">Central SNAT Map設定なし</td></tr>'}
+                    </table>
+                </div>"""
 
         return f"""
             <div id="{section_id}" class="subsection">
@@ -1658,6 +1697,7 @@ class HTMLExporter:
                         {snat_rows if snat_rows else '<tr><td colspan="4">SNAT/IP Pool設定なし</td></tr>'}
                     </table>
                 </div>
+                {central_snat_section}
             </div>"""
 
     def _generate_vpn_section(
@@ -2063,7 +2103,7 @@ class HTMLExporter:
                             <tr><td>HAモード</td><td><strong>{self.escape(ha.mode.value)}</strong></td></tr>
                             <tr><td>グループID</td><td>{self.escape(ha.group_id)}</td></tr>
                             <tr><td>グループ名</td><td>{self.escape(ha.group_name) if ha.group_name else "-"}</td></tr>
-                            <tr><td>優先度</td><td>{self.escape(ha.priority) if ha.priority else "-"}</td></tr>
+                            <tr><td>優先度</td><td>{self._with_default_annotation(ha.priority, 'ha.priority') if ha.priority else "-"}</td></tr>
                             <tr><td>プリエンプト</td><td>{'有効' if ha.preempt else '無効'}</td></tr>
                             <tr><td>HA管理ステータス</td><td>{'有効' if ha.ha_mgmt_status else '無効'}</td></tr>
                         </table>
@@ -2080,8 +2120,8 @@ class HTMLExporter:
                         <table class="table table-sm table-bordered">
                             <tr><td>セッション同期</td><td>{'有効' if ha.session_sync else '無効'}</td></tr>
                             <tr><td>セッションピックアップ</td><td>{'有効' if ha.session_pickup else '無効'}</td></tr>
-                            <tr><td>ハートビート間隔</td><td>{self._with_default(ha.hb_interval, 'ha_hb_interval')}</td></tr>
-                            <tr><td>ハートビート損失閾値</td><td>{self._with_default(ha.hb_lost_threshold, 'ha_hb_lost_threshold')}</td></tr>
+                            <tr><td>ハートビート間隔</td><td>{self._with_default_annotation(ha.hb_interval, 'ha.hb_interval')}</td></tr>
+                            <tr><td>ハートビート損失閾値</td><td>{self._with_default_annotation(ha.hb_lost_threshold, 'ha.hb_lost_threshold')}</td></tr>
                             <tr><td>暗号化</td><td>{'有効' if ha.encryption else '無効'}</td></tr>
                             <tr><td>認証</td><td>{'有効' if ha.authentication else '無効'}</td></tr>
                         </table>

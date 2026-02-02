@@ -66,6 +66,19 @@ class TestHtmlFormatter:
         assert "primary" in result
         assert "success" in result
 
+    def test_with_default_annotation_is_default(self):
+        """デフォルト値アノテーション（デフォルト時）"""
+        result = HtmlFormatter.with_default_annotation("128", True)
+        assert "128" in result
+        assert "デフォルト値" in result
+        assert "text-muted" in result
+
+    def test_with_default_annotation_not_default(self):
+        """デフォルト値アノテーション（非デフォルト時）"""
+        result = HtmlFormatter.with_default_annotation("200", False)
+        assert result == "200"
+        assert "デフォルト値" not in result
+
 
 class TestHTMLExporter:
     """HTMLエクスポーターのテスト"""
@@ -153,6 +166,70 @@ class TestHTMLExporter:
 
         # PDF用はscriptタグを含まない
         assert "<script>" not in html or "search" not in html.lower()
+
+    def test_export_contains_nat_mode(self, sample_config_model):
+        """NATモードが含まれていることを確認"""
+        exporter = HTMLExporter(sample_config_model)
+        html = exporter.export()
+
+        # デフォルトはPolicy Base NAT
+        assert "Policy Base NAT" in html
+
+    def test_export_contains_central_nat_mode(self, sample_config_model):
+        """Central NATモードが含まれていることを確認"""
+        sample_config_model.system_settings.central_nat = True
+        exporter = HTMLExporter(sample_config_model)
+        html = exporter.export()
+
+        assert "Central NAT" in html
+
+    def test_export_contains_central_snat_section(self, sample_config_model):
+        """Central SNAT Mapセクションが含まれていることを確認"""
+        from models.config import NATPolicy
+
+        sample_config_model.system_settings.central_nat = True
+        sample_config_model.nat_policies.append(
+            NATPolicy(
+                name="1",
+                nat_type="central-snat",
+                original_source="10.0.0.0/24",
+                original_destination="all",
+                nat_ippool="SNAT-Pool-1",
+                protocol="0",
+                interface="port2 -> port1",
+                vdom="root",
+                enabled=True,
+            )
+        )
+
+        exporter = HTMLExporter(sample_config_model)
+        html = exporter.export()
+
+        assert "Central SNAT Map" in html
+        assert "SNAT-Pool-1" in html
+        assert "10.0.0.0/24" in html
+
+    def test_export_default_annotation_in_ha(self, sample_config_model):
+        """HA設定でデフォルト値アノテーションが表示されることを確認"""
+        from models.config import HAMode, HASettings
+
+        sample_config_model.ha = HASettings(
+            mode=HAMode.ACTIVE_PASSIVE,
+            group_id="1",
+            priority="128",
+            hb_interval="2",
+            hb_lost_threshold="6",
+        )
+        sample_config_model.default_fields = {
+            "ha.priority",
+            "ha.hb_interval",
+            "ha.hb_lost_threshold",
+        }
+
+        exporter = HTMLExporter(sample_config_model)
+        html = exporter.export()
+
+        assert "デフォルト値" in html
 
     def test_escape_special_characters(self, sample_config_model):
         """特殊文字のエスケープ"""
