@@ -657,22 +657,206 @@ class TestPaloAltoParser:
         assert route.destination == "10.10.10.0/24"
         assert route.route_type == "blackhole"
 
-    def test_parse_cidr_conversion_address(self):
-        """アドレスオブジェクトのCIDR変換"""
+
+class TestPaloAltoParserEnhanced:
+    """Palo Altoパーサー強化テスト"""
+
+    def test_parse_detail_version(self):
+        """detail-version が version より優先されること"""
+        config_content = """<?xml version="1.0"?>
+<config version="10.2.0" detail-version="10.2.7">
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <system><hostname>PA-VERSION</hostname></system>
+      </deviceconfig>
+    </entry>
+  </devices>
+</config>
+"""
+        parser = PaloAltoParser()
+        config = parser.parse_content(config_content, "test.xml")
+        assert config.device_info.os_version == "10.2.7"
+
+    def test_parse_detail_version_fallback(self):
+        """detail-version がない場合は version を使用すること"""
+        config_content = """<?xml version="1.0"?>
+<config version="10.2.0">
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <system><hostname>PA-VERSION</hostname></system>
+      </deviceconfig>
+    </entry>
+  </devices>
+</config>
+"""
+        parser = PaloAltoParser()
+        config = parser.parse_content(config_content, "test.xml")
+        assert config.device_info.os_version == "10.2.0"
+
+    def test_parse_management_interface_default(self):
+        """管理インターフェースのデフォルト値が Management であること"""
+        config_content = """<?xml version="1.0"?>
+<config version="10.2.0">
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <system>
+          <hostname>PA-MGMT</hostname>
+          <ip-address>10.0.0.1</ip-address>
+        </system>
+      </deviceconfig>
+    </entry>
+  </devices>
+</config>
+"""
+        parser = PaloAltoParser()
+        config = parser.parse_content(config_content, "test.xml")
+        assert config.system_settings.management_interface == "Management"
+
+    def test_parse_interface_management_profile(self):
+        """interface-management-profile の許可プロトコルがパースされること"""
+        config_content = """<?xml version="1.0"?>
+<config version="10.2.0">
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <system>
+          <hostname>PA-IMP</hostname>
+          <ip-address>10.0.0.1</ip-address>
+        </system>
+      </deviceconfig>
+      <network>
+        <profiles>
+          <interface-management-profile>
+            <entry name="Ping">
+              <ping>yes</ping>
+            </entry>
+          </interface-management-profile>
+        </profiles>
+      </network>
+    </entry>
+  </devices>
+</config>
+"""
+        parser = PaloAltoParser()
+        config = parser.parse_content(config_content, "test.xml")
+        assert "ping" in config.system_settings.allowed_protocols
+
+    def test_parse_default_protocols_when_no_profile(self):
+        """管理プロファイルがない場合、デフォルトのhttps, ssh, pingが設定されること"""
+        config_content = """<?xml version="1.0"?>
+<config version="10.2.0">
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <system>
+          <hostname>PA-DEFAULT</hostname>
+          <ip-address>10.0.0.1</ip-address>
+        </system>
+      </deviceconfig>
+    </entry>
+  </devices>
+</config>
+"""
+        parser = PaloAltoParser()
+        config = parser.parse_content(config_content, "test.xml")
+        assert "https" in config.system_settings.allowed_protocols
+        assert "ssh" in config.system_settings.allowed_protocols
+        assert "ping" in config.system_settings.allowed_protocols
+
+    def test_parse_permitted_ip_to_trust_hosts(self):
+        """permitted-ipが管理者ユーザーの信頼ホストに格納されること"""
+        config_content = """<?xml version="1.0"?>
+<config version="10.2.0">
+  <mgt-config>
+    <users>
+      <entry name="admin">
+        <permissions><role-based><superuser>yes</superuser></role-based></permissions>
+      </entry>
+    </users>
+  </mgt-config>
+  <devices>
+    <entry name="localhost.localdomain">
+      <deviceconfig>
+        <system>
+          <hostname>PA-TRUST</hostname>
+          <ip-address>10.0.0.1</ip-address>
+          <permitted-ip>
+            <entry name="192.168.1.0/24"/>
+            <entry name="10.0.0.0/8"/>
+          </permitted-ip>
+        </system>
+      </deviceconfig>
+    </entry>
+  </devices>
+</config>
+"""
+        parser = PaloAltoParser()
+        config = parser.parse_content(config_content, "test.xml")
+        assert len(config.system_settings.admin_users) == 1
+        admin = config.system_settings.admin_users[0]
+        assert "192.168.1.0/24" in admin.trust_hosts
+        assert "10.0.0.0/8" in admin.trust_hosts
+
+    def test_parse_nat_enhanced(self):
+        """NAT強化: static-ip, translated-port, ゾーン情報"""
         config_content = """<?xml version="1.0"?>
 <config version="10.2.0">
   <devices>
     <entry name="localhost.localdomain">
       <vsys>
         <entry name="vsys1">
-          <address>
-            <entry name="Server-A">
-              <ip-netmask>10.0.0.10 255.255.255.255</ip-netmask>
-            </entry>
-            <entry name="Network-Internal">
-              <ip-netmask>192.168.1.0 255.255.255.0</ip-netmask>
-            </entry>
-          </address>
+          <rulebase>
+            <nat>
+              <rules>
+                <entry name="SNAT-Dynamic">
+                  <from><member>trust</member></from>
+                  <to><member>untrust</member></to>
+                  <source><member>any</member></source>
+                  <destination><member>any</member></destination>
+                  <service>any</service>
+                  <to-interface>ethernet1/1</to-interface>
+                  <source-translation>
+                    <dynamic-ip-and-port>
+                      <interface-address>
+                        <interface>ethernet1/1</interface>
+                        <ip>10.0.0.1/24</ip>
+                      </interface-address>
+                    </dynamic-ip-and-port>
+                  </source-translation>
+                </entry>
+                <entry name="DNAT-PortForward">
+                  <from><member>untrust</member></from>
+                  <to><member>untrust</member></to>
+                  <source><member>any</member></source>
+                  <destination><member>Server-Public</member></destination>
+                  <destination-translation>
+                    <translated-address>10.0.0.10</translated-address>
+                    <translated-port>8080</translated-port>
+                  </destination-translation>
+                </entry>
+                <entry name="Static-SNAT">
+                  <from><member>trust</member></from>
+                  <to><member>untrust</member></to>
+                  <source><member>Server-A</member></source>
+                  <destination><member>any</member></destination>
+                  <source-translation>
+                    <static-ip>
+                      <translated-address>203.0.113.10</translated-address>
+                    </static-ip>
+                  </source-translation>
+                </entry>
+                <entry name="No-NAT">
+                  <from><member>trust</member></from>
+                  <to><member>trust</member></to>
+                  <source><member>any</member></source>
+                  <destination><member>any</member></destination>
+                </entry>
+              </rules>
+            </nat>
+          </rulebase>
         </entry>
       </vsys>
     </entry>
@@ -682,39 +866,73 @@ class TestPaloAltoParser:
         parser = PaloAltoParser()
         config = parser.parse_content(config_content, "test.xml")
 
-        assert len(config.objects.addresses) == 2
-        server_a = next((a for a in config.objects.addresses if a.name == "Server-A"), None)
-        assert server_a is not None
-        assert server_a.value == "10.0.0.10/32"
+        assert len(config.nat_policies) == 4
 
-        network = next((a for a in config.objects.addresses if a.name == "Network-Internal"), None)
-        assert network is not None
-        assert network.value == "192.168.1.0/24"
+        snat = next(n for n in config.nat_policies if n.name == "SNAT-Dynamic")
+        assert snat.nat_type == "snat"
+        assert "ethernet1/1" in snat.translated_source
+        assert "10.0.0.1/24" in snat.translated_source
+        assert snat.interface == "trust -> untrust"
+        assert snat.protocol == "any"
+        assert snat.external_interface == "ethernet1/1"
 
-    def test_parse_cidr_conversion_route(self):
-        """ルートのCIDR変換"""
+        dnat = next(n for n in config.nat_policies if n.name == "DNAT-PortForward")
+        assert dnat.nat_type == "dnat"
+        assert dnat.translated_destination == "10.0.0.10"
+        assert dnat.translated_port == "8080"
+
+        static = next(n for n in config.nat_policies if n.name == "Static-SNAT")
+        assert static.nat_type == "static"
+        assert static.translated_source == "203.0.113.10"
+
+        no_nat = next(n for n in config.nat_policies if n.name == "No-NAT")
+        assert no_nat.nat_type == "nat"
+
+    def test_parse_vpn_crypto_profiles(self):
+        """VPN crypto-profiles のパーステスト"""
         config_content = """<?xml version="1.0"?>
 <config version="10.2.0">
   <devices>
     <entry name="localhost.localdomain">
       <network>
-        <virtual-router>
-          <entry name="default">
-            <routing-table>
-              <ip>
-                <static-route>
-                  <entry name="default">
-                    <destination>0.0.0.0 0.0.0.0</destination>
-                    <nexthop>
-                      <ip-address>192.168.1.254</ip-address>
-                    </nexthop>
-                    <interface>ethernet1/1</interface>
-                  </entry>
-                </static-route>
-              </ip>
-            </routing-table>
-          </entry>
-        </virtual-router>
+        <ike>
+          <crypto-profiles>
+            <ike-crypto-profiles>
+              <entry name="IKE-Profile-1">
+                <encryption>
+                  <member>aes-256-cbc</member>
+                  <member>aes-128-cbc</member>
+                </encryption>
+                <hash>
+                  <member>sha256</member>
+                </hash>
+                <dh-group>
+                  <member>group20</member>
+                  <member>group19</member>
+                </dh-group>
+                <lifetime>
+                  <hours>8</hours>
+                </lifetime>
+              </entry>
+            </ike-crypto-profiles>
+            <ipsec-crypto-profiles>
+              <entry name="IPSec-Profile-1">
+                <esp>
+                  <encryption>
+                    <member>aes-256-cbc</member>
+                  </encryption>
+                  <authentication>
+                    <member>sha256</member>
+                  </authentication>
+                </esp>
+                <dh-group>group20</dh-group>
+                <lifetime>
+                  <hours>1</hours>
+                </lifetime>
+              </entry>
+            </ipsec-crypto-profiles>
+          </crypto-profiles>
+        </ike>
       </network>
     </entry>
   </devices>
@@ -723,6 +941,92 @@ class TestPaloAltoParser:
         parser = PaloAltoParser()
         config = parser.parse_content(config_content, "test.xml")
 
-        assert len(config.routes) == 1
-        route = config.routes[0]
-        assert route.destination == "0.0.0.0/0"
+        ike_profiles = [p for p in config.vpn.ipsec_phase1 if "crypto-profile" in p.name]
+        assert len(ike_profiles) == 1
+        assert "aes-256-cbc" in ike_profiles[0].encryption
+        assert "sha256" in ike_profiles[0].authentication
+        assert "group20" in ike_profiles[0].dh_group
+        assert ike_profiles[0].lifetime == "8h"
+
+        ipsec_profiles = [p for p in config.vpn.ipsec_phase2 if "crypto-profile" in p.name]
+        assert len(ipsec_profiles) == 1
+        assert "aes-256-cbc" in ipsec_profiles[0].encryption
+        assert "sha256" in ipsec_profiles[0].authentication
+        assert ipsec_profiles[0].pfs == "group20"
+        assert ipsec_profiles[0].lifetime == "1h"
+
+    def test_parse_security_profiles_extended(self):
+        """追加セキュリティプロファイルタイプのパーステスト"""
+        config_content = """<?xml version="1.0"?>
+<config version="10.2.0">
+  <devices>
+    <entry name="localhost.localdomain">
+      <vsys>
+        <entry name="vsys1">
+          <profiles>
+            <spyware>
+              <entry name="strict-spyware">
+                <description>Strict anti-spyware</description>
+              </entry>
+            </spyware>
+            <file-blocking>
+              <entry name="basic-file-blocking">
+                <description>Basic file blocking</description>
+              </entry>
+            </file-blocking>
+            <wildfire-analysis>
+              <entry name="default-wildfire">
+                <description>Default wildfire</description>
+              </entry>
+            </wildfire-analysis>
+            <dos-protection>
+              <entry name="dos-profile-1">
+                <description>DoS protection</description>
+              </entry>
+            </dos-protection>
+          </profiles>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>
+"""
+        parser = PaloAltoParser()
+        config = parser.parse_content(config_content, "test.xml")
+
+        types = {p.profile_type for p in config.security_profiles}
+        assert "anti-spyware" in types
+        assert "file-blocking" in types
+        assert "wildfire-analysis" in types
+        assert "dos-protection" in types
+
+    def test_parse_profile_group(self):
+        """profile-group のパーステスト"""
+        config_content = """<?xml version="1.0"?>
+<config version="10.2.0">
+  <devices>
+    <entry name="localhost.localdomain">
+      <vsys>
+        <entry name="vsys1">
+          <profile-group>
+            <entry name="admin-group">
+              <virus><member>default</member></virus>
+              <spyware><member>strict</member></spyware>
+              <vulnerability><member>strict</member></vulnerability>
+              <url-filtering><member>custom-filter</member></url-filtering>
+            </entry>
+          </profile-group>
+        </entry>
+      </vsys>
+    </entry>
+  </devices>
+</config>
+"""
+        parser = PaloAltoParser()
+        config = parser.parse_content(config_content, "test.xml")
+
+        pg = next((p for p in config.security_profiles if p.profile_type == "profile-group"), None)
+        assert pg is not None
+        assert pg.name == "admin-group"
+        assert "virus" in pg.description
+        assert "spyware" in pg.description

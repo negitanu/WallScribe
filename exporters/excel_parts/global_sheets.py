@@ -42,12 +42,14 @@ class ExcelGlobalSheetsMixin:
         ws.row_dimensions[1].height = 36
 
         info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
-        data = [
-            ("クラスタ名", cluster_info.cluster_name),
+        data = []
+        if cluster_info.cluster_name:
+            data.append(("クラスタ名", cluster_info.cluster_name))
+        data.extend([
             ("グループID", cluster_info.group_id),
             ("HAモード", cluster_info.ha_mode.value),
             ("メンバー数", cluster_info.get_member_count()),
-        ]
+        ])
 
         for row_idx, (label, value) in enumerate(data, 3):
             label_cell = ws.cell(row=row_idx, column=1, value=label)

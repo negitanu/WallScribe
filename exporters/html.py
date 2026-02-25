@@ -873,7 +873,10 @@ class HTMLExporter:
 
         ha_status = "未設定"
         if self.config.ha.mode != HAMode.STANDALONE:
-            ha_status = f"{self.config.ha.mode.value} (Group: {self.config.ha.group_id}, Priority: {self.config.ha.priority})"
+            from models.config import DeviceType
+            is_pa = self.config.device_info.device_type == DeviceType.PALOALTO
+            priority_note = "低い方が優先" if is_pa else "高い方が優先"
+            ha_status = f"{self.config.ha.mode.value} (Group: {self.config.ha.group_id}, Priority: {self.config.ha.priority}, {priority_note})"
 
         # ライセンス情報
         license_rows = ""
@@ -1411,19 +1414,31 @@ class HTMLExporter:
         # アドレスオブジェクト（最初の100件）
         addr_rows = ""
         for addr in addresses[:100]:
+            tags_html = ""
+            if hasattr(addr, "tags") and addr.tags:
+                tags_html = " ".join(
+                    f'<span class="tag">{self.escape(t)}</span>' for t in addr.tags
+                )
             addr_rows += f"""<tr>
                 <td>{self.escape(addr.name)}</td>
                 <td>{self.escape(addr.object_type)}</td>
                 <td><code>{self.escape(addr.value)}</code></td>
+                <td>{tags_html}</td>
             </tr>"""
 
         # サービスオブジェクト（最初の100件）
         svc_rows = ""
         for svc in services[:100]:
+            tags_html = ""
+            if hasattr(svc, "tags") and svc.tags:
+                tags_html = " ".join(
+                    f'<span class="tag">{self.escape(t)}</span>' for t in svc.tags
+                )
             svc_rows += f"""<tr>
                 <td>{self.escape(svc.name)}</td>
                 <td>{self.escape(svc.protocol)}</td>
                 <td>{self.escape(svc.port)}</td>
+                <td>{tags_html}</td>
             </tr>"""
 
         return f"""
@@ -1437,16 +1452,16 @@ class HTMLExporter:
                 <h4>アドレスオブジェクト</h4>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover table-bordered">
-                        <tr><th>オブジェクト名</th><th>タイプ</th><th>値</th></tr>
-                        {addr_rows if addr_rows else '<tr><td colspan="3">アドレスオブジェクト設定なし</td></tr>'}
+                        <tr><th>オブジェクト名</th><th>タイプ</th><th>値</th><th>タグ</th></tr>
+                        {addr_rows if addr_rows else '<tr><td colspan="4">アドレスオブジェクト設定なし</td></tr>'}
                     </table>
                 </div>
 
                 <h4>サービスオブジェクト</h4>
                 <div class="table-responsive">
                     <table class="table table-striped table-hover table-bordered">
-                        <tr><th>オブジェクト名</th><th>プロトコル</th><th>ポート</th></tr>
-                        {svc_rows if svc_rows else '<tr><td colspan="3">サービスオブジェクト設定なし</td></tr>'}
+                        <tr><th>オブジェクト名</th><th>プロトコル</th><th>ポート</th><th>タグ</th></tr>
+                        {svc_rows if svc_rows else '<tr><td colspan="4">サービスオブジェクト設定なし</td></tr>'}
                     </table>
                 </div>
             </div>"""
@@ -1467,6 +1482,7 @@ class HTMLExporter:
             else self.config.local_in_policies
         )
         current_vdom = vdom or "root"
+        is_paloalto = self.config.device_info.device_type == DeviceType.PALOALTO
 
         policy_rows = []
         for idx, policy in enumerate(firewall_policies, 1):
@@ -1494,15 +1510,17 @@ class HTMLExporter:
                 else:
                     destination_display = " ".join(internet_services)
 
+            id_cell = "" if is_paloalto else f"<td>{self.escape(policy.policy_id)}</td>"
             policy_rows.append(
                 f"""<tr class="policy-row">
                 <td>{idx}</td>
-                <td>{self.escape(policy.policy_id)}</td>
+                {id_cell}
                 <td>{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
                 <td>{self._interfaces_to_lines_with_tooltip(policy.source_interface, current_vdom)}</td>
                 <td>{self._interfaces_to_lines_with_tooltip(policy.destination_interface, current_vdom)}</td>
                 <td>{self._addresses_to_lines_with_tooltip(policy.source_address, current_vdom)}</td>
                 <td>{destination_display}</td>
+                {'<td>' + ' '.join(f'<span class="tag">{self.escape(app)}</span>' for app in policy.application) + '</td>' if is_paloalto else ''}
                 <td>{self._services_to_badges_with_tooltip(policy.service, current_vdom)}</td>
                 <td class="{self._get_action_class(policy.action)}">{self.escape(policy.action.value)}</td>
                 <td>{"有効" if policy.nat_enabled else "無効"}</td>
@@ -1528,10 +1546,11 @@ class HTMLExporter:
             else:
                 source_if_display = "-"
 
+            local_id_cell = "" if is_paloalto else f"<td>{self.escape(policy.policy_id)}</td>"
             local_in_rows.append(
                 f"""<tr class="policy-row">
                 <td>{idx}</td>
-                <td>{self.escape(policy.policy_id)}</td>
+                {local_id_cell}
                 <td>{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
                 <td>{source_if_display}</td>
                 <td>{self._addresses_to_lines_with_tooltip(policy.source_address, current_vdom)}</td>
@@ -1556,12 +1575,13 @@ class HTMLExporter:
                         <thead>
                             <tr>
                                 <th>No</th>
-                                <th>ID</th>
+                                {"" if is_paloalto else "<th>ID</th>"}
                                 <th>ポリシー名</th>
                                 <th>送信元IF</th>
                                 <th>宛先IF</th>
                                 <th>送信元アドレス</th>
                                 <th>宛先アドレス</th>
+                                {"<th>アプリケーション</th>" if is_paloalto else ""}
                                 <th>サービス</th>
                                 <th>アクション</th>
                                 <th>NAT</th>
@@ -1571,7 +1591,7 @@ class HTMLExporter:
                             </tr>
                         </thead>
                         <tbody>
-                            {''.join(policy_rows) if policy_rows else '<tr><td colspan="13">ポリシー設定なし</td></tr>'}
+                            {''.join(policy_rows) if policy_rows else f'<tr><td colspan="{13 if is_paloalto else 13}">ポリシー設定なし</td></tr>'}
                         </tbody>
                     </table>
                 </div>
@@ -1582,7 +1602,7 @@ class HTMLExporter:
                         <thead>
                             <tr>
                                 <th>No</th>
-                                <th>ID</th>
+                                {"" if is_paloalto else "<th>ID</th>"}
                                 <th>ポリシー名</th>
                                 <th>送信元IF</th>
                                 <th>送信元アドレス</th>
@@ -1593,7 +1613,7 @@ class HTMLExporter:
                             </tr>
                         </thead>
                         <tbody>
-                            {''.join(local_in_rows) if local_in_rows else '<tr><td colspan="9">Local-in ポリシー設定なし</td></tr>'}
+                            {''.join(local_in_rows) if local_in_rows else f'<tr><td colspan="{8 if is_paloalto else 9}">Local-in ポリシー設定なし</td></tr>'}
                         </tbody>
                     </table>
                 </div>
@@ -1705,16 +1725,22 @@ class HTMLExporter:
     ) -> str:
         """VPN設定セクション（VDOM単位）"""
         # VDOMでフィルタリング
-        ipsec_phase1 = (
-            self._filter_by_vdom(self.config.vpn.ipsec_phase1, vdom)
-            if vdom
-            else self.config.vpn.ipsec_phase1
-        )
-        ipsec_phase2 = (
-            self._filter_by_vdom(self.config.vpn.ipsec_phase2, vdom)
-            if vdom
-            else self.config.vpn.ipsec_phase2
-        )
+        # VPN設定はネットワークレベル（Palo Alto: device/network配下）のため、
+        # vdom属性を持たないエントリは最初のvsysで表示する
+        from models.config import DeviceType
+        is_paloalto = self.config.device_info.device_type == DeviceType.PALOALTO
+        first_vdom = self._get_vdom_list()[0] if self._get_vdom_list() else "root"
+        if vdom:
+            if is_paloalto and vdom == first_vdom:
+                # Palo Altoの最初のvsysでは全VPN設定を表示
+                ipsec_phase1 = self.config.vpn.ipsec_phase1
+                ipsec_phase2 = self.config.vpn.ipsec_phase2
+            else:
+                ipsec_phase1 = self._filter_by_vdom(self.config.vpn.ipsec_phase1, vdom)
+                ipsec_phase2 = self._filter_by_vdom(self.config.vpn.ipsec_phase2, vdom)
+        else:
+            ipsec_phase1 = self.config.vpn.ipsec_phase1
+            ipsec_phase2 = self.config.vpn.ipsec_phase2
         ssl_vpn = (
             self._filter_by_vdom(self.config.vpn.ssl_vpn, vdom) if vdom else self.config.vpn.ssl_vpn
         )
@@ -2014,7 +2040,7 @@ class HTMLExporter:
                     <div class="info-card">
                         <h4>クラスタ情報</h4>
                         <table class="table table-sm table-bordered">
-                            <tr><td>クラスタ名</td><td><strong>{self.escape(cluster_info.cluster_name)}</strong></td></tr>
+                            {'<tr><td>クラスタ名</td><td><strong>' + self.escape(cluster_info.cluster_name) + '</strong></td></tr>' if cluster_info.cluster_name else ''}
                             <tr><td>グループID</td><td>{self.escape(cluster_info.group_id)}</td></tr>
                             <tr><td>HAモード</td><td>{self.escape(cluster_info.ha_mode.value)}</td></tr>
                             <tr><td>メンバー数</td><td>{cluster_info.get_member_count()}</td></tr>

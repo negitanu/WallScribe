@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from models.cluster import ClusterConfig, HAClusterInfo, HAMemberInfo, HARole
-from models.config import ConfigModel, DeviceInfo, HAManagementInterface, HAMode, HASettings
+from models.config import ConfigModel, DeviceInfo, DeviceType, HAManagementInterface, HAMode, HASettings
 from parsers.cluster import (
     _build_cluster_config,
     _detect_config_differences,
@@ -449,3 +449,72 @@ class TestBuildClusterConfig:
         assert result.is_cluster is True
         assert len(result.cluster_info.members) == 2
         assert result.primary_config is not None
+
+
+class TestPaloAltoHAPriority:
+    """Palo Alto HA優先度テスト"""
+
+    def test_paloalto_lower_priority_is_primary(self):
+        """Palo Altoでは低い優先度がPrimaryになること"""
+        config1 = ConfigModel()
+        config1.device_info.hostname = "PA-01"
+        config1.device_info.device_type = DeviceType.PALOALTO
+        config1.ha = HASettings(mode=HAMode.ACTIVE_PASSIVE, group_id="1", priority="120")
+
+        config2 = ConfigModel()
+        config2.device_info.hostname = "PA-02"
+        config2.device_info.device_type = DeviceType.PALOALTO
+        config2.ha = HASettings(mode=HAMode.ACTIVE_PASSIVE, group_id="1", priority="100")
+
+        members = _determine_ha_roles(
+            [("/path/pa1.xml", config1), ("/path/pa2.xml", config2)]
+        )
+
+        assert len(members) == 2
+        primary = next(m for m in members if m.role == HARole.PRIMARY)
+        secondary = next(m for m in members if m.role == HARole.SECONDARY)
+        assert primary.hostname == "PA-02"  # priority=100 が Primary
+        assert secondary.hostname == "PA-01"  # priority=120 が Secondary
+
+    def test_fortigate_higher_priority_is_primary(self):
+        """FortiGateでは高い優先度がPrimaryになること（既存動作を維持）"""
+        config1 = ConfigModel()
+        config1.device_info.hostname = "FG-01"
+        config1.device_info.device_type = DeviceType.FORTIGATE
+        config1.ha = HASettings(mode=HAMode.ACTIVE_PASSIVE, group_id="1", priority="200")
+
+        config2 = ConfigModel()
+        config2.device_info.hostname = "FG-02"
+        config2.device_info.device_type = DeviceType.FORTIGATE
+        config2.ha = HASettings(mode=HAMode.ACTIVE_PASSIVE, group_id="1", priority="100")
+
+        members = _determine_ha_roles(
+            [("/path/fg1.conf", config1), ("/path/fg2.conf", config2)]
+        )
+
+        assert len(members) == 2
+        primary = next(m for m in members if m.role == HARole.PRIMARY)
+        assert primary.hostname == "FG-01"  # priority=200 が Primary
+
+    def test_paloalto_cluster_name_empty(self):
+        """Palo Altoではクラスタ名が空になること"""
+        config1 = ConfigModel()
+        config1.device_info.hostname = "PA-01"
+        config1.device_info.device_type = DeviceType.PALOALTO
+        config1.ha = HASettings(
+            mode=HAMode.ACTIVE_PASSIVE, group_id="1", priority="100", group_name="HA-GRP"
+        )
+
+        config2 = ConfigModel()
+        config2.device_info.hostname = "PA-02"
+        config2.device_info.device_type = DeviceType.PALOALTO
+        config2.ha = HASettings(
+            mode=HAMode.ACTIVE_PASSIVE, group_id="1", priority="120", group_name="HA-GRP"
+        )
+
+        result = _build_cluster_config(
+            [("/path/pa1.xml", config1), ("/path/pa2.xml", config2)]
+        )
+
+        assert result.is_cluster is True
+        assert result.cluster_info.cluster_name == ""

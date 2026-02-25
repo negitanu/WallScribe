@@ -282,6 +282,7 @@ class AddressObject:
     value: str = ""
     vdom: str = "root"
     description: str = ""
+    tags: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -303,6 +304,7 @@ class ServiceObject:
     port: str = ""
     vdom: str = "root"
     description: str = ""
+    tags: List[str] = field(default_factory=list)
 
 
 @dataclass

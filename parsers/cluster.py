@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, cast
 
 from models.cluster import ClusterConfig, ConfigDifference, HAClusterInfo, HAMemberInfo, HARole
-from models.config import ConfigModel, HAMode
+from models.config import ConfigModel, DeviceType, HAMode
 from parsers.base import detect_encoding, get_parser_for_content, get_parser_for_file
 
 logger = logging.getLogger(__name__)
@@ -258,8 +258,14 @@ def _build_cluster_config(configs: List[Tuple[str, ConfigModel]]) -> ClusterConf
 
     # クラスタ情報を構築
     first_config = configs[0][1]
+    is_paloalto = first_config.device_info.device_type == DeviceType.PALOALTO
+    # Palo Altoの場合、クラスタ名は空にする（group_nameの概念がない）
+    if is_paloalto:
+        cluster_name = ""
+    else:
+        cluster_name = first_config.ha.group_name or first_config.device_info.hostname
     cluster_info = HAClusterInfo(
-        cluster_name=first_config.ha.group_name or first_config.device_info.hostname,
+        cluster_name=cluster_name,
         group_id=first_config.ha.group_id,
         ha_mode=first_config.ha.mode,
         members=members,
@@ -332,14 +338,20 @@ def _determine_ha_roles(configs: List[Tuple[str, ConfigModel]]) -> List[HAMember
             }
         )
 
-    # 優先度でソート（降順：高い方がPrimary）
+    # デバイスタイプを判定してソート順を決定
+    # Palo Alto: 低い優先度がPrimary（昇順）
+    # FortiGate: 高い優先度がPrimary（降順）
+    is_paloalto = any(
+        config.device_info.device_type == DeviceType.PALOALTO for _, config in configs
+    )
+
     def get_priority(item: Dict[str, Any]) -> int:
         try:
             return int(item["priority"])
         except (ValueError, TypeError):
             return 0
 
-    temp_members.sort(key=get_priority, reverse=True)
+    temp_members.sort(key=get_priority, reverse=not is_paloalto)
 
     # ソート後、各メンバーにHA管理インターフェースのエントリを順番に割り当て
     # FortiGateのha-mgmt-interfacesはID=1がprimary、ID=2がsecondaryに対応

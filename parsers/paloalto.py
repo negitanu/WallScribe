@@ -146,7 +146,9 @@ class PaloAltoParser(BaseConfigParser):
     def _parse_device_info(self):
         """機器情報をパース"""
         if self.root is not None:
-            self.config_model.device_info.os_version = self.root.get("version", "")
+            self.config_model.device_info.os_version = (
+                self.root.get("detail-version") or self.root.get("version", "")
+            )
 
         if self.device is None:
             return
@@ -220,13 +222,37 @@ class PaloAltoParser(BaseConfigParser):
                         )
                         self.config_model.system_settings.admin_users.append(admin)
 
-        # Permitted IPs
+        # Management interface default
+        if not self.config_model.system_settings.management_interface:
+            self.config_model.system_settings.management_interface = "Management"
+
+        # Permitted IPs（接続許可元）→ 管理者ユーザーの信頼ホストに格納
         permitted = system.find("permitted-ip")
         if permitted is not None:
+            permitted_ips = []
             for entry in permitted.findall("entry"):
                 ip = entry.get("name", "")
                 if ip:
-                    self.config_model.system_settings.allowed_protocols.append(ip)
+                    permitted_ips.append(ip)
+            if permitted_ips:
+                # 全管理者ユーザーの trust_hosts に接続許可元を設定
+                for admin in self.config_model.system_settings.admin_users:
+                    admin.trust_hosts = permitted_ips.copy()
+
+        # Interface management profiles - 許可プロトコルをパース
+        has_protocols = False
+        network = self.device.find("network") if self.device is not None else None
+        if network is not None:
+            mgmt_profiles = network.findall("profiles/interface-management-profile/entry")
+            for profile_entry in mgmt_profiles:
+                for proto_elem in profile_entry:
+                    if proto_elem.text and proto_elem.text.strip().lower() == "yes":
+                        self.config_model.system_settings.allowed_protocols.append(proto_elem.tag)
+                        has_protocols = True
+
+        # 許可プロトコルが未設定の場合、デフォルト値を設定
+        if not has_protocols:
+            self.config_model.system_settings.allowed_protocols.extend(["https", "ssh", "ping"])
 
     def _parse_interfaces(self):
         """インターフェースをパース"""
@@ -267,6 +293,19 @@ class PaloAltoParser(BaseConfigParser):
                 if iface:
                     self.config_model.interfaces.append(iface)
 
+                    # Sub-interfaces (Layer3 units)
+                    layer3 = entry.find("layer3")
+                    if layer3 is not None:
+                        units = layer3.find("units")
+                        if units is not None:
+                            for unit in units.findall("entry"):
+                                sub_iface = self._parse_interface_entry(unit, "vlan")
+                                if sub_iface:
+                                    sub_name = unit.get("name", "")
+                                    if "." in sub_name:
+                                        sub_iface.vlan_id = sub_name.split(".")[-1]
+                                    self.config_model.interfaces.append(sub_iface)
+
         # Loopback interfaces
         loopback = network.find("interface/loopback")
         if loopback is not None:
@@ -289,6 +328,12 @@ class PaloAltoParser(BaseConfigParser):
 
         # Parse zones to associate with interfaces
         self._parse_zones()
+
+        # ゾーン未割り当てのインターフェースに最初のvsysを設定
+        first_vsys = self._get_first_vsys_name()
+        for iface in self.config_model.interfaces:
+            if iface.vdom == "root":
+                iface.vdom = first_vsys
 
     def _parse_interface_entry(self, entry: ET.Element, iface_type: str) -> Optional[Interface]:
         """インターフェースエントリをパース"""
@@ -345,10 +390,22 @@ class PaloAltoParser(BaseConfigParser):
                                     iface.zone = zone_name
                                     iface.vdom = vsys_name
 
+    def _get_first_vsys_name(self) -> str:
+        """最初のvsys名を取得（ネットワークレベル設定のvdom割り当て用）"""
+        if self.device is None:
+            return "root"
+        vsys_entries = self.device.findall(".//vsys/entry")
+        if vsys_entries:
+            return vsys_entries[0].get("name", "vsys1")
+        return "root"
+
     def _parse_routes(self):
         """ルーティングをパース"""
         if self.device is None:
             return
+
+        # ルートはnetwork/virtual-router配下（vsysの外）のため、最初のvsysに紐付ける
+        first_vsys = self._get_first_vsys_name()
 
         # Virtual routers
         vr_entries = self.device.findall("network/virtual-router/entry")
@@ -381,6 +438,7 @@ class PaloAltoParser(BaseConfigParser):
                     interface=self._get_text(route_entry, "interface"),
                     distance=self._get_text(route_entry, "metric"),
                     route_type=route_type,
+                    vdom=first_vsys,
                 )
                 self.config_model.routes.append(route)
 
@@ -389,26 +447,42 @@ class PaloAltoParser(BaseConfigParser):
         if self.device is None:
             return
 
+        # DHCPはnetwork/dhcp配下（vsysの外）のため、最初のvsysに紐付ける
+        first_vsys = self._get_first_vsys_name()
+
         dhcp_entries = self.device.findall("network/dhcp/interface/entry")
         for dhcp_entry in dhcp_entries:
             interface_name = dhcp_entry.get("name", "")
 
             server = dhcp_entry.find("server")
             if server is not None:
-                ip_pool = server.find("ip-pool/entry")
                 start_ip = ""
                 end_ip = ""
-                if ip_pool is not None:
-                    pool_name = ip_pool.get("name", "")
-                    if "-" in pool_name:
-                        start_ip, end_ip = pool_name.split("-", 1)
+
+                # ip-pool: member形式（Palo Alto標準）またはentry形式
+                ip_pool_members = server.findall("ip-pool/member")
+                if ip_pool_members:
+                    pool_range = ip_pool_members[0].text or ""
+                    if "-" in pool_range:
+                        start_ip, end_ip = pool_range.split("-", 1)
+                else:
+                    # entry形式（フォールバック）
+                    ip_pool_entry = server.find("ip-pool/entry")
+                    if ip_pool_entry is not None:
+                        pool_name = ip_pool_entry.get("name", "")
+                        if "-" in pool_name:
+                            start_ip, end_ip = pool_name.split("-", 1)
+
+                netmask = self._get_text(server, "option/subnet-mask")
 
                 dhcp = DHCPServer(
                     interface=interface_name,
-                    start_ip=start_ip,
-                    end_ip=end_ip,
+                    start_ip=start_ip.strip(),
+                    end_ip=end_ip.strip(),
+                    netmask=netmask,
                     gateway=self._get_text(server, "option/gateway"),
                     lease_time=self._get_text(server, "option/lease/timeout"),
+                    vdom=first_vsys,
                 )
 
                 # DNS servers
@@ -458,6 +532,7 @@ class PaloAltoParser(BaseConfigParser):
                 value=value,
                 vdom=vsys_name,
                 description=self._get_text(addr_entry, "description"),
+                tags=self._get_members(addr_entry, "tag"),
             )
             self.config_model.objects.addresses.append(addr_obj)
 
@@ -496,6 +571,7 @@ class PaloAltoParser(BaseConfigParser):
                 port=port,
                 vdom=vsys_name,
                 description=self._get_text(svc_entry, "description"),
+                tags=self._get_members(svc_entry, "tag"),
             )
             self.config_model.objects.services.append(svc_obj)
 
@@ -580,38 +656,74 @@ class PaloAltoParser(BaseConfigParser):
                 nat_type = ""
                 translated_src = ""
                 translated_dst = ""
+                translated_port = ""
 
                 if src_translation is not None:
                     nat_type = "snat"
-                    # Dynamic IP/port
+                    # Dynamic IP and port
                     dynamic_ip = src_translation.find("dynamic-ip-and-port")
                     if dynamic_ip is not None:
                         interface_addr = dynamic_ip.find("interface-address")
                         if interface_addr is not None:
                             translated_src = self._get_text(interface_addr, "interface")
+                            # IP pool (NAT IP)
+                            nat_ip = self._get_text(interface_addr, "ip")
+                            if nat_ip:
+                                translated_src += f" ({nat_ip})"
+                        # translated-address (dynamic-ip-and-port直下)
+                        if not translated_src:
+                            ta = dynamic_ip.find("translated-address")
+                            if ta is not None:
+                                members = [m.text for m in ta.findall("member") if m.text]
+                                if members:
+                                    translated_src = ", ".join(members)
+
+                    # Static IP translation
+                    static_ip = src_translation.find("static-ip")
+                    if static_ip is not None:
+                        translated_src = self._get_text(static_ip, "translated-address")
+                        nat_type = "static"
 
                 if dst_translation is not None:
-                    if nat_type:
+                    if nat_type and nat_type != "static":
                         nat_type = "static"
-                    else:
+                    elif not nat_type:
                         nat_type = "dnat"
                     translated_dst = self._get_text(dst_translation, "translated-address")
+                    translated_port = self._get_text(dst_translation, "translated-port")
 
-                if nat_type:
-                    original_src = self._get_members(rule_entry, "source")
-                    original_dst = self._get_members(rule_entry, "destination")
+                # ゾーン情報
+                from_zones = self._get_members(rule_entry, "from")
+                to_zones = self._get_members(rule_entry, "to")
+                zone_info = ""
+                if from_zones or to_zones:
+                    zone_info = f"{', '.join(from_zones)} -> {', '.join(to_zones)}"
 
-                    nat = NATPolicy(
-                        name=name,
-                        nat_type=nat_type,
-                        original_source=", ".join(original_src) if original_src else "",
-                        original_destination=", ".join(original_dst) if original_dst else "",
-                        translated_source=translated_src,
-                        translated_destination=translated_dst,
-                        vdom=vsys_name,
-                        description=self._get_text(rule_entry, "description"),
-                    )
-                    self.config_model.nat_policies.append(nat)
+                # サービス情報
+                service = self._get_text(rule_entry, "service")
+
+                # to-interface
+                to_interface = self._get_text(rule_entry, "to-interface")
+
+                original_src = self._get_members(rule_entry, "source")
+                original_dst = self._get_members(rule_entry, "destination")
+
+                # nat_type が空でも基本情報を保持するルールを作成
+                nat = NATPolicy(
+                    name=name,
+                    nat_type=nat_type if nat_type else "nat",
+                    original_source=", ".join(original_src) if original_src else "",
+                    original_destination=", ".join(original_dst) if original_dst else "",
+                    translated_source=translated_src,
+                    translated_destination=translated_dst,
+                    translated_port=translated_port,
+                    interface=zone_info,
+                    protocol=service,
+                    external_interface=to_interface,
+                    vdom=vsys_name,
+                    description=self._get_text(rule_entry, "description"),
+                )
+                self.config_model.nat_policies.append(nat)
 
     def _parse_vpn(self):
         """VPN設定をパース"""
@@ -621,6 +733,46 @@ class PaloAltoParser(BaseConfigParser):
         network = self.device.find("network")
         if network is None:
             return
+
+        # IKE crypto profiles
+        ike_crypto_profiles = network.findall("ike/crypto-profiles/ike-crypto-profiles/entry")
+        for cp_entry in ike_crypto_profiles:
+            name = cp_entry.get("name", "")
+            encryption = self._get_members(cp_entry, "encryption")
+            hash_algs = self._get_members(cp_entry, "hash")
+            dh_groups = self._get_members(cp_entry, "dh-group")
+            lifetime_hours = self._get_text(cp_entry, "lifetime/hours")
+            lifetime_minutes = self._get_text(cp_entry, "lifetime/minutes")
+            lifetime = lifetime_hours + "h" if lifetime_hours else (lifetime_minutes + "m" if lifetime_minutes else "")
+
+            p1 = IPSecPhase1(
+                name=f"{name} (crypto-profile)",
+                encryption=", ".join(encryption),
+                authentication=", ".join(hash_algs),
+                dh_group=", ".join(dh_groups),
+                lifetime=lifetime,
+            )
+            self.config_model.vpn.ipsec_phase1.append(p1)
+
+        # IPSec crypto profiles
+        ipsec_crypto_profiles = network.findall("ike/crypto-profiles/ipsec-crypto-profiles/entry")
+        for cp_entry in ipsec_crypto_profiles:
+            name = cp_entry.get("name", "")
+            esp_encryption = self._get_members(cp_entry, "esp/encryption")
+            esp_auth = self._get_members(cp_entry, "esp/authentication")
+            dh_group = self._get_text(cp_entry, "dh-group")
+            lifetime_hours = self._get_text(cp_entry, "lifetime/hours")
+            lifetime_minutes = self._get_text(cp_entry, "lifetime/minutes")
+            lifetime = lifetime_hours + "h" if lifetime_hours else (lifetime_minutes + "m" if lifetime_minutes else "")
+
+            p2 = IPSecPhase2(
+                name=f"{name} (crypto-profile)",
+                encryption=", ".join(esp_encryption),
+                authentication=", ".join(esp_auth),
+                pfs=dh_group,
+                lifetime=lifetime,
+            )
+            self.config_model.vpn.ipsec_phase2.append(p2)
 
         # IKE gateways
         ike_gateways = network.findall("ike/gateway/entry")
@@ -680,6 +832,10 @@ class PaloAltoParser(BaseConfigParser):
                 ("profiles/url-filtering/entry", "webfilter"),
                 ("profiles/vulnerability/entry", "ips"),
                 ("profiles/decryption/entry", "ssl-inspection"),
+                ("profiles/spyware/entry", "anti-spyware"),
+                ("profiles/file-blocking/entry", "file-blocking"),
+                ("profiles/wildfire-analysis/entry", "wildfire-analysis"),
+                ("profiles/dos-protection/entry", "dos-protection"),
             ]
 
             for path, profile_type in profile_types:
@@ -724,6 +880,28 @@ class PaloAltoParser(BaseConfigParser):
                         self.config_model.security_profiles_detail.ssl_inspection.append(
                             ssl_profile
                         )
+
+            # Profile groups
+            profile_groups = vsys.findall("profile-group/entry")
+            for pg_entry in profile_groups:
+                pg_name = pg_entry.get("name", "")
+                member_types = [
+                    "virus", "spyware", "vulnerability",
+                    "url-filtering", "wildfire-analysis", "file-blocking",
+                ]
+                member_list = []
+                for mt in member_types:
+                    members = self._get_members(pg_entry, mt)
+                    if members:
+                        member_list.append(f"{mt}: {', '.join(members)}")
+
+                profile = SecurityProfile(
+                    name=pg_name,
+                    profile_type="profile-group",
+                    vdom=vsys_name,
+                    description="; ".join(member_list) if member_list else "",
+                )
+                self.config_model.security_profiles.append(profile)
 
     def _parse_ha(self):
         """HA設定をパース"""
