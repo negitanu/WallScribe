@@ -441,13 +441,13 @@ def _add_policy_routes(config_model: ConfigModel, policy_route: Dict, vdom: str)
                 # src/dstの処理
                 src = route_data.get("src", "")
                 if isinstance(src, list):
-                    src = " ".join(str(x) for x in src)
+                    src = " ".join(ip_to_cidr(str(x)) for x in src if x)
                 elif src:
                     src = ip_to_cidr(src)
 
                 dst = route_data.get("dst", "")
                 if isinstance(dst, list):
-                    dst = " ".join(str(x) for x in dst)
+                    dst = " ".join(ip_to_cidr(str(x)) for x in dst if x)
                 elif dst:
                     dst = ip_to_cidr(dst)
 

@@ -248,7 +248,10 @@ def _add_central_snat(config_model: ConfigModel, config: Dict, vdom: str) -> Non
                     original_source=orig_addr,
                     original_destination=dst_addr,
                     nat_ippool=nat_ippool,
-                    interface=f"{srcintf} -> {dstintf}" if srcintf or dstintf else "",
+                    interface=(
+                        f"{srcintf} -> {dstintf}" if srcintf and dstintf
+                        else srcintf or dstintf or ""
+                    ),
                     protocol=str(protocol),
                     vdom=vdom,
                     enabled=snat_data.get("status", "") != "disable",

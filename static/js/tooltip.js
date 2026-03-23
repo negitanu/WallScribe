@@ -93,7 +93,7 @@
             arrowLeft = Math.max(left, Math.min(rect.left + (rect.width / 2) - arrowSize, left + tooltipWidth - arrowSize * 2));
         }
 
-        // 画面上端からはみ出さない場合は下に表示
+        // 画面上端からはみ出す場合は下に表示
         let showBelow = false;
         if (top < margin) {
             top = rect.bottom + spacing + arrowSize;
@@ -119,8 +119,10 @@
         createTooltip();
         currentTarget = target;
 
-        // data-tooltip にはツールチップ用HTML（テーブル等）が入る想定。
+        // data-tooltip にはサーバー側（HTMLExporter）で生成・エスケープ済みの
+        // ツールチップ用HTML（テーブル等）が入る想定。
         // textContent だとタグがそのまま表示されるため、innerHTMLで描画する。
+        // 注意: ユーザー入力を直接含めないこと（XSSリスク）
         tooltipElement.innerHTML = tooltipText;
         
         // 一時的に表示してサイズを取得

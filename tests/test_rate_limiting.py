@@ -28,7 +28,7 @@ class TestRateLimiting:
             assert hasattr(app, "limiter")
             assert hasattr(app, "LIMITER_AVAILABLE")
         except ImportError as e:
-            # 他の依存関係のエラーは無視
+            # flask_limiter以外のImportErrorは再送出
             if "flask_limiter" not in str(e):
                 raise
 

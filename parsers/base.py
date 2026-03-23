@@ -27,7 +27,7 @@ def detect_encoding(data: bytes) -> Tuple[str, str]:
         UnicodeDecodeError: すべてのエンコーディングで失敗した場合
     """
     # 試行するエンコーディングの順序
-    encodings = ["utf-8", "utf-8-sig", "cp932", "latin-1"]
+    encodings = ["utf-8-sig", "utf-8", "cp932", "latin-1"]
 
     for encoding in encodings:
         try:

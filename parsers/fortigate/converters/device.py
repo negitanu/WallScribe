@@ -144,4 +144,9 @@ def convert_system_settings(config_model: ConfigModel, parsed_config: Dict) -> N
                             "_name", iface_name
                         )
                         config_model.system_settings.management_ip = ip_to_cidr(ip6)
+                        # 許可プロトコル
+                        if isinstance(allowaccess, str):
+                            config_model.system_settings.allowed_protocols = allowaccess.split()
+                        elif isinstance(allowaccess, list):
+                            config_model.system_settings.allowed_protocols = allowaccess
                     break

@@ -1093,7 +1093,7 @@ class HTMLExporter:
             interface_display = route.interface or "-"
             name_display = route.name or "-"
             destination_display = route.destination or "-"
-            distance_display = route.distance if route.distance else "-"
+            distance_display = route.distance if route.distance is not None else "-"
             route_type_display = route.route_type if route.route_type else "-"
 
             route_rows += f"""<tr>
@@ -2000,10 +2000,10 @@ class HTMLExporter:
                 <td><strong>{self.escape(member.hostname)}</strong></td>
                 <td>{self.escape(member.model) if member.model else "-"}</td>
                 <td>{self.escape(member.os_version) if member.os_version else "-"}</td>
-                <td>{self.escape(member.priority) if member.priority else "-"}</td>
+                <td>{self.escape(member.priority) if member.priority is not None else "-"}</td>
                 <td><code>{self.escape(member.ha_mgmt_ip) if member.ha_mgmt_ip else "-"}</code></td>
                 <td><code>{self.escape(member.serial_number) if member.serial_number else "-"}</code></td>
-                <td>{self.escape(Path(member.source_file).name)}</td>
+                <td>{self.escape(Path(member.source_file).name) if member.source_file else '-'}</td>
             </tr>"""
 
         # 設定差分テーブル

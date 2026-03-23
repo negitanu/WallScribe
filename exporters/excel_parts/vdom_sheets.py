@@ -482,8 +482,8 @@ class ExcelVdomSheetsMixin:
 
     def _create_vpn_sheet_for_vdom(self, vdom: str):
         """指定VDOMのVPN設定シートを作成"""
-        ipsec_p1 = self.config.vpn.ipsec_phase1
-        ipsec_p2 = self.config.vpn.ipsec_phase2
+        ipsec_p1 = [p for p in self.config.vpn.ipsec_phase1 if getattr(p, "vdom", "root") == vdom]
+        ipsec_p2 = [p for p in self.config.vpn.ipsec_phase2 if getattr(p, "vdom", "root") == vdom]
         ssl_vpn = [s for s in self.config.vpn.ssl_vpn if getattr(s, "vdom", "root") == vdom]
 
         if not any([ipsec_p1, ipsec_p2, ssl_vpn]):

@@ -55,7 +55,16 @@ def register(app, get_metrics) -> None:
 
         try:
             upload_folder = Path(app.config["UPLOAD_FOLDER"])
-            upload_folder.mkdir(parents=True, exist_ok=True)
+            if not upload_folder.exists():
+                return (
+                    jsonify(
+                        {
+                            "status": "not_ready",
+                            "reason": "upload_folder_not_found",
+                        }
+                    ),
+                    503,
+                )
             disk_usage = shutil.disk_usage(upload_folder)
             free_space_gb = disk_usage.free / (1024**3)
 
@@ -75,7 +84,7 @@ def register(app, get_metrics) -> None:
         except Exception as e:
             logger.error(f"レディネスチェックエラー: {e}", exc_info=True)
             return (
-                jsonify({"status": "not_ready", "reason": "check_failed", "error": str(e)}),
+                jsonify({"status": "not_ready", "reason": "check_failed"}),
                 503,
             )
 

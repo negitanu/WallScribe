@@ -103,7 +103,6 @@ class FortiGateParser(BaseConfigParser):
 
             if "config global" in stripped:
                 global_flag = True
-                skip_flag = False
                 continue
             elif no_vdom_flag and "config system global" in stripped:
                 global_flag = True

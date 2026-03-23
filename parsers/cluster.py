@@ -256,18 +256,18 @@ def _build_cluster_config(configs: List[Tuple[str, ConfigModel]]) -> ClusterConf
         members[0].role = HARole.PRIMARY
         primary_member = members[0]
 
-    # クラスタ情報を構築
-    first_config = configs[0][1]
-    is_paloalto = first_config.device_info.device_type == DeviceType.PALOALTO
+    # クラスタ情報を構築（Primaryの設定を使用）
+    primary_config = primary_member.config
+    is_paloalto = primary_config.device_info.device_type == DeviceType.PALOALTO
     # Palo Altoの場合、クラスタ名は空にする（group_nameの概念がない）
     if is_paloalto:
         cluster_name = ""
     else:
-        cluster_name = first_config.ha.group_name or first_config.device_info.hostname
+        cluster_name = primary_config.ha.group_name or primary_config.device_info.hostname
     cluster_info = HAClusterInfo(
         cluster_name=cluster_name,
-        group_id=first_config.ha.group_id,
-        ha_mode=first_config.ha.mode,
+        group_id=primary_config.ha.group_id,
+        ha_mode=primary_config.ha.mode,
         members=members,
     )
 

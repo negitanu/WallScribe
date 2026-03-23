@@ -83,7 +83,7 @@ class ExcelCommonMixin:
     ):
         """セルに値を設定（VDOMコンテキストの色を使用）"""
         styles = self._get_vdom_styles()
-        cell = ws.cell(row=row, column=col, value=str(value) if value else "")
+        cell = ws.cell(row=row, column=col, value=str(value) if value is not None else "")
 
         # ステータスセルの自動スタイリング
         if is_status and status_value is not None:

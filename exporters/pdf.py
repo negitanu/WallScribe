@@ -108,8 +108,9 @@ class PDFExporter:
         # ClusterConfig を渡された場合も考慮して安全にホスト名/クラスタ名を取得
         hostname = "Unknown"
         if self.cluster_config is not None:
+            cluster_info = self.cluster_config.cluster_info
             hostname = (
-                self.cluster_config.cluster_info.cluster_name
+                (cluster_info.cluster_name if cluster_info else None)
                 or (self.config.device_info.hostname if self.config else "")
                 or "Unknown"
             )

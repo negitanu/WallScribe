@@ -19,7 +19,7 @@ class TestDetectEncoding:
         """UTF-8の検出"""
         data = "テスト文字列".encode("utf-8")
         content, encoding = detect_encoding(data)
-        assert encoding == "utf-8"
+        assert encoding in ("utf-8", "utf-8-sig")  # utf-8-sigはutf-8互換
         assert content == "テスト文字列"
 
     def test_detect_utf8_bom(self):
@@ -41,7 +41,7 @@ class TestDetectEncoding:
         """ASCII文字列の検出"""
         data = b"Hello World"
         content, encoding = detect_encoding(data)
-        assert encoding == "utf-8"  # ASCIIはUTF-8互換
+        assert encoding in ("utf-8", "utf-8-sig")  # ASCIIはUTF-8/UTF-8-sig互換
         assert content == "Hello World"
 
 

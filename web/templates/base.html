@@ -302,7 +302,7 @@
             <a class="navbar-brand" href="{{ url_for('index') }}">
                 <i class="bi bi-shield-lock"></i> WallScribe
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-label="ナビゲーション切替">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
@@ -326,7 +326,8 @@
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show glass-card" role="alert">
+                        {% set alert_class = {'error': 'danger', 'message': 'info'}.get(category, category) %}
+                        <div class="alert alert-{{ alert_class }} alert-dismissible fade show glass-card" role="alert">
                             {{ message }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>

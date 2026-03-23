@@ -81,7 +81,7 @@ class ExcelGlobalSheetsMixin:
             self._set_cell(ws, row_idx, 2, member.hostname)
             self._set_cell(ws, row_idx, 3, member.model or "-")
             self._set_cell(ws, row_idx, 4, member.os_version or "-", center=True)
-            self._set_cell(ws, row_idx, 5, member.priority if member.priority else "-", center=True)
+            self._set_cell(ws, row_idx, 5, member.priority if member.priority is not None else "-", center=True)
             self._set_cell(ws, row_idx, 6, member.ha_mgmt_ip or "-")
             self._set_cell(ws, row_idx, 7, member.serial_number or "-")
             self._set_cell(
@@ -277,7 +277,7 @@ class ExcelGlobalSheetsMixin:
             ("グループ名", ha.group_name or "-", False),
             (
                 "優先度",
-                self._annotate_default(ha.priority, "ha.priority") if ha.priority else "-",
+                self._annotate_default(ha.priority, "ha.priority") if ha.priority is not None else "-",
                 False,
             ),
             ("プリエンプト", ha.preempt, True),
@@ -369,7 +369,7 @@ class ExcelGlobalSheetsMixin:
             row_idx += 2
             for hb in ha.heartbeat_interfaces_detail:
                 self._set_cell(ws, row_idx, 1, hb.interface)
-                self._set_cell(ws, row_idx, 2, hb.priority if hb.priority else "-", center=True)
+                self._set_cell(ws, row_idx, 2, hb.priority if hb.priority is not None else "-", center=True)
                 row_idx += 1
         elif ha.heartbeat_interfaces:
             self._set_section_title(ws, row_idx, 1, "ハートビートインターフェース", colspan=2)
@@ -436,7 +436,7 @@ class ExcelGlobalSheetsMixin:
         for snmp in logging_config.snmp:
             self._set_status_cell(ws, row_idx, 1, snmp.enabled)
             self._set_cell(ws, row_idx, 2, snmp.version, center=True)
-            self._set_cell(ws, row_idx, 3, snmp.community or snmp.username)
+            self._set_cell(ws, row_idx, 3, snmp.community or snmp.username or "-")
             self._set_cell(ws, row_idx, 4, self._list_to_str(snmp.hosts, ", "))
             self._set_cell(ws, row_idx, 5, self._list_to_str(snmp.trap_hosts, ", "))
             row_idx += 1

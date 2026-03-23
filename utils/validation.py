@@ -45,8 +45,11 @@ def validate_file_content(file_data: bytes, filename: str) -> Tuple[bool, Option
             # 先頭部分だけを切り出してパースすると正しいXMLでも失敗する。
             # ここでは軽量に「Palo Altoのconfigらしさ」を検証する。
 
-            # 先頭の空白/BOMを除去して最初の文字を確認
-            head = file_data.lstrip()
+            # 先頭のBOM/空白を除去して最初の文字を確認
+            head = file_data
+            if head.startswith(b"\xef\xbb\xbf"):
+                head = head[3:]
+            head = head.lstrip()
             if not head.startswith(b"<"):
                 return False, "XMLとして解釈できません（'<' で開始していません）"
 

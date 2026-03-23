@@ -53,7 +53,7 @@ def register(app) -> None:
         upload_folder = Path(app.config["UPLOAD_FOLDER"]).resolve()
         file_path_resolved = file_path.resolve()
 
-        if not str(file_path_resolved).startswith(str(upload_folder)):
+        if not file_path_resolved.is_relative_to(upload_folder):
             logger.warning(
                 f"パストラバーサル攻撃の可能性: {file_id}, Path: {file_path_resolved}, Upload: {upload_folder}"
             )
@@ -122,7 +122,7 @@ def register(app) -> None:
         upload_folder = Path(app.config["UPLOAD_FOLDER"]).resolve()
         file_path_resolved = file_path.resolve()
 
-        if not str(file_path_resolved).startswith(str(upload_folder)):
+        if not file_path_resolved.is_relative_to(upload_folder):
             logger.warning(
                 f"パストラバーサル攻撃の可能性: {file_id}, Path: {file_path_resolved}, Upload: {upload_folder}"
             )

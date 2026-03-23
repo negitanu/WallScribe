@@ -37,8 +37,11 @@ def _get_upload_folder() -> Path:
 
 def get_metadata_path(file_id: str) -> Path:
     """メタデータファイルのパスを取得"""
+    safe_id = Path(file_id).name
+    if not safe_id or safe_id != file_id:
+        raise ValueError(f"Invalid file_id: {file_id}")
     upload_folder = _get_upload_folder()
-    return upload_folder / f"{file_id}.meta.json"
+    return upload_folder / f"{safe_id}.meta.json"
 
 
 def save_file_metadata(file_id: str, metadata: dict) -> None:

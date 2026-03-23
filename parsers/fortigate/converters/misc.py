@@ -97,9 +97,9 @@ def convert_ha(config_model: ConfigModel, parsed_config: Dict) -> None:
             config_model.default_fields.add("ha.hb_interval")
         if not hb_lost_threshold_raw:
             config_model.default_fields.add("ha.hb_lost_threshold")
-        if ha_config.get("override", "") != "enable":
+        if "override" not in ha_config:
             config_model.default_fields.add("ha.preempt")
-        if ha_config.get("session-pickup", "") != "enable":
+        if "session-pickup" not in ha_config:
             config_model.default_fields.add("ha.session_pickup")
 
 

@@ -48,7 +48,6 @@ except ImportError:
     Histogram = _MockHistogram  # type: ignore[misc,assignment]
     Gauge = _MockGauge  # type: ignore[misc,assignment]
 
-from typing import Optional
 
 # リクエストメトリクス
 request_count = Counter(
@@ -70,7 +69,25 @@ file_processing_duration = Histogram(
     ["format", "device_type"],
 )
 
-file_size_bytes = Histogram("wallscribe_file_size_bytes", "Uploaded file size in bytes", ["format"])
+FILE_SIZE_BUCKETS = (
+    1024,
+    10 * 1024,
+    100 * 1024,
+    512 * 1024,
+    1024 * 1024,
+    5 * 1024 * 1024,
+    10 * 1024 * 1024,
+    50 * 1024 * 1024,
+    100 * 1024 * 1024,
+    float("inf"),
+)
+
+file_size_bytes = Histogram(
+    "wallscribe_file_size_bytes",
+    "Uploaded file size in bytes",
+    ["format"],
+    buckets=FILE_SIZE_BUCKETS,
+)
 
 # エラーメトリクス
 error_count = Counter(

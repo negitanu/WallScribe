@@ -202,7 +202,7 @@ def register(
             if output_format == "html":
                 output_filename = f"{Path(original_filename).stem}_param.html"
                 output_path = (upload_folder / f"{file_id}_{output_filename}").resolve()
-                if not str(output_path).startswith(str(upload_folder)):
+                if not output_path.is_relative_to(upload_folder):
                     raise ValueError("Invalid file path detected")
 
                 if sections is None or not isinstance(sections, list):
@@ -229,7 +229,7 @@ def register(
                     )
                 output_filename = f"{Path(original_filename).stem}_param.pdf"
                 output_path = (upload_folder / f"{file_id}_{output_filename}").resolve()
-                if not str(output_path).startswith(str(upload_folder)):
+                if not output_path.is_relative_to(upload_folder):
                     raise ValueError("Invalid file path detected")
                 if sections is None or not isinstance(sections, list):
                     exporter = pdf_exporter_cls(config)
@@ -255,7 +255,7 @@ def register(
                     )
                 output_filename = f"{Path(original_filename).stem}_param.xlsx"
                 output_path = (upload_folder / f"{file_id}_{output_filename}").resolve()
-                if not str(output_path).startswith(str(upload_folder)):
+                if not output_path.is_relative_to(upload_folder):
                     raise ValueError("Invalid file path detected")
                 if sections is None or not isinstance(sections, list):
                     exporter = excel_exporter_cls(config)
@@ -317,6 +317,20 @@ def register(
                             "code": "ENCODING_ERROR",
                             "message": "ファイルのエンコーディングを読み取れません",
                             "details": "対応形式: UTF-8, UTF-8 BOM, Shift-JIS (CP932), Latin-1",
+                        },
+                    }
+                ),
+                400,
+            )
+        except ValueError as e:
+            logger.warning(f"バリデーションエラー: {e}")
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "code": "VALIDATION_ERROR",
+                            "message": str(e),
                         },
                     }
                 ),

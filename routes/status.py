@@ -73,11 +73,11 @@ def register(app) -> None:
             {
                 "success": True,
                 "file_id": file_id,
-                "filename": file_info["filename"],
-                "device_type": file_info["device_type"],
-                "hostname": file_info["hostname"],
-                "version": file_info["version"],
-                "summary": file_info["summary"],
+                "filename": file_info.get("filename"),
+                "device_type": file_info.get("device_type"),
+                "hostname": file_info.get("hostname"),
+                "version": file_info.get("version"),
+                "summary": file_info.get("summary"),
             }
         )
 

@@ -27,10 +27,13 @@ def start_cleanup_thread(app, *, load_file_metadata, delete_file_metadata) -> th
                 if upload_folder.exists():
                     for file_path in upload_folder.iterdir():
                         if file_path.is_file():
-                            mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
-                            if now - mtime > timedelta(hours=1):
-                                file_path.unlink()
-                                logger.info(f"クリーンアップ: {file_path.name}")
+                            try:
+                                mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+                                if now - mtime > timedelta(hours=1):
+                                    file_path.unlink()
+                                    logger.info(f"クリーンアップ: {file_path.name}")
+                            except Exception as e:
+                                logger.warning(f"ファイルクリーンアップエラー: {file_path.name}, {e}")
 
                 if upload_folder.exists():
                     for meta_path in upload_folder.glob("*.meta.json"):
@@ -47,10 +50,10 @@ def start_cleanup_thread(app, *, load_file_metadata, delete_file_metadata) -> th
                         except Exception as e:
                             logger.warning(f"メタデータクリーンアップエラー: {meta_path.name}, {e}")
 
+                time.sleep(int(app.config.get("CLEANUP_INTERVAL", 3600)))
             except Exception as e:
                 logger.error(f"クリーンアップエラー: {e}")
-
-            time.sleep(int(app.config.get("CLEANUP_INTERVAL", 3600)))
+                time.sleep(3600)
 
     t = threading.Thread(target=cleanup_old_files, daemon=True)
     t.start()

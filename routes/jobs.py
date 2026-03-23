@@ -51,9 +51,15 @@ def register(app, limiter) -> None:
             limit = 50
 
         jobs = []
+        def safe_mtime(p: Path) -> float:
+            try:
+                return p.stat().st_mtime
+            except OSError:
+                return 0.0
+
         for meta_path in sorted(
             upload_folder.glob("*.meta.json"),
-            key=lambda p: p.stat().st_mtime,
+            key=safe_mtime,
             reverse=True,
         ):
             file_id = meta_path.name.replace(".meta.json", "")
@@ -72,7 +78,9 @@ def register(app, limiter) -> None:
                     "filename": info.get("filename"),
                     "status": info.get("status", "processing"),
                     "created_at": (
-                        info.get("created_at").isoformat() if info.get("created_at") else None
+                        info["created_at"].isoformat()
+                        if hasattr(info.get("created_at"), "isoformat")
+                        else info.get("created_at")
                     ),
                     "file_count": info.get("file_count"),
                     "progress_percent": info.get("progress_percent"),
@@ -150,7 +158,11 @@ def register(app, limiter) -> None:
             "file_id": file_id,
             "filename": info.get("filename"),
             "status": info.get("status", "processing"),
-            "created_at": info.get("created_at").isoformat() if info.get("created_at") else None,
+            "created_at": (
+                info["created_at"].isoformat()
+                if hasattr(info.get("created_at"), "isoformat")
+                else info.get("created_at")
+            ),
             "file_count": info.get("file_count"),
             "progress_percent": info.get("progress_percent"),
             "progress_message": info.get("progress_message"),
@@ -210,7 +222,7 @@ def register(app, limiter) -> None:
         for p in upload_folder.glob(f"{file_id}*"):
             try:
                 resolved = p.resolve()
-                if not str(resolved).startswith(str(upload_folder)):
+                if not resolved.is_relative_to(upload_folder):
                     continue
                 if resolved.is_file():
                     resolved.unlink()
