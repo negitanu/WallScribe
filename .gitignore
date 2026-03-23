@@ -22,8 +22,11 @@ env/
 # テスト
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 .tox/
+.nox/
+.hypothesis/
 
 # 環境変数
 .env
@@ -33,6 +36,15 @@ htmlcov/
 # ログ
 *.log
 *.tmp
+*.pid
+
+# Python / ツールキャッシュ
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+.cache/
+.ipynb_checkpoints/
 
 # OS
 .DS_Store

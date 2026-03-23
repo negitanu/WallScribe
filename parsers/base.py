@@ -118,16 +118,16 @@ class BaseConfigParser(ABC):
                 self.errors.append(f"ファイルが存在しません: {file_path}")
                 return None
 
-            # UTF-8で試行
+            # UTF-8-BOMで試行（detect_encodingと同じ順序）
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, "r", encoding="utf-8-sig") as f:
                     return f.read()
             except UnicodeDecodeError:
                 pass
 
-            # UTF-8-BOMで試行
+            # UTF-8で試行
             try:
-                with open(file_path, "r", encoding="utf-8-sig") as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     return f.read()
             except UnicodeDecodeError:
                 pass

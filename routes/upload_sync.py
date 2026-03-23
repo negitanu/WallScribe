@@ -22,6 +22,12 @@ from utils.storage import save_file_metadata
 logger = logging.getLogger(__name__)
 
 
+class PathValidationError(ValueError):
+    """パス検証エラー用のカスタム例外"""
+
+    pass
+
+
 def register(
     app,
     limiter,
@@ -203,7 +209,7 @@ def register(
                 output_filename = f"{Path(original_filename).stem}_param.html"
                 output_path = (upload_folder / f"{file_id}_{output_filename}").resolve()
                 if not output_path.is_relative_to(upload_folder):
-                    raise ValueError("Invalid file path detected")
+                    raise PathValidationError("Invalid file path detected")
 
                 if sections is None or not isinstance(sections, list):
                     exporter = html_exporter_cls(config)
@@ -230,7 +236,7 @@ def register(
                 output_filename = f"{Path(original_filename).stem}_param.pdf"
                 output_path = (upload_folder / f"{file_id}_{output_filename}").resolve()
                 if not output_path.is_relative_to(upload_folder):
-                    raise ValueError("Invalid file path detected")
+                    raise PathValidationError("Invalid file path detected")
                 if sections is None or not isinstance(sections, list):
                     exporter = pdf_exporter_cls(config)
                 else:
@@ -256,7 +262,7 @@ def register(
                 output_filename = f"{Path(original_filename).stem}_param.xlsx"
                 output_path = (upload_folder / f"{file_id}_{output_filename}").resolve()
                 if not output_path.is_relative_to(upload_folder):
-                    raise ValueError("Invalid file path detected")
+                    raise PathValidationError("Invalid file path detected")
                 if sections is None or not isinstance(sections, list):
                     exporter = excel_exporter_cls(config)
                 else:
@@ -322,7 +328,7 @@ def register(
                 ),
                 400,
             )
-        except ValueError as e:
+        except PathValidationError as e:
             logger.warning(f"バリデーションエラー: {e}")
             return (
                 jsonify(
