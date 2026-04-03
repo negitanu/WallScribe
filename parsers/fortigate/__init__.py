@@ -5,12 +5,13 @@ FortiGate設定ファイルパーサー
 """
 
 import logging
-import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from models.config import ConfigModel, DeviceType
 from parsers.base import BaseConfigParser
+from parsers.device_identification import format_fortigate_display_model
+from parsers.textfsm_utils import run_textfsm
 
 from .converters import (
     convert_bgp,
@@ -163,86 +164,30 @@ class FortiGateParser(BaseConfigParser):
         #config-version=FG33E1-7.4.8-FW-build2795-250523:opmode=0:vdom=1:user=admin
         #config-version=FGT60F-7.2.5-FW-build1517:opmode=0:vdom=0:user=admin
         """
-        if "#config-version=" in line:
-            # config-version=の後の部分を抽出
-            config_version_part = line.split("#config-version=", 1)[1].split(":", 1)[0]
+        if "#config-version=" not in line:
+            return
 
-            # モデル名とOSバージョンを抽出
-            # パターン1: FG33E1-7.4.8-FW-build2795-250523 のような形式
-            # パターン2: FGT60F-7.2.5-FW-build1517 のような形式
-            # パターン3: FG-XXX-7.4.8-FW-build2795 のような形式
-            # NOTE: (FG|FGT) の順だと "FGT" に対して "FG" が先にマッチし、
-            #       model_code が "T60F" のように崩れるため、長い方を先に置く。
-            match = re.search(r"^(FGT|FG)([A-Z0-9]+)-(\d+\.\d+\.\d+)-FW", config_version_part)
-            if match:
-                prefix = match.group(1)  # FG または FGT
-                model_code = match.group(2)  # 33E1, 60F など
-                os_version = match.group(3)  # 7.4.8 など
+        rows = run_textfsm("fortigate/header_config_version.textfsm", line)
+        if rows:
+            row = rows[0]
+            model_prefix = row.get("model_prefix", "")
+            model_code = row.get("model_code", "")
+            if model_prefix and model_code:
+                self.raw_config["header"]["model"] = format_fortigate_display_model(model_code)
+            if row.get("os_version"):
+                self.raw_config["header"]["version"] = row["os_version"]
+            if row.get("build"):
+                self.raw_config["header"]["build"] = row["build"]
+            if row.get("opmode"):
+                self.raw_config["header"]["opmode"] = row["opmode"]
+            if row.get("vdom"):
+                self.raw_config["header"]["vdom_enabled"] = row["vdom"] == "1"
 
-                # モデル名を構築（FortiGate-3301E のような形式に変換）
-                # モデルコードから読みやすい形式に変換を試みる
-                model_name = self._format_model_name(prefix, model_code)
-                self.raw_config["header"]["model"] = model_name
-                self.raw_config["header"]["version"] = os_version
-
-                # ビルド番号も抽出（オプション）
-                build_match = re.search(r"-build(\d+)", config_version_part)
-                if build_match:
-                    self.raw_config["header"]["build"] = build_match.group(1)
-            else:
-                # フォールバック: より柔軟なパターンマッチング
-                # FG33E1-7.4.8 のような形式を直接抽出
-                fallback_match = re.search(
-                    r"(FGT[A-Z0-9]+|FG[A-Z0-9]+)-(\d+\.\d+\.\d+)", config_version_part
-                )
-                if fallback_match:
-                    model_code_full = fallback_match.group(1)  # FG33E1 または FGT60F
-                    os_version = fallback_match.group(2)
-                    if model_code_full.startswith("FGT"):
-                        prefix = "FGT"
-                        model_code = model_code_full[3:]
-                    else:
-                        prefix = "FG"
-                        model_code = model_code_full[2:]
-                    model_name = self._format_model_name(prefix, model_code)
-                    self.raw_config["header"]["model"] = model_name
-                    self.raw_config["header"]["version"] = os_version
-
-            if "opmode=" in line:
-                opmode_match = re.search(r"opmode=(\d+)", line)
-                if opmode_match:
-                    self.raw_config["header"]["opmode"] = opmode_match.group(1)
-
-            if "vdom=" in line:
-                vdom_match = re.search(r":vdom=(\d+)", line)
-                if vdom_match:
-                    self.raw_config["header"]["vdom_enabled"] = vdom_match.group(1) == "1"
-
-    def _format_model_name(self, prefix: str, model_code: str) -> str:
-        """モデルコードから読みやすいモデル名に変換
-
-        Args:
-            prefix: FG または FGT
-            model_code: 33E1, 60F などのモデルコード
-
-        Returns:
-            フォーマットされたモデル名（例: FortiGate 3301E, FortiGate 60F）
-            ※Fortinetデータシート形式（スペース区切り）
-        """
-        if not model_code:
-            return "FortiGate"
-
-        # FortiOSのconfig-versionヘッダーでは、機種コードが省略形になることがある。
-        # 例: FG33E1 は FortiGate 3301E を指す（= 2桁数字 + 1文字 + 1桁数字 の並び）
-        compact_match = re.fullmatch(r"(\d{2})([A-Z])(\d)", model_code)
-        if compact_match:
-            two_digits, series_letter, last_digit = compact_match.groups()
-            # 33E1 -> 3301E（文字の位置を末尾へ、数字は 2桁 + 0 + 1桁 の並び）
-            model_suffix = f"{two_digits}0{last_digit}{series_letter}"
-            return f"FortiGate {model_suffix}"
-
-        # それ以外（例: 60F, 100F, 1100E, 3000F など）は、そのまま表示名にする
-        return f"FortiGate {model_code}"
+        if "model" not in self.raw_config["header"] and self.identification:
+            if self.identification.model:
+                self.raw_config["header"]["model"] = self.identification.model
+            if self.identification.os_version:
+                self.raw_config["header"]["version"] = self.identification.os_version
 
     def _parse_header(self) -> None:
         """ヘッダー情報をパース"""

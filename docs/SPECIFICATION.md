@@ -1,7 +1,27 @@
 # WallScribe 仕様書
 
-**バージョン 1.2**  
-**最終更新日: 2026-01-25**
+**バージョン 1.4**  
+**最終更新日: 2026-04-01**
+
+`docs/` 配下の仕様・設計の正本は本ファイルです。クイックスタートや日々の操作はリポジトリ直下の [README.md](../README.md) を参照してください。Docker イメージには `docs/` は含めません（[.dockerignore](../.dockerignore)）。
+
+## 目次
+
+| 章 | 内容 |
+| --- | --- |
+| [1. 概要](#1-概要) | 目的、対象機器、出力形式 |
+| [2. 機能要件](#2-機能要件) | 入力処理、抽出項目 |
+| [3. 出力仕様](#3-出力仕様) | HTML / PDF / Excel |
+| [4. アーキテクチャ設計](#4-アーキテクチャ設計) | モジュール構成、機器識別（TextFSM）、クラス設計、処理フロー |
+| [5. CLI 仕様](#5-cli-仕様) | コマンドライン |
+| [6. Web インターフェース仕様](#6-web-インターフェース仕様) | UI・API・運用 |
+| [7. 技術仕様](#7-技術仕様) | 動作環境、依存パッケージ、エンコーディング |
+| [8. エラーハンドリング](#8-エラーハンドリング) | 想定エラー、ログ |
+| [9. 制限事項](#9-制限事項) | 取得不可情報、バージョン、性能 |
+| [10. 今後の拡張予定](#10-今後の拡張予定) | ロードマップ |
+| [11. 付録](#11-付録) | 参照先、更新履歴 |
+
+---
 
 ## 1. 概要
 
@@ -49,8 +69,8 @@ FortiGate と PA-Series ファイアウォールの設定ファイルから、�
 | 項目          | FortiGate                  | Palo Alto                      | 説明                       |
 | ------------- | -------------------------- | ------------------------------ | -------------------------- |
 | ホスト名      | `system global > hostname` | `deviceconfig/system/hostname` | 機器名                     |
-| モデル名      | ヘッダから抽出             | -                              | 機種名                     |
-| OS バージョン | ヘッダから抽出             | XML 属性 `version`             | ファームウェアバージョン   |
+| モデル名      | `#config-version` 等（TextFSM 含む） | 表示上は `PA Series`（XML からの機種要素は今後拡張可） | 機種名 |
+| OS バージョン | ヘッダから抽出             | ルート属性 `detail-version` 優先、なければ `version`（TextFSM 補助） | ファームウェアバージョン   |
 | シリアル番号  | -                          | -                              | 設定ファイルからは取得不可 |
 | 動作モード    | `opmode`                   | -                              | NAT/Route, Transparent     |
 
@@ -362,8 +382,10 @@ WallScribe/
 ├── main.py                    # エントリーポイント（CLI）
 ├── app.py                     # Web アプリケーション（Flask）
 ├── exceptions.py              # カスタム例外クラス
-├── SPECIFICATION.md           # 本仕様書
-├── README.md                  # 使用方法
+├── docs/
+│   ├── SPECIFICATION.md       # 本仕様書（正本）
+│   └── README.md              # 本書への誘導
+├── README.md                  # 使用方法（リポジトリ直下）
 ├── requirements.txt           # 依存パッケージ
 ├── docker-compose.yml         # Docker Compose
 ├── Dockerfile                 # Docker ビルド定義
@@ -375,23 +397,28 @@ WallScribe/
 │
 ├── parsers/                   # パーサーモジュール
 │   ├── __init__.py
-│   ├── base.py               # 基底パーサークラス
-│   ├── cluster.py            # HAクラスタ構成パーサー（複数ファイル統合）
-│   ├── fortigate/            # FortiGate用パーサー（パッケージ）
+│   ├── base.py                # 基底パーサー・エンコーディング・パーサー解決
+│   ├── cluster.py             # HAクラスタ構成パーサー（複数ファイル統合）
+│   ├── device_identification.py  # TextFSM による機種・OS の先行識別
+│   ├── textfsm_utils.py       # TextFSM テンプレート実行
+│   ├── textfsm_templates/     # .textfsm（identify / fortigate / paloalto 等）
+│   ├── utils.py               # パーサー補助（appid 解決など）
+│   ├── fortigate/             # FortiGate用パーサー（パッケージ）
 │   │   ├── __init__.py
-│   │   └── converters/       # 変換ロジック（device/network/objects/policies/...）
-│   └── paloalto.py           # Palo Alto用パーサー
+│   │   └── converters/        # 変換ロジック（device/network/objects/policies/...）
+│   ├── paloalto_text.py       # Palo Alto CLI set 形式（TextFSM 取り込み）
+│   └── paloalto.py            # Palo Alto用パーサー（XML ＋ set 分岐）
 │
 ├── models/                    # データモデル
 │   ├── __init__.py
-│   ├── config.py             # 設定データ構造の定義
-│   └── cluster.py            # HAクラスタ統合データモデル
+│   ├── config.py              # 設定データ構造の定義
+│   └── cluster.py             # HAクラスタ統合データモデル
 │
 ├── exporters/                 # 出力モジュール
 │   ├── __init__.py
-│   ├── html.py               # HTML出力
-│   ├── pdf.py                # PDF出力
-│   └── excel.py              # Excel出力（オプション）
+│   ├── html.py                # HTML出力
+│   ├── pdf.py                 # PDF出力
+│   └── excel.py               # Excel出力
 │
 ├── utils/                     # 共通ユーティリティ
 │   ├── logging_config.py      # 構造化ログ（JSON）
@@ -400,47 +427,85 @@ WallScribe/
 │
 ├── web/                       # Web インターフェース
 │   ├── __init__.py
-│   └── templates/            # Web UI テンプレート
-│       ├── index.html        # メインページ
-│       ├── result.html       # 結果表示ページ
-│       └── error.html        # エラーページ
+│   └── templates/             # Web UI テンプレート
+│       ├── index.html
+│       ├── result.html
+│       └── error.html
 │
-├── static/                    # 静的ファイル
-│   ├── css/
-│   │   └── style.css         # スタイルシート
-│   ├── js/
-│   │   └── main.js           # JavaScript
-│   └── data/
-│       └── appid.csv         # アプリケーションIDマッピングデータ
+├── static/
+│   ├── css/style.css
+│   ├── js/main.js
+│   └── data/appid.csv         # アプリケーションIDマッピング
 │
-└── tests/                     # テストコード
-    ├── __init__.py
+└── tests/
     ├── test_parsers.py
-    ├── test_exporters.py
-    ├── test_app.py
-    └── ...（他）
+    ├── test_device_identification.py
+    └── ...
 ```
 
-### 4.2 クラス設計
+### 4.2 機器識別（TextFSM）
 
-#### 4.2.1 基底パーサークラス
+パース前に、設定テキストの**先頭最大 65536 文字**を対象に [textfsm](https://github.com/google/textfsm) テンプレートで機種を推定する（`parsers/device_identification.py` の `identify_device`）。
+
+| フィールド | 説明 |
+| --- | --- |
+| `IdentifiedDevice.device_type` | `DeviceType`（FortiGate / Palo Alto / UNKNOWN） |
+| `IdentifiedDevice.model` | 推定モデル名（FortiGate は `format_fortigate_display_model` で整形、Palo Alto 識別時は `PA Series`） |
+| `IdentifiedDevice.os_version` | 推定 OS バージョン（テンプレートが抽出した場合） |
+
+**識別用テンプレート（`parsers/textfsm_templates/identify/`）**
+
+| テンプレート | 用途 |
+| --- | --- |
+| `fortigate_header.textfsm` | `#config-version=` 行から機種コード・FortiOS 版を抽出 |
+| `paloalto_config_root.textfsm` | `<config version="...">` から `version` を抽出 |
+| `paloalto_set_cli.textfsm` | 先頭付近の `set deviceconfig|vsys|shared|…` 行で Palo Alto（set 形式）を識別 |
+
+**パース時の TextFSM（例）**
+
+| テンプレート | 用途 |
+| --- | --- |
+| `fortigate/header_config_version.textfsm` | FortiGate ヘッダ 1 行からモデル・ビルド・opmode・vdom 等を抽出 |
+| `paloalto/set_cli.textfsm` | PAN-OS `set` 形式から hostname・address（ip-netmask / fqdn、vsys / shared）等を行単位で抽出 |
+
+**TextFSM と階層パーサーの分界**
+
+- **FortiGate**: `config` / `edit` / `set` / `next` / `end` の入れ子は [TextFSM](https://github.com/google/textfsm) の行レコードモデルに適さないため、`parsers/fortigate/__init__.py` の `_parse_config_tree` による**文法パーサー**を維持する。ヘッダ等、単一行で完結するパターンのみ TextFSM に寄せる（現状 `header_config_version`、機器識別）。`_separate_config` は単純な部分文字列・トークン分割であり、追加の TextFSM 化の優先度は低い。
+- **Palo Alto**: **XML エクスポート**は `ElementTree` による階層走査のまま。**CLI `set` 形式**は `parsers/paloalto_text.py` で TextFSM に渡し、宣言的にフィールド抽出する（第 1 弾はアドレス・ホスト名等。ポリシー等はテンプレート拡張で対応可能）。
+
+`get_parser_for_content` は、識別結果が FortiGate / Palo Alto のいずれかに一致すれば対応パーサーを選択する。一致しない場合は各パーサーの `detect_content_type` にフォールバックする。`get_parser_for_file` は拡張子で候補が決まったあと、読み込んだ内容に対して `identify_device` を実行し、パーサーインスタンスの `identification` に格納する。**拡張子が `.conf` / `.xml` / `.set` に該当しない場合**は、ファイル全文を読み `get_parser_for_content` で内容ベースの選択にフォールバックする。
+
+### 4.3 クラス設計
+
+#### 4.3.1 基底パーサークラス
+
+実装の要点（詳細は `parsers/base.py`）。
 
 ```python
 class BaseConfigParser(ABC):
     """設定パーサーの基底クラス"""
 
-    @abstractmethod
-    def parse(self, file_path: str) -> ConfigModel:
-        """設定ファイルをパースする"""
-        pass
+    def __init__(self):
+        self.config_model = ConfigModel()
+        self.errors: list = []
+        self.identification = None  # Optional[IdentifiedDevice]
 
     @abstractmethod
-    def detect_file_type(self, file_path: str) -> bool:
-        """ファイル形式を判定する"""
-        pass
+    def parse(self, file_path: str) -> ConfigModel: ...
+
+    @abstractmethod
+    def parse_content(self, content: str, filename: str = "") -> ConfigModel: ...
+
+    @staticmethod
+    @abstractmethod
+    def detect_file_type(file_path: str) -> bool: ...
+
+    @staticmethod
+    @abstractmethod
+    def detect_content_type(content: str) -> bool: ...
 ```
 
-#### 4.2.2 データモデル
+#### 4.3.2 データモデル
 
 ```python
 @dataclass
@@ -457,18 +522,24 @@ class ConfigModel:
     logging: LoggingSettings          # ログ設定
 ```
 
-### 4.3 処理フロー
+### 4.4 処理フロー
 
 ```text
-1. ファイル読み込み
+1. 入力の取得（ファイルパスまたはアップロード）
    ↓
-2. ファイル形式判定（.conf / .xml）
+2. 文字エンコーディングの決定とデコード
+   （detect_encoding または read_file: utf-8-sig → utf-8 → cp932 → latin-1）
    ↓
-3. 対応パーサーで解析
+3. パーサー候補の決定
+   （パス: detect_file_type → identify_device；拡張子不一致時は読込後 `get_parser_for_content`／内容のみ: identify_device → フォールバック detect_content_type）
    ↓
-4. 統一データモデルに変換
+4. 機器識別（TextFSM、先頭最大 65536 文字）→ parser.identification
    ↓
-5. 指定形式で出力（HTML / PDF / Excel）
+5. 対応パーサーで parse / parse_content
+   ↓
+6. 統一データモデル（ConfigModel）で返却
+   ↓
+7. 指定形式で出力（HTML / PDF / Excel）
 ```
 
 ---
@@ -759,22 +830,25 @@ gunicorn -w 4 -b 0.0.0.0:8080 app:app
 
 ### 7.2 依存パッケージ
 
+`requirements.txt` の主な依存（分類・抜粋）。テスト用パッケージは含めず、`pip install -e ".[dev]"`（`pyproject.toml` の `[project.optional-dependencies]`、`pytest>=8.3.0` 等）で入れます。
+
 ```text
-# requirements.txt
-flask>=2.0.0         # Web フレームワーク
-openpyxl>=3.0.0      # Excel出力用
-weasyprint>=61.2     # PDF出力用
-jinja2>=3.0.0        # HTMLテンプレート
-gunicorn>=20.0.0     # 本番用WSGIサーバー（オプション）
-defusedxml>=0.7.1    # XXE対策（Palo Alto XML）
-flask-limiter>=3.5.0 # レート制限
+flask>=2.0.0              # Web フレームワーク
+werkzeug>=2.0.0           # WSGI ユーティリティ
+jinja2>=3.0.0             # HTMLテンプレート
+gunicorn>=20.0.0          # 本番用WSGIサーバー
+openpyxl>=3.0.0           # Excel出力
+weasyprint>=61.2          # PDF出力
+defusedxml>=0.7.1         # XXE対策（Palo Alto XML）
+textfsm>=1.1.3            # 機器識別・TextFSM テンプレート
+flask-limiter>=3.5.0      # レート制限
 prometheus-client>=0.19.0 # メトリクス
-flasgger>=0.9.7.1    # Swagger UI（Swagger 2.0）
+flasgger>=0.9.7.1         # Swagger UI（Swagger 2.0）
 ```
 
 ### 7.3 文字エンコーディング
 
-- 入力: UTF-8（自動検出でフォールバック）
+- 入力: UTF-8（BOM 付き）/ UTF-8 / CP932(Shift-JIS) / Latin-1 を順に試行（`parsers/base.detect_encoding` および `read_file`）
 - 出力: UTF-8
 
 ---
@@ -878,6 +952,11 @@ flasgger>=0.9.7.1    # Swagger UI（Swagger 2.0）
 
 | バージョン | 日付       | 変更内容                           |
 | ---------- | ---------- | ---------------------------------- |
+| 1.4        | 2026-04-01 | ドキュメント統合                   |
+|            |            | - `docs/` 内の章別 Markdown を本ファイル（SPECIFICATION.md）に統合し正本を一本化 |
+|            |            | - アーキテクチャに機器識別（TextFSM）・`textfsm` 依存・モジュールツリーを反映 |
+| 1.3        | 2026-04-03 | （履歴）章別ファイル分割（本版で統合済み） |
+|            |            | - 機器識別（TextFSM）・実装に合わせた追記 |
 | 1.2        | 2026-01-25 | API拡充・ドキュメント更新          |
 |            |            | - Swagger UIの定義をSwagger 2.0に統一（`/apidocs`） |
 |            |            | - ジョブ管理API追加（`/api/v1/jobs` など） |

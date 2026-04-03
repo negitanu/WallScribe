@@ -99,6 +99,13 @@ end
 
 
 @pytest.fixture
+def sample_paloalto_cli_set():
+    """Palo Alto の set 形式 CLI スニペット（TextFSM テスト用）"""
+    path = Path(__file__).resolve().parent / "fixtures" / "paloalto_cli_sample.set"
+    return path.read_text(encoding="utf-8")
+
+
+@pytest.fixture
 def sample_paloalto_config():
     """Palo Altoのサンプル設定ファイル内容"""
     return """<?xml version="1.0"?>

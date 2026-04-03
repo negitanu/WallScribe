@@ -254,6 +254,7 @@ class TestUploadFileAsync:
 class TestUploadDependencyCheck:
     """依存関係チェックのテスト"""
 
+    @pytest.mark.pdf
     @patch("routes.upload_async.threading.Thread")
     def test_upload_pdf_without_weasyprint(self, mock_thread, client, sample_fortigate_content):
         """WeasyPrintなしでPDF出力を要求"""

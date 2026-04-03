@@ -1,0 +1,5 @@
+# PAN-OS CLI export (snippet for tests)
+set deviceconfig system hostname PA-CLI-01
+set vsys vsys1 address Server-A ip-netmask 10.0.0.10/32
+set shared address SharedNet ip-netmask 192.168.0.0/24
+set vsys vsys1 address WebFQDN fqdn www.example.com

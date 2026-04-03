@@ -45,6 +45,8 @@ from models.config import (
 )
 
 from .base import BaseConfigParser
+from .paloalto_text import apply_set_cli_textfsm_to_model, is_paloalto_set_cli_text
+from .textfsm_utils import run_textfsm
 from .utils import ip_to_cidr
 
 logger = logging.getLogger(__name__)
@@ -62,13 +64,14 @@ class PaloAltoParser(BaseConfigParser):
     def detect_file_type(file_path: str) -> bool:
         """ファイル形式を判定"""
         path = Path(file_path)
-        return path.suffix.lower() == ".xml"
+        return path.suffix.lower() in (".xml", ".set")
 
     @staticmethod
     def detect_content_type(content: str) -> bool:
         """ファイル内容から形式を判定"""
-        # Palo Altoの設定XMLの特徴を検出
-        return "<config version=" in content or "<devices>" in content
+        if "<config version=" in content or "<devices>" in content:
+            return True
+        return is_paloalto_set_cli_text(content)
 
     def parse(self, file_path: str) -> ConfigModel:
         """設定ファイルをパース"""
@@ -84,6 +87,18 @@ class PaloAltoParser(BaseConfigParser):
         self.config_model = ConfigModel()
         self.config_model.source_file = filename
         self.config_model.device_info.device_type = DeviceType.PALOALTO
+
+        if is_paloalto_set_cli_text(content):
+            self.config_model.device_info.operation_mode = OperationMode.NAT_ROUTE
+            self.config_model.device_info.model = "PA Series"
+            if self.identification:
+                if self.identification.model:
+                    self.config_model.device_info.model = self.identification.model
+                if self.identification.os_version:
+                    self.config_model.device_info.os_version = self.identification.os_version
+            apply_set_cli_textfsm_to_model(self.config_model, content)
+            self.config_model.parse_errors = self.errors
+            return self.config_model
 
         try:
             # XXE攻撃対策: defusedxmlを使用して安全にパース
@@ -146,9 +161,16 @@ class PaloAltoParser(BaseConfigParser):
     def _parse_device_info(self):
         """機器情報をパース"""
         if self.root is not None:
-            self.config_model.device_info.os_version = (
-                self.root.get("detail-version") or self.root.get("version", "")
-            )
+            detail_version = self.root.get("detail-version")
+            if detail_version:
+                self.config_model.device_info.os_version = detail_version
+            else:
+                root_line = f'<config version="{self.root.get("version", "")}">'
+                rows = run_textfsm("identify/paloalto_config_root.textfsm", root_line)
+                if rows and rows[0].get("version"):
+                    self.config_model.device_info.os_version = rows[0]["version"]
+                else:
+                    self.config_model.device_info.os_version = self.root.get("version", "")
 
         if self.device is None:
             return
@@ -156,7 +178,8 @@ class PaloAltoParser(BaseConfigParser):
         system = self.device.find("deviceconfig/system")
         if system is not None:
             self.config_model.device_info.hostname = self._get_text(system, "hostname")
-            self.config_model.device_info.model = "PA Series"
+            if not self.config_model.device_info.model:
+                self.config_model.device_info.model = "PA Series"
 
         # Operation mode (always NAT/Route for Palo Alto)
         self.config_model.device_info.operation_mode = OperationMode.NAT_ROUTE

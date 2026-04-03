@@ -13,6 +13,8 @@ FortiGate と PA-Series ファイアウォールの設定ファイルから、�
 
 ## 対応機器
 
+概要は下表のとおりです。詳細は [docs/SPECIFICATION.md](docs/SPECIFICATION.md) の第 1 章・第 2 章を参照してください。
+
 | ベンダー | 機種 | 設定ファイル形式 |
 | --- | --- | --- |
 | Fortinet | FortiGate シリーズ | `.conf` (テキスト形式) |
@@ -23,6 +25,8 @@ FortiGate と PA-Series ファイアウォールの設定ファイルから、�
 - **HTML**: スタイル付きの見やすいレポート（印刷対応、インタラクティブツールチップ付き）
 - **PDF**: 印刷に最適化されたPDF形式（A3横向き）
 - **Excel**: 編集可能なスプレッドシート形式（VDOM/vsys単位出力、モダンスタイリング対応）
+
+出力レイアウト・スタイルの仕様は [docs/SPECIFICATION.md](docs/SPECIFICATION.md) の第 3 章にまとめています。
 
 ## インストール
 
@@ -114,6 +118,21 @@ docker compose down
 # http://localhost:80 (ポート80で公開)
 ```
 
+#### コンテナ内でテスト（profile `test`）
+
+アプリ起動（`docker compose up`）とは別に、テスト用イメージで `pytest` を実行します。リポジトリを `/app` にマウントするため、ホストの `tests/` がそのまま使われます。
+
+```bash
+# テスト用イメージのビルド（初回または Dockerfile.test / 依存変更時）
+docker compose --profile test build test
+
+# テスト実行（終了後コンテナ削除）
+docker compose --profile test run --rm test
+
+# PDF / WeasyPrint まわりを除く例
+docker compose --profile test run --rm test pytest -m "not pdf"
+```
+
 #### 環境変数の設定
 
 `docker-compose.yml`で環境変数を設定できます。`.env`ファイルを作成して設定することも可能です：
@@ -136,23 +155,26 @@ volumes:
   - ./uploads:/app/uploads
 ```
 
-#### Makefileを使用した操作
+#### Docker Compose（シェルから直接）
 
 ```bash
-# ビルド
-make build
+# ビルド（本番 web 用）
+docker compose build
+
+# キャッシュなしで再ビルド
+docker compose build --no-cache
 
 # 起動
-make up
+docker compose up -d
 
 # 停止
-make down
+docker compose down
 
 # ログ確認
-make logs
+docker compose logs -f
 
-# 再起動
-make restart
+# 停止してから再度起動
+docker compose down && docker compose up -d
 ```
 
 #### 開発環境での使用
@@ -206,9 +228,13 @@ WallScribe/
 ├── main.py                # エントリーポイント（CLI）
 ├── app.py                 # Webアプリケーション（Flask）
 ├── exceptions.py          # カスタム例外クラス
+├── docs/                  # 仕様・設計（正本: docs/SPECIFICATION.md）
 ├── parsers/               # パーサーモジュール
 │   ├── base.py           # 基底パーサークラス
 │   ├── cluster.py        # HAクラスタ構成パーサー（複数ファイル統合）
+│   ├── device_identification.py  # TextFSM による機器識別
+│   ├── textfsm_utils.py  # TextFSM 実行
+│   ├── textfsm_templates/# 機器識別等のテンプレート
 │   ├── fortigate/        # FortiGate用パーサー
 │   ├── paloalto.py       # Palo Alto用パーサー
 │   └── utils.py          # ユーティリティ関数
@@ -334,38 +360,27 @@ Excel出力では、グローバル設定とVDOM/vsys単位の設定を分離し
 
 ## テスト
 
+方針の詳細は [tests/README.md](tests/README.md) を参照してください。
+
+ローカルでは先に `pip install -r requirements.txt` と `pip install -e ".[dev]"` を実行してください。Docker だけで回す場合は上記「コンテナ内でテスト」を参照してください。
+
 ```bash
-# すべてのテストを実行
-pytest -v
+# リポジトリルートで全テスト
+pytest
 
-# カバレッジ付きで実行（HTMLレポート生成）
-pytest --cov=. --cov-report=html -v
+# 簡潔な出力
+pytest -q
 
-# カバレッジレポートをブラウザで確認
-# htmlcov/index.html を開く
+# PDF / WeasyPrint まわりを除く（Linux・Docker 等向け）
+pytest -m "not pdf"
 
-# 特定のテストファイルを実行
+# 特定のファイルのみ
 pytest tests/test_parsers.py -v
 
-# マーカーを使用したテストの実行
-pytest -m "not slow"  # スローテストを除外
-pytest -m "unit"      # ユニットテストのみ
-pytest -m "integration"  # 統合テストのみ
-```
-
-### テストカバレッジ
-
-テストカバレッジの目標は70%以上です（現状は目標値未達のため、fail-underは無効化しています）。カバレッジレポートは以下のコマンドで生成できます：
-
-```bash
-# HTMLレポート生成
-pytest --cov=. --cov-report=html
-
-# ターミナルに表示
-pytest --cov=. --cov-report=term-missing
-
-# XMLレポート生成（CI/CD用）
-pytest --cov=. --cov-report=xml
+# マーカー例
+pytest -m "not slow"
+pytest -m "unit"
+pytest -m "integration"
 ```
 
 テストスイートには以下が含まれます：
@@ -381,8 +396,10 @@ pytest --cov=. --cov-report=xml
 ### 開発環境のセットアップ
 
 ```bash
-# 開発用依存関係のインストール
-pip install -r requirements-dev.txt
+# ランタイム依存
+pip install -r requirements.txt
+# 開発用（black / pytest / pre-commit 等は pyproject.toml の [project.optional-dependencies] dev）
+pip install -e ".[dev]"
 
 # Pre-commitフックのインストール
 pre-commit install
@@ -392,22 +409,25 @@ pre-commit install
 
 ```bash
 # コードフォーマット
-make format
+black .
+isort .
+
+# フォーマット確認のみ
+black --check .
+isort --check-only .
 
 # リンター
-make lint
+flake8 . --max-line-length=100 --extend-ignore=E203,W503
 
 # 型チェック
-make type-check
+mypy . --ignore-missing-imports --no-strict-optional
 
-# テスト実行
-make test
-
-# 全てのチェック
-make check
+# テスト
+pytest -v
 
 # セキュリティチェック
-make security-check
+safety check
+pip-audit
 ```
 
 ### CI/CD
@@ -418,12 +438,11 @@ GitHub Actionsによる自動テストとコード品質チェックが設定さ
 - コードフォーマットチェック（black, isort）
 - リンター（flake8）
 - 型チェック（mypy）
-- テストカバレッジレポート
 - Dockerイメージのビルド
 
 ## 詳細仕様
 
-詳細な仕様については [SPECIFICATION.md](SPECIFICATION.md) を参照してください。
+要件・設計の詳細は [docs/SPECIFICATION.md](docs/SPECIFICATION.md) を参照してください。入口は [docs/README.md](docs/README.md) からもどうぞ。
 
 ## API ドキュメント
 

@@ -446,6 +446,7 @@ class TestCacheManager:
         assert "機器概要" in html or "device_info" in html.lower()
         assert "ファイアウォールポリシー" in html or "policies" in html.lower()
 
+    @pytest.mark.pdf
     def test_pdf_exporter(self, sample_config_model):
         """PDFエクスポーターのテスト"""
         if not PDF_AVAILABLE or PDFExporter is None:
@@ -465,6 +466,7 @@ class TestCacheManager:
         finally:
             Path(output_path).unlink(missing_ok=True)
 
+    @pytest.mark.pdf
     def test_pdf_exporter_header_css_with_cluster_config(self, sample_config_model):
         """ClusterConfig を渡してもヘッダーCSS生成で落ちないこと"""
         if not PDF_AVAILABLE or PDFExporter is None:

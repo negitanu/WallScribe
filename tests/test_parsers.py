@@ -534,6 +534,7 @@ class TestPaloAltoParser:
         """ファイル拡張子の検出"""
         assert PaloAltoParser.detect_file_type("config.xml") is True
         assert PaloAltoParser.detect_file_type("config.XML") is True
+        assert PaloAltoParser.detect_file_type("export.set") is True
         assert PaloAltoParser.detect_file_type("config.conf") is False
         assert PaloAltoParser.detect_file_type("config.txt") is False
 
@@ -541,6 +542,27 @@ class TestPaloAltoParser:
         """内容からの形式検出"""
         assert PaloAltoParser.detect_content_type(sample_paloalto_config) is True
         assert PaloAltoParser.detect_content_type("#config-version=") is False
+
+    def test_detect_content_type_set_cli(self):
+        """set 形式 CLI の検出"""
+        assert PaloAltoParser.detect_content_type("set vsys vsys1 address x ip-netmask 1.1.1.1/32\n") is True
+
+    def test_parse_set_cli_format(self, sample_paloalto_cli_set):
+        """set 形式（TextFSM）でホスト名・アドレスオブジェクトを取り込めること"""
+        parser = PaloAltoParser()
+        config = parser.parse_content(sample_paloalto_cli_set, "sample.set")
+
+        assert config.device_info.device_type == DeviceType.PALOALTO
+        assert config.device_info.hostname == "PA-CLI-01"
+        assert not config.parse_errors
+
+        by_name = {a.name: a for a in config.objects.addresses}
+        assert by_name["Server-A"].object_type == "subnet"
+        assert by_name["Server-A"].value == "10.0.0.10/32"
+        assert by_name["Server-A"].vdom == "vsys1"
+        assert by_name["SharedNet"].vdom == "shared"
+        assert by_name["WebFQDN"].object_type == "fqdn"
+        assert by_name["WebFQDN"].value == "www.example.com"
 
     def test_invalid_xml(self):
         """無効なXMLのハンドリング"""

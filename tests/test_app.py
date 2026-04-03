@@ -174,6 +174,7 @@ class TestUploadRoute:
         assert result["success"] is True
         assert result["filename"].endswith(".xlsx")
 
+    @pytest.mark.pdf
     def test_upload_pdf_format(self, client, sample_fortigate_config):
         """PDF形式での出力"""
         if not getattr(__import__("app"), "PDF_AVAILABLE", True):

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from models.config import ConfigModel, DeviceType
+from parsers.device_identification import identify_device
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ class BaseConfigParser(ABC):
     def __init__(self):
         self.config_model = ConfigModel()
         self.errors: list = []
+        self.identification = None
 
     @abstractmethod
     def parse(self, file_path: str) -> ConfigModel:
@@ -167,10 +169,30 @@ def get_parser_for_file(file_path: str) -> Optional[BaseConfigParser]:
     from .paloalto import PaloAltoParser
 
     parsers = [FortiGateParser, PaloAltoParser]
+    identification = None
+    content = None
 
     for parser_class in parsers:
         if parser_class.detect_file_type(file_path):
-            return parser_class()
+            parser = parser_class()
+            if content is None:
+                content = parser.read_file(file_path)
+            if content:
+                identification = identify_device(content)
+            parser.identification = identification
+            return parser
+
+    # 拡張子が .conf / .xml / .set 以外でも、内容からパーサーを選ぶ
+    if content is None:
+        try:
+            path = Path(file_path)
+            if path.is_file():
+                with open(path, "r", encoding="utf-8") as f:
+                    content = f.read()
+        except (UnicodeDecodeError, IOError) as e:
+            logger.error("ファイル読み込みエラー: %s", e)
+    if content:
+        return get_parser_for_content(content)
 
     return None
 
@@ -188,9 +210,22 @@ def get_parser_for_content(content: str) -> Optional[BaseConfigParser]:
     from .paloalto import PaloAltoParser
 
     parsers = [FortiGateParser, PaloAltoParser]
+    identification = identify_device(content)
+
+    parser_map = {
+        DeviceType.FORTIGATE: FortiGateParser,
+        DeviceType.PALOALTO: PaloAltoParser,
+    }
+
+    if identification and identification.device_type in parser_map:
+        parser = parser_map[identification.device_type]()
+        parser.identification = identification
+        return parser
 
     for parser_class in parsers:
         if parser_class.detect_content_type(content):
-            return parser_class()
+            parser = parser_class()
+            parser.identification = identification
+            return parser
 
     return None
