@@ -52,8 +52,9 @@ def apply_set_cli_textfsm_to_model(config_model: ConfigModel, content: str) -> N
 
         name = _strip_cli_token(row.get("name") or "")
         ip_nm = (row.get("ip_netmask") or "").strip()
+        ip_range = (row.get("ip_range") or "").strip()
         fqdn = (row.get("fqdn") or "").strip()
-        if not name or not (ip_nm or fqdn):
+        if not name or not (ip_nm or ip_range or fqdn):
             continue
 
         vsys = (row.get("vsys") or "").strip()
@@ -67,6 +68,9 @@ def apply_set_cli_textfsm_to_model(config_model: ConfigModel, content: str) -> N
         if ip_nm:
             obj.object_type = "subnet"
             obj.value = ip_to_cidr(ip_nm)
+        elif ip_range:
+            obj.object_type = "iprange"
+            obj.value = ip_range
         elif fqdn:
             obj.object_type = "fqdn"
             obj.value = fqdn

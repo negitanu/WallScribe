@@ -564,6 +564,27 @@ class TestPaloAltoParser:
         assert by_name["WebFQDN"].object_type == "fqdn"
         assert by_name["WebFQDN"].value == "www.example.com"
 
+    def test_parse_set_cli_format_ip_range_and_mask_notation(self):
+        """set 形式で ip-range と IP+MASK の ip-netmask を取り込めること"""
+        config_content = """set deviceconfig system hostname PA-CLI-02
+set vsys vsys1 address NetWithMask ip-netmask 10.10.10.0 255.255.255.0
+set shared address BranchRange ip-range 10.20.0.10-10.20.0.200
+"""
+        parser = PaloAltoParser()
+        config = parser.parse_content(config_content, "sample.set")
+
+        assert config.device_info.hostname == "PA-CLI-02"
+        assert not config.parse_errors
+
+        by_name = {a.name: a for a in config.objects.addresses}
+        assert by_name["NetWithMask"].object_type == "subnet"
+        assert by_name["NetWithMask"].value == "10.10.10.0/24"
+        assert by_name["NetWithMask"].vdom == "vsys1"
+
+        assert by_name["BranchRange"].object_type == "iprange"
+        assert by_name["BranchRange"].value == "10.20.0.10-10.20.0.200"
+        assert by_name["BranchRange"].vdom == "shared"
+
     def test_invalid_xml(self):
         """無効なXMLのハンドリング"""
         parser = PaloAltoParser()
