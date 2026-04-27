@@ -28,73 +28,83 @@ def convert_vpn(config_model: ConfigModel, parsed_config: Dict) -> None:
 
 def _add_vpn_from_config(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """VPN設定を追加"""
-    vpn_config = get_nested(config, "vpn", default={})
-
-    _add_ipsec_phase1(config_model, vpn_config)
-    _add_ipsec_phase2(config_model, vpn_config)
-    _add_ssl_vpn_settings(config_model, vpn_config, vdom)
-    _add_ssl_vpn_portal(config_model, vpn_config, vdom)
+    _add_ipsec_phase1(config_model, config)
+    _add_ipsec_phase2(config_model, config)
+    _add_ssl_vpn_settings(config_model, config, vdom)
+    _add_ssl_vpn_portal(config_model, config, vdom)
 
 
 def _add_ipsec_phase1(config_model: ConfigModel, vpn_config: Dict) -> None:
     """IPsec Phase1設定を追加"""
-    phase1 = get_nested(vpn_config, "ipsec phase1-interface", default={})
-    if isinstance(phase1, dict):
-        for p1_name, p1_data in phase1.items():
-            if isinstance(p1_data, dict):
-                proposals = p1_data.get("proposal", [])
-                if isinstance(proposals, list):
-                    proposals = ", ".join(proposals)
+    for p1_name, p1_data in _iter_ipsec_entries(
+        vpn_config, "vpn ipsec phase1-interface", "vpn ipsec phase1"
+    ):
+        proposals = p1_data.get("proposal", [])
+        if isinstance(proposals, list):
+            proposals = ", ".join(proposals)
 
-                encryption, authentication = parse_proposal(proposals)
+        encryption, authentication = parse_proposal(proposals)
 
-                p1 = IPSecPhase1(
-                    name=p1_data.get("_name", p1_name),
-                    remote_gateway=p1_data.get("remote-gw", ""),
-                    interface=p1_data.get("interface", ""),
-                    ike_version=str(p1_data.get("ike-version", "")),
-                    proposal=proposals,
-                    encryption=encryption,
-                    authentication=authentication,
-                    dh_group=str(p1_data.get("dhgrp", "")),
-                    lifetime=str(p1_data.get("keylife", "")),
-                    dpd=p1_data.get("dpd", ""),
-                    psk=bool(p1_data.get("psksecret", "")),
-                    local_id=p1_data.get("localid", ""),
-                    remote_id=p1_data.get("peerid", ""),
-                )
-                config_model.vpn.ipsec_phase1.append(p1)
+        p1 = IPSecPhase1(
+            name=p1_data.get("_name", p1_name),
+            remote_gateway=p1_data.get("remote-gw", ""),
+            interface=p1_data.get("interface", ""),
+            ike_version=str(p1_data.get("ike-version", "")),
+            proposal=proposals,
+            encryption=encryption,
+            authentication=authentication,
+            dh_group=str(p1_data.get("dhgrp", "")),
+            lifetime=str(p1_data.get("keylife", "")),
+            dpd=p1_data.get("dpd", ""),
+            psk=bool(p1_data.get("psksecret", "")),
+            local_id=p1_data.get("localid", ""),
+            remote_id=p1_data.get("peerid", ""),
+        )
+        config_model.vpn.ipsec_phase1.append(p1)
 
 
 def _add_ipsec_phase2(config_model: ConfigModel, vpn_config: Dict) -> None:
     """IPsec Phase2設定を追加"""
-    phase2 = get_nested(vpn_config, "ipsec phase2-interface", default={})
-    if isinstance(phase2, dict):
-        for p2_name, p2_data in phase2.items():
-            if isinstance(p2_data, dict):
-                proposals = p2_data.get("proposal", [])
-                if isinstance(proposals, list):
-                    proposals = ", ".join(proposals)
+    for p2_name, p2_data in _iter_ipsec_entries(
+        vpn_config, "vpn ipsec phase2-interface", "vpn ipsec phase2"
+    ):
+        proposals = p2_data.get("proposal", [])
+        if isinstance(proposals, list):
+            proposals = ", ".join(proposals)
 
-                encryption, authentication = parse_proposal(proposals)
+        encryption, authentication = parse_proposal(proposals)
 
-                p2 = IPSecPhase2(
-                    name=p2_data.get("_name", p2_name),
-                    phase1_name=p2_data.get("phase1name", ""),
-                    proposal=proposals,
-                    encryption=encryption,
-                    authentication=authentication,
-                    pfs=str(p2_data.get("pfs", "")),
-                    lifetime=str(p2_data.get("keylifeseconds", "")),
-                    local_subnet=p2_data.get("src-subnet", ""),
-                    remote_subnet=p2_data.get("dst-subnet", ""),
-                )
-                config_model.vpn.ipsec_phase2.append(p2)
+        p2 = IPSecPhase2(
+            name=p2_data.get("_name", p2_name),
+            phase1_name=p2_data.get("phase1name", ""),
+            proposal=proposals,
+            encryption=encryption,
+            authentication=authentication,
+            pfs=str(p2_data.get("pfs", "")),
+            lifetime=str(p2_data.get("keylifeseconds", "")),
+            local_subnet=p2_data.get("src-subnet", ""),
+            remote_subnet=p2_data.get("dst-subnet", ""),
+        )
+        config_model.vpn.ipsec_phase2.append(p2)
+
+
+def _iter_ipsec_entries(vpn_config: Dict, *paths: str):
+    """phase*-interface と従来の phase* の両方を重複なしで走査する。"""
+    seen = set()
+    for path in paths:
+        section = get_nested(vpn_config, path, default={})
+        if not isinstance(section, dict):
+            continue
+        for name, data in section.items():
+            if name in seen or not isinstance(data, dict):
+                continue
+            seen.add(name)
+            yield name, data
 
 
 def _add_ssl_vpn_settings(config_model: ConfigModel, vpn_config: Dict, vdom: str) -> None:
     """SSL-VPN設定を追加"""
-    ssl_settings = get_nested(vpn_config, "ssl settings", default={})
+    ssl_settings = get_nested(vpn_config, "vpn ssl settings", default={})
     if isinstance(ssl_settings, dict) and ssl_settings:
         # トンネルIPプールの処理
         tunnel_pools = ssl_settings.get("tunnel-ip-pools", "")
@@ -125,7 +135,7 @@ def _add_ssl_vpn_settings(config_model: ConfigModel, vpn_config: Dict, vdom: str
 
 def _add_ssl_vpn_portal(config_model: ConfigModel, vpn_config: Dict, vdom: str) -> None:
     """SSL-VPNポータル設定を追加"""
-    ssl_portal = get_nested(vpn_config, "ssl web portal", default={})
+    ssl_portal = get_nested(vpn_config, "vpn ssl web portal", default={})
     if isinstance(ssl_portal, dict):
         for portal_name, portal_data in ssl_portal.items():
             if isinstance(portal_data, dict):

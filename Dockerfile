@@ -62,6 +62,7 @@ COPY utils/ ./utils/
 COPY api/ ./api/
 COPY routes/ ./routes/
 COPY jobs/ ./jobs/
+COPY services/ ./services/
 COPY gunicorn_config.py ./
 
 # アップロードディレクトリとフォントキャッシュディレクトリを作成
@@ -76,6 +77,8 @@ ENV FLASK_PORT=8080
 ENV UPLOAD_FOLDER=/app/uploads
 ENV MAX_CONTENT_LENGTH=52428800
 ENV CLEANUP_INTERVAL=3600
+ENV GUNICORN_WORKERS=4
+ENV GUNICORN_THREADS=2
 ENV FONTCONFIG_CACHE_DIR=/home/appuser/.cache/fontconfig
 ENV TZ=Asia/Tokyo
 
@@ -91,7 +94,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # エントリーポイント
 # 本番環境では gunicorn を使用
-# gunicorn_config.py を使用する場合:
-# CMD ["gunicorn", "--config", "gunicorn_config.py", "app:app"]
-# または直接指定:
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "4", "--threads", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
+CMD ["gunicorn", "--config", "gunicorn_config.py", "app:app"]

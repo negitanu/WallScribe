@@ -7,7 +7,7 @@
 from typing import Dict
 
 from models.config import AddressGroup, AddressObject, ConfigModel, ServiceGroup, ServiceObject
-from parsers.utils import get_nested, ip_to_cidr
+from parsers.utils import get_nested, ip_to_cidr, to_list
 
 
 def convert_objects(config_model: ConfigModel, parsed_config: Dict) -> None:
@@ -55,7 +55,7 @@ def _add_address_objects(config_model: ConfigModel, config: Dict, vdom: str) -> 
                     if subnet_value:
                         value = ip_to_cidr(subnet_value)
                     else:
-                        value = ""
+                        value = addr_data.get("agent-id", "")
 
                 addr_obj = AddressObject(
                     name=addr_data.get("_name", addr_name),
@@ -63,6 +63,7 @@ def _add_address_objects(config_model: ConfigModel, config: Dict, vdom: str) -> 
                     value=value,
                     vdom=vdom,
                     description=addr_data.get("comment", ""),
+                    tags=to_list(addr_data.get("tag", [])) + to_list(addr_data.get("tags", [])),
                 )
                 config_model.objects.addresses.append(addr_obj)
 
@@ -95,6 +96,7 @@ def _add_address6_objects(config_model: ConfigModel, config: Dict, vdom: str) ->
                     value=value,
                     vdom=vdom,
                     description=addr_data.get("comment", ""),
+                    tags=to_list(addr_data.get("tag", [])) + to_list(addr_data.get("tags", [])),
                 )
                 config_model.objects.addresses.append(addr_obj)
 
@@ -113,6 +115,7 @@ def _add_address_groups(config_model: ConfigModel, config: Dict, vdom: str) -> N
                     members=members,
                     vdom=vdom,
                     description=grp_data.get("comment", ""),
+                    tags=to_list(grp_data.get("tag", [])) + to_list(grp_data.get("tags", [])),
                 )
                 config_model.objects.address_groups.append(grp_obj)
 
@@ -131,6 +134,7 @@ def _add_address6_groups(config_model: ConfigModel, config: Dict, vdom: str) -> 
                     members=members,
                     vdom=vdom,
                     description=grp_data.get("comment", ""),
+                    tags=to_list(grp_data.get("tag", [])) + to_list(grp_data.get("tags", [])),
                 )
                 config_model.objects.address_groups.append(grp_obj)
 
@@ -234,6 +238,7 @@ def _add_service_objects(config_model: ConfigModel, config: Dict, vdom: str) -> 
                     port=port_str,
                     vdom=vdom,
                     description=svc_data.get("comment", ""),
+                    tags=to_list(svc_data.get("tag", [])) + to_list(svc_data.get("tags", [])),
                 )
                 config_model.objects.services.append(svc_obj)
 

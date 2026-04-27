@@ -10,12 +10,17 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional
 
-from models.cluster import ClusterConfig
-from models.config import ConfigModel
-from parsers.base import detect_encoding, get_parser_for_content
-from parsers.cluster import parse_ha_cluster_from_contents
+from services.conversion import (
+    ExportCapabilities,
+    ExportDependencyMissing,
+    UnsupportedConfigFormat,
+    UnsupportedOutputFormat,
+    export_config,
+    load_contents_from_paths,
+    parse_contents,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +80,6 @@ class JobProcessor:
             for input_path in input_paths:
                 total_size += input_path.stat().st_size
 
-            contents: List[Tuple[str, str]] = []
             for i, (input_path, original_filename) in enumerate(
                 zip(input_paths, original_filenames)
             ):
@@ -85,20 +89,15 @@ class JobProcessor:
                     f"ファイル {i+1}/{len(input_paths)} を処理中...",
                     stage="detect_encoding",
                 )
-                file_data = input_path.read_bytes()
-                content, detected = detect_encoding(file_data)
-                logger.info(f"検出されたエンコーディング ({original_filename}): {detected}")
-                contents.append((original_filename, content))
-
-            config: Union[ConfigModel, ClusterConfig]
+            contents = load_contents_from_paths(input_paths, original_filenames)
 
             if ha_mode == "single" or (ha_mode == "auto" and len(contents) == 1):
                 self.update_progress(
                     file_id, 25, "設定ファイルの形式を判別しています...", stage="detect_parser"
                 )
-                filename, content = contents[0]
-                parser = get_parser_for_content(content)
-                if parser is None:
+                try:
+                    parse_result = parse_contents(contents, ha_mode=ha_mode)
+                except UnsupportedConfigFormat:
                     self.update_progress(
                         file_id,
                         100,
@@ -114,14 +113,7 @@ class JobProcessor:
                         },
                     )
                     return
-
-                self.update_progress(
-                    file_id, 35, "設定ファイルを解析しています...", stage="parsing"
-                )
-                config = parser.parse_content(content, filename)
-                if getattr(parser, "errors", None):
-                    for error in parser.errors:
-                        logger.warning(f"パースエラー: {error}")
+                self.update_progress(file_id, 35, "設定ファイルを解析しています...", stage="parsing")
             else:
                 self.update_progress(
                     file_id,
@@ -129,81 +121,53 @@ class JobProcessor:
                     f"HAクラスタ構成を解析中 ({len(contents)} ファイル)...",
                     stage="detect_parser",
                 )
-                cluster_config = parse_ha_cluster_from_contents(contents)
+                parse_result = parse_contents(contents, ha_mode=ha_mode)
 
-                if cluster_config.is_cluster:
-                    logger.info(
-                        f"HAクラスタを検出: グループID={cluster_config.cluster_info.group_id}"
-                    )
+                if parse_result.is_cluster:
                     self.update_progress(
                         file_id, 35, "HAクラスタ構成を解析しています...", stage="parsing"
                     )
                 else:
-                    logger.info(
-                        "HAクラスタ構成は検出されませんでした。最初のファイルを使用します。"
-                    )
                     self.update_progress(
                         file_id, 35, "設定ファイルを解析しています...", stage="parsing"
                     )
 
-                config = cluster_config
+            config = parse_result.config
 
             self.update_progress(file_id, 70, "出力ファイルを生成しています...", stage="exporting")
 
-            if output_format == "html":
-                exporter = (
-                    self.html_exporter_cls(config)
-                    if sections is None
-                    else self.html_exporter_cls(config, sections=sections)
+            try:
+                export_config(
+                    config,
+                    output_format,
+                    output_path,
+                    ExportCapabilities(
+                        html_exporter_cls=self.html_exporter_cls,
+                        pdf_exporter_cls=self.pdf_exporter_cls,
+                        excel_exporter_cls=self.excel_exporter_cls,
+                        pdf_available=self.pdf_available,
+                        excel_available=self.excel_available,
+                    ),
+                    sections=sections,
                 )
-                exporter.export(str(output_path))
-            elif output_format == "pdf":
-                if not self.pdf_available or self.pdf_exporter_cls is None:
-                    self.update_progress(
-                        file_id,
-                        100,
-                        "PDF出力に必要な依存関係がありません",
-                        stage="error",
-                        extra={
-                            "status": "error",
-                            "error": {
-                                "code": "DEPENDENCY_MISSING",
-                                "message": "PDF出力にはweasyprintが必要です",
-                                "details": "pip install -r requirements.txt を実行してください",
-                            },
+            except ExportDependencyMissing as e:
+                message = str(e)
+                self.update_progress(
+                    file_id,
+                    100,
+                    f"{output_format.upper()}出力に必要な依存関係がありません",
+                    stage="error",
+                    extra={
+                        "status": "error",
+                        "error": {
+                            "code": "DEPENDENCY_MISSING",
+                            "message": message,
+                            "details": "pip install -r requirements.txt を実行してください",
                         },
-                    )
-                    return
-                exporter = (
-                    self.pdf_exporter_cls(config)
-                    if sections is None
-                    else self.pdf_exporter_cls(config, sections=sections)
+                    },
                 )
-                exporter.export(str(output_path))
-            elif output_format == "excel":
-                if not self.excel_available or self.excel_exporter_cls is None:
-                    self.update_progress(
-                        file_id,
-                        100,
-                        "Excel出力に必要な依存関係がありません",
-                        stage="error",
-                        extra={
-                            "status": "error",
-                            "error": {
-                                "code": "DEPENDENCY_MISSING",
-                                "message": "Excel出力にはopenpyxlが必要です",
-                                "details": "pip install -r requirements.txt を実行してください",
-                            },
-                        },
-                    )
-                    return
-                exporter = (
-                    self.excel_exporter_cls(config)
-                    if sections is None
-                    else self.excel_exporter_cls(config, sections=sections)
-                )
-                exporter.export(str(output_path))
-            else:
+                return
+            except UnsupportedOutputFormat:
                 self.update_progress(
                     file_id,
                     100,

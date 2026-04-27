@@ -8,13 +8,14 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-from typing import Union
 
 from exporters.html import HTMLExporter
-from models.cluster import ClusterConfig
-from models.config import ConfigModel
-from parsers.base import get_parser_for_file
-from parsers.cluster import parse_ha_cluster
+from services.conversion import (
+    ExportCapabilities,
+    UnsupportedConfigFormat,
+    export_config,
+    parse_paths,
+)
 
 try:
     import exporters.excel as excel_module  # type: ignore
@@ -103,46 +104,29 @@ def main():
             sys.exit(1)
         input_paths.append(str(input_path))
 
-    # HAモード判定と処理
-    config: Union[ConfigModel, ClusterConfig]
-    is_cluster = False
-
-    if args.ha_mode == "single" or (args.ha_mode == "auto" and len(input_paths) == 1):
-        # 単一ファイルモード
-        logger.info(f"ファイル読み込み: {input_paths[0]}")
-
-        parser = get_parser_for_file(input_paths[0])
-        if parser is None:
-            logger.error(f"サポートされていないファイル形式です: {Path(input_paths[0]).suffix}")
-            logger.info("対応形式: .conf (FortiGate), .xml (Palo Alto)")
-            sys.exit(1)
-
-        logger.info(f"{parser.__class__.__name__} でパース中...")
-        config = parser.parse(input_paths[0])
-
-        if parser.errors:
-            for error in parser.errors:
-                logger.warning(error)
-    else:
-        # 複数ファイル（HAクラスタ）モード
+    if args.ha_mode != "single" and not (args.ha_mode == "auto" and len(input_paths) == 1):
         logger.info(f"HAクラスタモード: {len(input_paths)} ファイルを読み込み")
         for path in input_paths:
             logger.info(f"  - {path}")
+    else:
+        logger.info(f"ファイル読み込み: {input_paths[0]}")
 
-        cluster_config = parse_ha_cluster(input_paths)
+    try:
+        parse_result = parse_paths([Path(path) for path in input_paths], ha_mode=args.ha_mode)
+    except UnsupportedConfigFormat as e:
+        logger.error(str(e))
+        logger.info("対応形式: .conf (FortiGate), .xml (Palo Alto)")
+        sys.exit(1)
 
-        if cluster_config.is_cluster:
-            logger.info(f"HAクラスタを検出: グループID={cluster_config.cluster_info.group_id}")
-            logger.info(f"メンバー数: {cluster_config.cluster_info.get_member_count()}")
-            for member in cluster_config.cluster_info.members:
-                logger.info(
-                    f"  - {member.hostname} ({member.role.value}, Priority: {member.priority})"
-                )
-            is_cluster = True
-        else:
-            logger.info("HAクラスタ構成は検出されませんでした。最初のファイルを使用します。")
+    config = parse_result.config
+    is_cluster = parse_result.is_cluster
 
-        config = cluster_config
+    if is_cluster:
+        cluster_info = config.cluster_info
+        logger.info(f"HAクラスタを検出: グループID={cluster_info.group_id}")
+        logger.info(f"メンバー数: {cluster_info.get_member_count()}")
+        for member in cluster_info.members:
+            logger.info(f"  - {member.hostname} ({member.role.value}, Priority: {member.priority})")
 
     # サマリー表示
     summary = config.get_summary()
@@ -161,8 +145,12 @@ def main():
     output_path = Path(args.output)
 
     if args.format == "html":
-        exporter = HTMLExporter(config)
-        exporter.export(str(output_path))
+        export_config(
+            config,
+            "html",
+            output_path,
+            ExportCapabilities(html_exporter_cls=HTMLExporter),
+        )
         logger.info(f"HTML出力: {output_path}")
     elif args.format == "excel":
         if not EXCEL_AVAILABLE or ExcelExporter is None:
@@ -172,8 +160,16 @@ def main():
         # 出力ファイルの拡張子を.xlsxに変更
         if output_path.suffix.lower() != ".xlsx":
             output_path = output_path.with_suffix(".xlsx")
-        exporter = ExcelExporter(config)
-        exporter.export(str(output_path))
+        export_config(
+            config,
+            "excel",
+            output_path,
+            ExportCapabilities(
+                html_exporter_cls=HTMLExporter,
+                excel_exporter_cls=ExcelExporter,
+                excel_available=EXCEL_AVAILABLE,
+            ),
+        )
         logger.info(f"Excel出力: {output_path}")
 
     logger.info("完了")

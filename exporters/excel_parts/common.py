@@ -24,11 +24,29 @@ except ImportError:  # pragma: no cover
 class ExcelCommonMixin:
     """ExcelExporter用の共通ヘルパー群（mixin）"""
 
+    def _uses_legacy_sheet_names(self, vdom: Optional[str]) -> bool:
+        """単一root構成では旧来のシート名を維持する。"""
+        return (
+            vdom == "root"
+            and len(self._get_vdom_list()) == 1
+            and not getattr(self, "is_cluster", False)
+        )
+
     def _create_sheet(self, title: str, vdom: Optional[str] = None) -> Worksheet:
         """シートを作成（VDOM名付きでタブ色を設定）"""
         # シート名を構築
         if vdom:
-            full_title = f"{vdom} - {title}"
+            legacy_titles = {
+                "IF": "インターフェース",
+                "ルート": "ルーティング",
+                "ポリシー": "ファイアウォールポリシー",
+                "NAT": "NAT設定",
+                "VPN": "VPN設定",
+            }
+            if self._uses_legacy_sheet_names(vdom):
+                full_title = legacy_titles.get(title, title)
+            else:
+                full_title = f"{vdom} - {title}"
         else:
             full_title = title
 

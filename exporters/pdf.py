@@ -15,8 +15,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Union
 
-from weasyprint import CSS, HTML
-from weasyprint.text.fonts import FontConfiguration
+try:
+    from weasyprint import CSS, HTML
+    from weasyprint.text.fonts import FontConfiguration
+except OSError as exc:
+    raise ImportError("WeasyPrint のネイティブ依存関係を読み込めません") from exc
 
 from exporters.html import HTMLExporter
 from models.cluster import ClusterConfig

@@ -1,0 +1,37 @@
+FROM python:3.14-slim
+
+WORKDIR /app
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libpangoft2-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    shared-mime-info \
+    fonts-noto-cjk \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt pyproject.toml README.md ./
+COPY app.py main.py exceptions.py ./
+COPY parsers/ ./parsers/
+COPY models/ ./models/
+COPY exporters/ ./exporters/
+COPY web/ ./web/
+COPY static/ ./static/
+COPY utils/ ./utils/
+COPY api/ ./api/
+COPY routes/ ./routes/
+COPY jobs/ ./jobs/
+COPY services/ ./services/
+
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -e ".[dev]"
+
+ENV PYTHONPATH=/app
+ENV WALLSCRIBE_DISABLE_CLEANUP_THREAD=1
+
+CMD ["pytest", "-v"]

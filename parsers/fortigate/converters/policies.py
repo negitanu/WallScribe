@@ -10,6 +10,16 @@ from models.config import ConfigModel, FirewallPolicy, LocalInPolicy, NATPolicy,
 from parsers.utils import get_nested, to_list
 
 
+def _merge_lists(*values) -> list:
+    """FortiOS の IPv4/IPv6 など複数キーを重複なしで統合する。"""
+    merged = []
+    for value in values:
+        for item in to_list(value):
+            if item not in merged:
+                merged.append(item)
+    return merged
+
+
 def convert_policies(config_model: ConfigModel, parsed_config: Dict) -> None:
     """ポリシーを変換
 
@@ -42,10 +52,20 @@ def _add_policies_from_config(config_model: ConfigModel, config: Dict, vdom: str
                     name=policy_data.get("name", ""),
                     source_interface=to_list(policy_data.get("srcintf", [])),
                     destination_interface=to_list(policy_data.get("dstintf", [])),
-                    source_address=to_list(policy_data.get("srcaddr", [])),
-                    destination_address=to_list(policy_data.get("dstaddr", [])),
-                    internet_service_name=to_list(policy_data.get("internet-service-name", [])),
+                    source_address=_merge_lists(
+                        policy_data.get("srcaddr", []),
+                        policy_data.get("srcaddr6", []),
+                    ),
+                    destination_address=_merge_lists(
+                        policy_data.get("dstaddr", []),
+                        policy_data.get("dstaddr6", []),
+                    ),
+                    internet_service_name=_merge_lists(
+                        policy_data.get("internet-service-name", []),
+                        policy_data.get("internet-service-id", []),
+                    ),
                     service=to_list(policy_data.get("service", [])),
+                    application=to_list(policy_data.get("application", [])),
                     action=action,
                     nat_enabled=policy_data.get("nat", "") == "enable",
                     log_enabled=policy_data.get("logtraffic", "") in ("enable", "all", "utm"),
@@ -53,6 +73,7 @@ def _add_policies_from_config(config_model: ConfigModel, config: Dict, vdom: str
                     vdom=vdom,
                     enabled=policy_data.get("status", "") != "disable",
                     description=policy_data.get("comments", ""),
+                    tags=_merge_lists(policy_data.get("tag", []), policy_data.get("tags", [])),
                 )
 
                 config_model.firewall_policies.append(policy)

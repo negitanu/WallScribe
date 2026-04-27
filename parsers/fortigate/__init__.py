@@ -5,6 +5,7 @@ FortiGate設定ファイルパーサー
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -182,6 +183,31 @@ class FortiGateParser(BaseConfigParser):
                 self.raw_config["header"]["opmode"] = row["opmode"]
             if row.get("vdom"):
                 self.raw_config["header"]["vdom_enabled"] = row["vdom"] == "1"
+        else:
+            # FortiOS 8.x 以降やVM系で config-version の細部が揺れても、
+            # モデル/バージョン/VDOM有効化の基本情報は拾えるようにする。
+            match = re.search(
+                r"#config-version=(?P<model>[A-Z0-9]+)-(?P<version>\d+(?:\.\d+){1,3})-FW"
+                r"(?:-build(?P<build>\d+))?.*",
+                line,
+            )
+            if match:
+                model_code = match.group("model")
+                if model_code.startswith("FGT"):
+                    model_code = model_code[3:]
+                elif model_code.startswith("FG"):
+                    model_code = model_code[2:]
+                self.raw_config["header"]["model"] = format_fortigate_display_model(model_code)
+                self.raw_config["header"]["version"] = match.group("version")
+                if match.group("build"):
+                    self.raw_config["header"]["build"] = match.group("build")
+
+            opmode_match = re.search(r":opmode=(\d+)", line)
+            if opmode_match:
+                self.raw_config["header"]["opmode"] = opmode_match.group(1)
+            vdom_match = re.search(r":vdom=(\d+)", line)
+            if vdom_match:
+                self.raw_config["header"]["vdom_enabled"] = vdom_match.group(1) == "1"
 
         if "model" not in self.raw_config["header"] and self.identification:
             if self.identification.model:

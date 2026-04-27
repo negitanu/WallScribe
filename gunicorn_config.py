@@ -15,6 +15,7 @@ backlog = 2048
 # ワーカー設定
 workers = int(os.environ.get("GUNICORN_WORKERS", multiprocessing.cpu_count() * 2 + 1))
 worker_class = "sync"
+threads = int(os.environ.get("GUNICORN_THREADS", 2))
 worker_connections = 1000
 timeout = 120
 keepalive = 5

@@ -6,11 +6,11 @@ from .html import HTMLExporter
 
 __all__ = ["HTMLExporter"]
 
-# PDFExporterはweasprintが必要なため、条件付きでインポート
+# PDFExporterはweasyprintが必要なため、条件付きでインポート
 PDFExporter: Optional[Any]
 try:
     from .pdf import PDFExporter
 
     __all__.append("PDFExporter")
-except ImportError:
-    PDFExporter = None  # weasprintがインストールされていない場合
+except (ImportError, OSError):
+    PDFExporter = None  # weasyprint またはネイティブ依存が利用できない場合

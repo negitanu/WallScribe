@@ -105,7 +105,12 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
     DISABLED_FILL = styles.DISABLED_FILL
     DISABLED_FONT = styles.DISABLED_FONT
 
-    def __init__(self, config: Union[ConfigModel, ClusterConfig], sections: List[str] = None):
+    def __init__(
+        self,
+        config: Union[ConfigModel, ClusterConfig],
+        sections: List[str] = None,
+        cluster_config: Optional[ClusterConfig] = None,
+    ):
         """Excelエクスポーターを初期化
 
         Args:
@@ -115,7 +120,13 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
         if not OPENPYXL_AVAILABLE:
             raise ImportError("Excel出力には openpyxl が必要です")
         # ClusterConfigの場合、primary_configを使用
-        if isinstance(config, ClusterConfig):
+        if cluster_config is not None:
+            self.cluster_config = cluster_config
+            self.config = config if isinstance(config, ConfigModel) else cluster_config.primary_config
+            if self.config is None:
+                self.config = ConfigModel()
+            self.is_cluster = cluster_config.is_cluster
+        elif isinstance(config, ClusterConfig):
             self.cluster_config = config
             self.config = config.primary_config if config.primary_config else ConfigModel()
             self.is_cluster = config.is_cluster
@@ -204,8 +215,25 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
             "tab_color": color["tab_color"],
         }
 
-    def export(self, output_path: Optional[str] = None) -> Workbook:
+    def _section_selected(self, key: str) -> bool:
+        """sections 指定に対して、旧UIのグループ名も含めて出力対象か判定する。"""
+        if not self.sections:
+            return True
+        aliases = {
+            "device": {"device_info", "system_settings", "ha", "logging"},
+            "network": {"interfaces", "routes", "dhcp"},
+            "policy": {"policies", "nat"},
+        }
+        selected = set(self.sections)
+        expanded = set(selected)
+        for section in selected:
+            expanded.update(aliases.get(section, set()))
+        return key in expanded
+
+    def export(self, output_path: Optional[str] = None, sections: List[str] = None) -> Workbook:
         """Excelファイルを生成（グローバル設定 → VDOM/vsys単位）"""
+        if sections is not None:
+            self.sections = sections
         vdom_list = self._get_vdom_list()
 
         # ============================================================
@@ -214,6 +242,8 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
         self._set_vdom_context(None)  # グローバルコンテキスト
 
         for key, title, method_name in self.GLOBAL_SECTIONS:
+            if not self._section_selected(key):
+                continue
             # クラスタ概要はクラスタ構成時のみ
             if key == "cluster_overview" and not self.is_cluster:
                 continue
@@ -227,6 +257,8 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
             self._set_vdom_context(vdom)
 
             for key, title, method_name in self.VDOM_SECTIONS:
+                if not self._section_selected(key):
+                    continue
                 method = getattr(self, method_name)
                 method(vdom)
 

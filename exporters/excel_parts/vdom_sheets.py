@@ -22,6 +22,13 @@ class ExcelVdomSheetsMixin:
     # VDOM単位のシート作成メソッド
     # ============================================================
 
+    def _create_vdom_sheets(self) -> None:
+        """出力対象VDOM/vsysの全シートを作成する互換メソッド。"""
+        for vdom in self._get_vdom_list():
+            self._set_vdom_context(vdom)
+            for _key, _title, method_name in self.VDOM_SECTIONS:
+                getattr(self, method_name)(vdom)
+
     def _create_interfaces_sheet_for_vdom(self, vdom: str):
         """指定VDOMのインターフェースシートを作成"""
         interfaces = self._filter_by_vdom(self.config.interfaces, vdom)
@@ -356,7 +363,6 @@ class ExcelVdomSheetsMixin:
         row_idx = 1
 
         if policies:
-            self._set_section_title(ws, row_idx, 1, "ファイアウォールポリシー", colspan=14)
             headers = [
                 "No",
                 "ID",
@@ -373,8 +379,13 @@ class ExcelVdomSheetsMixin:
                 "有効",
                 "説明",
             ]
-            self._set_header_row(ws, headers, row_idx + 1)
-            row_idx += 2
+            if self._uses_legacy_sheet_names(vdom):
+                self._set_header_row(ws, headers, row_idx)
+                row_idx += 1
+            else:
+                self._set_section_title(ws, row_idx, 1, "ファイアウォールポリシー", colspan=14)
+                self._set_header_row(ws, headers, row_idx + 1)
+                row_idx += 2
 
             for idx, policy in enumerate(policies, 1):
                 self._set_cell(ws, row_idx, 1, idx, center=True)

@@ -293,6 +293,7 @@ class AddressGroup:
     members: List[str] = field(default_factory=list)
     vdom: str = "root"
     description: str = ""
+    tags: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -347,6 +348,7 @@ class FirewallPolicy:
     vdom: str = "root"
     enabled: bool = True
     description: str = ""
+    tags: List[str] = field(default_factory=list)
 
 
 @dataclass

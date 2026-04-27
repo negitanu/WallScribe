@@ -74,8 +74,8 @@ def register_request_hooks(app, *, metrics_available: bool, record_request) -> N
         # UPLOAD_FOLDER を storage 側にも反映（テストで config を差し替えるケースにも対応）
         try:
             set_upload_folder(Path(app.config["UPLOAD_FOLDER"]))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("UPLOAD_FOLDER の反映に失敗しました: %s", e)
 
         import time
 
@@ -115,8 +115,8 @@ def register_request_hooks(app, *, metrics_available: bool, record_request) -> N
                     status=response.status_code,
                     duration=duration,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("メトリクス記録に失敗しました: %s", e)
 
         return response
 

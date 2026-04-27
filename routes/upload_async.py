@@ -6,10 +6,9 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-import threading
+import threading as _threading
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -18,9 +17,26 @@ from typing import List, Optional
 from flask import jsonify, request
 from werkzeug.utils import secure_filename
 
+from routes.upload_common import (
+    ensure_child_path,
+    error_response,
+    parse_sections,
+    validate_output_dependency,
+    validate_uploaded_content,
+)
+from services.conversion import UnsupportedOutputFormat, build_output_filename
 from utils.storage import save_file_metadata
 
 logger = logging.getLogger(__name__)
+
+
+class _ThreadingProxy:
+    """テスト時の Thread モックが標準 threading モジュール全体へ漏れないようにする。"""
+
+    Thread = _threading.Thread
+
+
+threading = _ThreadingProxy()
 
 
 def register(
@@ -101,136 +117,57 @@ def register(
                         files = [f]
 
             if not files or all(f.filename == "" for f in files):
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {"code": "NO_FILE", "message": "ファイルが選択されていません"},
-                        }
-                    ),
-                    400,
-                )
+                return error_response("NO_FILE", "ファイルが選択されていません", 400)
 
             valid_files = [f for f in files if f.filename and allowed_file(f.filename)]
             if not valid_files:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {
-                                "code": "UNSUPPORTED_FORMAT",
-                                "message": "サポートされていないファイル形式です",
-                                "details": "対応形式: .conf (FortiGate), .xml (Palo Alto)",
-                            },
-                        }
-                    ),
+                return error_response(
+                    "UNSUPPORTED_FORMAT",
+                    "サポートされていないファイル形式です",
                     400,
+                    "対応形式: .conf (FortiGate), .xml (Palo Alto)",
                 )
 
             output_format = request.form.get("output_format", "html")
             is_valid_format, format_error = validate_output_format(output_format)
             if not is_valid_format:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {"code": "INVALID_OUTPUT_FORMAT", "message": format_error},
-                        }
-                    ),
-                    400,
-                )
+                return error_response("INVALID_OUTPUT_FORMAT", format_error, 400)
 
             # 依存関係チェック（オプショナル出力）
-            if output_format == "pdf" and not pdf_available:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {
-                                "code": "DEPENDENCY_MISSING",
-                                "message": "PDF出力にはweasyprintが必要です",
-                                "details": "pip install -r requirements.txt を実行してください",
-                            },
-                        }
-                    ),
-                    400,
-                )
-            if output_format == "excel" and not excel_available:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {
-                                "code": "DEPENDENCY_MISSING",
-                                "message": "Excel出力にはopenpyxlが必要です",
-                                "details": "pip install -r requirements.txt を実行してください",
-                            },
-                        }
-                    ),
-                    400,
-                )
+            dependency_error = validate_output_dependency(
+                output_format, pdf_available=pdf_available, excel_available=excel_available
+            )
+            if dependency_error:
+                return dependency_error
 
             ha_mode = request.form.get("ha_mode", "auto")
             is_valid_ha_mode, ha_mode_error = validate_ha_mode(ha_mode)
             if not is_valid_ha_mode:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {"code": "INVALID_HA_MODE", "message": ha_mode_error},
-                        }
-                    ),
-                    400,
-                )
+                return error_response("INVALID_HA_MODE", ha_mode_error, 400)
 
-            sections_json = request.form.get("sections", "[]")
-            try:
-                sections_list = json.loads(sections_json)
-                sections: Optional[List[str]] = (
-                    [s for s in sections_list if isinstance(s, str)]
-                    if isinstance(sections_list, list)
-                    else None
-                )
-            except json.JSONDecodeError:
-                sections = None
+            sections_list = parse_sections(request.form.get("sections", "[]"))
+            sections: Optional[List[str]] = (
+                [s for s in sections_list if isinstance(s, str)]
+                if isinstance(sections_list, list)
+                else None
+            )
 
             # ファイル内容の検証（各ファイル）
             for f in valid_files:
                 file_data = f.read()
                 f.seek(0)
 
-                is_valid_size, size_error = validate_file_size(
-                    file_data, app.config["MAX_CONTENT_LENGTH"]
-                )
-                if not is_valid_size:
-                    return (
-                        jsonify(
-                            {
-                                "success": False,
-                                "error": {"code": "FILE_TOO_LARGE", "message": size_error},
-                            }
-                        ),
-                        400,
-                    )
-
                 original_filename = secure_filename(f.filename)
-                is_valid_content, content_error = validate_file_content(
-                    file_data, original_filename
+                validation_error = validate_uploaded_content(
+                    file_data,
+                    original_filename,
+                    max_content_length=app.config["MAX_CONTENT_LENGTH"],
+                    validate_file_size=validate_file_size,
+                    validate_file_content=validate_file_content,
+                    detail_prefix=f"{original_filename}: ",
                 )
-                if not is_valid_content:
-                    return (
-                        jsonify(
-                            {
-                                "success": False,
-                                "error": {
-                                    "code": "INVALID_FILE_CONTENT",
-                                    "message": "ファイル内容の検証に失敗しました",
-                                    "details": f"{original_filename}: {content_error}",
-                                },
-                            }
-                        ),
-                        400,
-                    )
+                if validation_error:
+                    return validation_error
 
             file_id = str(uuid.uuid4())
             upload_folder = Path(app.config["UPLOAD_FOLDER"]).resolve()
@@ -243,9 +180,9 @@ def register(
                 original_filenames.append(original_filename)
 
                 ext = get_file_extension(original_filename)
-                input_path = (upload_folder / f"{file_id}_input_{i}{ext}").resolve()
-                if not str(input_path).startswith(str(upload_folder)):
-                    raise ValueError("Invalid input file path detected")
+                input_path = ensure_child_path(
+                    upload_folder, upload_folder / f"{file_id}_input_{i}{ext}"
+                )
                 f.save(str(input_path))
                 input_paths.append(input_path)
 
@@ -253,30 +190,19 @@ def register(
             if len(valid_files) > 1:
                 base_name = f"{base_name}_cluster"
 
-            if output_format == "html":
-                output_filename = f"{base_name}_param.html"
-            elif output_format == "pdf":
-                output_filename = f"{base_name}_param.pdf"
-            elif output_format == "excel":
-                output_filename = f"{base_name}_param.xlsx"
-            else:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {
-                                "code": "UNSUPPORTED_FORMAT",
-                                "message": f"サポートされていない出力形式です: {output_format}",
-                                "details": "対応形式: html, pdf, excel",
-                            },
-                        }
-                    ),
+            try:
+                output_filename = build_output_filename(base_name, output_format)
+            except UnsupportedOutputFormat:
+                return error_response(
+                    "UNSUPPORTED_FORMAT",
+                    f"サポートされていない出力形式です: {output_format}",
                     400,
+                    "対応形式: html, pdf, excel",
                 )
 
-            output_path = (upload_folder / f"{file_id}_{output_filename}").resolve()
-            if not str(output_path).startswith(str(upload_folder)):
-                raise ValueError("Invalid output file path detected")
+            output_path = ensure_child_path(
+                upload_folder, upload_folder / f"{file_id}_{output_filename}"
+            )
 
             save_file_metadata(
                 file_id,

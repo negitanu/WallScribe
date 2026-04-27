@@ -91,6 +91,20 @@ end
 
         assert config.device_info.model == "FortiGate 3301E"
 
+    def test_parse_fortios_80_header(self):
+        """FortiOS 8.0 の config-version ヘッダーを解釈できる"""
+        config_content = """#config-version=FGT60F-8.0.0-FW-build1234-260101:opmode=0:vdom=1:user=admin
+config system global
+    set hostname "FW-80"
+end
+"""
+        parser = FortiGateParser()
+        config = parser.parse_content(config_content, "fortios80.conf")
+
+        assert config.device_info.model == "FortiGate 60F"
+        assert config.device_info.os_version == "8.0.0"
+        assert config.device_info.vdom_enabled is True
+
     def test_parse_interfaces(self, sample_fortigate_config):
         """インターフェースのパース"""
         parser = FortiGateParser()
@@ -211,6 +225,86 @@ end
         assert len(policy.internet_service_name) == 2
         assert "Google-Web" in policy.internet_service_name
         assert "Dropbox-Web" in policy.internet_service_name
+
+    def test_parse_fortios_80_policy_ipv6_and_tags(self):
+        """FortiOS 8.0 の IPv6 ポリシーアドレスとカスタムタグを保持する"""
+        config_content = """#config-version=FGT60F-8.0.0-FW-build1234
+config firewall policy
+    edit 10
+        set name "IPv6-Wildcard"
+        set srcintf "port1"
+        set dstintf "port2"
+        set srcaddr "all"
+        set srcaddr6 "v6-wildcard-src"
+        set dstaddr6 "v6-wildcard-dst"
+        set internet-service-id 12345
+        set application "HTTP" "HTTPS"
+        set tag "edge" "fortios80"
+        set action accept
+    next
+end
+"""
+        parser = FortiGateParser()
+        config = parser.parse_content(config_content, "fortios80.conf")
+
+        policy = config.firewall_policies[0]
+        assert policy.source_address == ["all", "v6-wildcard-src"]
+        assert policy.destination_address == ["v6-wildcard-dst"]
+        assert policy.internet_service_name == ["12345"]
+        assert policy.application == ["HTTP", "HTTPS"]
+        assert policy.tags == ["edge", "fortios80"]
+
+    def test_parse_fortios_80_address_tags_and_telemetry(self):
+        """FortiOS 8.0 のアドレスタグと telemetry dynamic address を保持する"""
+        config_content = """#config-version=FGT60F-8.0.0-FW-build1234
+config firewall address
+    edit "Telemetry-Agent"
+        set type dynamic
+        set sub-type telemetry
+        set agent-id "FGTA123456789"
+        set tag "telemetry" "managed"
+    next
+end
+config firewall addrgrp
+    edit "Tagged-Group"
+        set member "Telemetry-Agent"
+        set tag "group-tag"
+    next
+end
+"""
+        parser = FortiGateParser()
+        config = parser.parse_content(config_content, "fortios80.conf")
+
+        address = config.objects.addresses[0]
+        assert address.object_type == "dynamic"
+        assert address.value == "FGTA123456789"
+        assert address.tags == ["telemetry", "managed"]
+        assert config.objects.address_groups[0].tags == ["group-tag"]
+
+    def test_parse_ipsec_non_interface_sections(self):
+        """phase1/phase2 の非 interface 表記も IPsec として読む"""
+        config_content = """#config-version=FGT60F-8.0.0-FW-build1234
+config vpn ipsec phase1
+    edit "legacy-p1"
+        set remote-gw 203.0.113.1
+        set interface "wan1"
+        set proposal aes256-sha256
+    next
+end
+config vpn ipsec phase2
+    edit "legacy-p2"
+        set phase1name "legacy-p1"
+        set proposal aes256-sha256
+        set src-subnet 10.0.0.0 255.255.255.0
+        set dst-subnet 10.1.0.0 255.255.255.0
+    next
+end
+"""
+        parser = FortiGateParser()
+        config = parser.parse_content(config_content, "fortios80.conf")
+
+        assert config.vpn.ipsec_phase1[0].name == "legacy-p1"
+        assert config.vpn.ipsec_phase2[0].phase1_name == "legacy-p1"
 
     def test_parse_cidr_conversion_address(self):
         """アドレスオブジェクトのCIDR変換"""

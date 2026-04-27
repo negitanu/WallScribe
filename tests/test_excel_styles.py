@@ -18,6 +18,12 @@ from exporters.excel_styles import (
 from models.config import PolicyAction
 
 
+def color_value(color) -> str:
+    """openpyxl の Color オブジェクト/文字列を6桁RGBへ正規化する。"""
+    rgb = getattr(color, "rgb", color)
+    return str(rgb)[-6:]
+
+
 class TestExcelStyles:
     """Excelスタイル定義のテスト"""
 
@@ -50,12 +56,12 @@ class TestExcelStyles:
     def test_header_font(self):
         """ヘッダーフォント"""
         assert HEADER_FONT.bold is True
-        assert HEADER_FONT.color == "FFFFFF"
+        assert color_value(HEADER_FONT.color) == "FFFFFF"
         assert HEADER_FONT.size == 10
 
     def test_header_fill(self):
         """ヘッダーフィル"""
-        assert HEADER_FILL.start_color == "2C3E50"
+        assert color_value(HEADER_FILL.start_color) == "2C3E50"
         assert HEADER_FILL.fill_type == "solid"
 
     def test_action_fills(self):

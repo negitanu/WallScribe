@@ -5,61 +5,12 @@
 """
 
 import logging
-import os
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
 
-from flask import (
-    Flask,
-)
-
-# レート制限（オプショナル）
-try:
-    from flask_limiter import Limiter
-    from flask_limiter.util import get_remote_address
-
-    LIMITER_AVAILABLE = True
-except ImportError:
-    LIMITER_AVAILABLE = False
-
-    # モック用のダミークラス
-    class _MockLimiter:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def limit(self, *args, **kwargs):
-            def decorator(f):
-                return f
-
-            return decorator
-
-    def get_remote_address():
-        return "127.0.0.1"
-
-    Limiter = _MockLimiter  # type: ignore[misc,assignment]
+from flask import Flask
 
 from exporters.html import HTMLExporter
 from parsers.base import detect_encoding, get_parser_for_content
-
-# エクスポーター（環境によりオプショナル）
-try:
-    from exporters.pdf import PDFExporter  # type: ignore
-
-    PDF_AVAILABLE = True
-except ImportError:
-    PDF_AVAILABLE = False
-    PDFExporter = None  # type: ignore[assignment]
-
-try:
-    import exporters.excel as excel_module  # type: ignore
-
-    ExcelExporter = excel_module.ExcelExporter  # type: ignore[attr-defined]
-    EXCEL_AVAILABLE = bool(getattr(excel_module, "OPENPYXL_AVAILABLE", True))
-except ImportError:
-    EXCEL_AVAILABLE = False
-    ExcelExporter = None  # type: ignore[assignment]
-from exceptions import ExportError, FileError, ParseError, ValidationError, WallScribeError
 from jobs.processor import JobProcessor
 from routes.files import register as register_file_routes
 from routes.jobs import register as register_job_routes
@@ -82,59 +33,23 @@ from utils.validation import (
     validate_output_format,
 )
 from web.cleanup import start_cleanup_thread
+from web.config import AppSettings, configure_logging
+from web.dependencies import load_runtime_dependencies
 from web.hooks import register_error_handlers, register_request_hooks, swagger_setup
-
-# モニタリング（オプショナル）
-try:
-    from utils.metrics import (
-        get_metrics,
-        record_error,
-        record_file_upload,
-        record_processed_file,
-        record_request,
-        set_active_jobs,
-    )
-
-    METRICS_AVAILABLE = True
-except ImportError:
-    METRICS_AVAILABLE = False
-
-    # モック関数（型チェックを無視）
-    def record_request(*args: Any, **kwargs: Any) -> None:  # type: ignore[misc]
-        pass
-
-    def record_file_upload(*args: Any, **kwargs: Any) -> None:  # type: ignore[misc]
-        pass
-
-    def record_error(*args: Any, **kwargs: Any) -> None:  # type: ignore[misc]
-        pass
-
-    def set_active_jobs(*args: Any, **kwargs: Any) -> None:  # type: ignore[misc]
-        pass
-
-    def record_processed_file(*args: Any, **kwargs: Any) -> None:  # type: ignore[misc]
-        pass
-
-    def get_metrics() -> bytes:
-        return b"# Metrics not available\n"
-
 
 SWAGGER_AVAILABLE = True
 
 # ロギング設定
-# 環境変数でJSON形式を有効化可能（LOG_FORMAT=json）
-log_format = os.environ.get("LOG_FORMAT", "text")
-if log_format == "json":
-    from utils.logging_config import StructuredLogger
-
-    StructuredLogger.setup_logging(level=os.environ.get("LOG_LEVEL", "INFO"), format_type="json")
-else:
-    # 後方互換性のため、テキスト形式もサポート
-    logging.basicConfig(
-        level=getattr(logging, os.environ.get("LOG_LEVEL", "INFO").upper(), logging.INFO),
-        format="[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+# 任意依存の try:/except ImportError は web.dependencies に集約している。
+SETTINGS = AppSettings.from_env()
+configure_logging(SETTINGS)
+RUNTIME = load_runtime_dependencies()
+PDFExporter = RUNTIME.pdf_exporter_cls
+ExcelExporter = RUNTIME.excel_exporter_cls
+PDF_AVAILABLE = RUNTIME.pdf_available
+EXCEL_AVAILABLE = RUNTIME.excel_available
+METRICS_AVAILABLE = RUNTIME.metrics_available
+LIMITER_AVAILABLE = RUNTIME.limiter_available
 
 logger = logging.getLogger(__name__)
 
@@ -149,12 +64,7 @@ def create_app() -> Flask:
     app = Flask(__name__, template_folder="web/templates", static_folder="static")
 
     # 設定
-    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", os.urandom(24).hex())
-    app.config["UPLOAD_FOLDER"] = os.environ.get("UPLOAD_FOLDER", "./uploads")
-    app.config["MAX_CONTENT_LENGTH"] = int(
-        os.environ.get("MAX_CONTENT_LENGTH", 50 * 1024 * 1024)
-    )  # 50MB
-    app.config["CLEANUP_INTERVAL"] = int(os.environ.get("CLEANUP_INTERVAL", 3600))  # 1時間
+    SETTINGS.apply_to_flask(app)
 
     # メタデータ保存先を共有（ワーカースレッドからも参照）
     set_upload_folder(Path(app.config["UPLOAD_FOLDER"]))
@@ -164,25 +74,26 @@ def create_app() -> Flask:
     SWAGGER_AVAILABLE = ok
 
     # レート制限
-    if LIMITER_AVAILABLE:
-        limiter = Limiter(
+    if RUNTIME.limiter_available:
+        limiter = RUNTIME.limiter_cls(
             app=app,
-            key_func=get_remote_address,
-            default_limits=[os.environ.get("RATE_LIMIT_DEFAULT", "100 per hour")],
-            storage_uri=os.environ.get("RATE_LIMIT_STORAGE", "memory://"),
+            key_func=RUNTIME.get_remote_address,
+            default_limits=[SETTINGS.rate_limit_default],
+            storage_uri=SETTINGS.rate_limit_storage,
             headers_enabled=True,
         )
+        limiter.request_filter(lambda: bool(app.config.get("TESTING", False)))
     else:
-        limiter = Limiter()
+        limiter = RUNTIME.limiter_cls()
 
     # ルート登録（巨大化対策）
     processor = JobProcessor(
         update_progress=update_progress,
         save_file_metadata=save_file_metadata,
         metrics_available=METRICS_AVAILABLE,
-        record_file_upload=record_file_upload,
-        record_processed_file=record_processed_file,
-        record_error=record_error,
+        record_file_upload=RUNTIME.record_file_upload,
+        record_processed_file=RUNTIME.record_processed_file,
+        record_error=RUNTIME.record_error,
         html_exporter_cls=HTMLExporter,
         pdf_exporter_cls=PDFExporter,
         excel_exporter_cls=ExcelExporter,
@@ -190,7 +101,7 @@ def create_app() -> Flask:
         excel_available=EXCEL_AVAILABLE,
     )
     register_job_routes(app, limiter)
-    register_system_routes(app, get_metrics)
+    register_system_routes(app, RUNTIME.get_metrics)
     register_page_routes(app)
     register_file_routes(app)
     register_status_routes(app)
@@ -225,10 +136,12 @@ def create_app() -> Flask:
 
     # エラーハンドラ/フック
     register_error_handlers(app)
-    register_request_hooks(app, metrics_available=METRICS_AVAILABLE, record_request=record_request)
+    register_request_hooks(
+        app, metrics_available=METRICS_AVAILABLE, record_request=RUNTIME.record_request
+    )
 
     # クリーンアップスレッド
-    if os.environ.get("WALLSCRIBE_DISABLE_CLEANUP_THREAD", "").lower() not in ("1", "true", "yes"):
+    if SETTINGS.cleanup_thread_enabled:
         cleanup_thread = start_cleanup_thread(
             app, load_file_metadata=load_file_metadata, delete_file_metadata=delete_file_metadata
         )
@@ -255,8 +168,8 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("FLASK_PORT", 8080))
-    debug = os.environ.get("FLASK_ENV", "production") == "development"
+    port = SETTINGS.flask_port
+    debug = SETTINGS.flask_env == "development"
 
     logger.info(f"サーバー起動: http://localhost:{port}")
     app.run(host="0.0.0.0", port=port, debug=debug)

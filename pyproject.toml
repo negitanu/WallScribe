@@ -7,7 +7,7 @@ name = "wallscribe"
 version = "1.1.0"
 description = "FortiGate / Palo Alto 設定からパラメータシートを生成するツール"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 optional-dependencies.dev = [
     "black==24.10.0",
     "isort>=5.13.0",
@@ -46,7 +46,7 @@ exclude = '''
 profile = "black"
 line_length = 100
 skip = [".venv", "venv", "build", "dist", "__pycache__", ".pytest_cache", "htmlcov"]
-known_first_party = ["parsers", "models", "exporters", "utils", "web"]
+known_first_party = ["parsers", "models", "exporters", "utils", "web", "routes", "jobs", "services"]
 
 [tool.mypy]
 python_version = "3.12"

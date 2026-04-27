@@ -4,7 +4,7 @@ FortiGate と PA-Series ファイアウォールの設定ファイルから、�
 
 ## 技術スタック
 
-![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-2.0+-000000?style=flat-square&logo=flask&logoColor=white)
 ![WeasyPrint](https://img.shields.io/badge/WeasyPrint-62.0+-FF6B6B?style=flat-square)
 ![Gunicorn](https://img.shields.io/badge/Gunicorn-20.0+-499848?style=flat-square&logo=gunicorn&logoColor=white)
@@ -34,7 +34,7 @@ FortiGate と PA-Series ファイアウォールの設定ファイルから、�
 
 #### ローカル環境（Python直接実行）
 
-- Python 3.14 のみ
+- Python 3.12 以上
 
 #### Docker環境
 
@@ -299,6 +299,7 @@ IPアドレスとサブネットマスクを自動的にCIDR表記（例: `192.1
 - インターフェース: `ip6-address`
 - ルーティング: `router static6`
 - アドレス/グループ: `firewall address6` / `firewall addrgrp6`
+- FortiOS 8.0: ポリシーの `srcaddr6` / `dstaddr6` と IPv6 wildcard address 参照を既存の送信元/宛先アドレス欄へ統合
 
 ### ルーティングのblackhole/discard対応
 
@@ -321,6 +322,10 @@ Excel出力では、以下の動的ルーティングプロトコルに対応し
 ### Internet Service対応
 
 FortiGateのInternet Service（ISDB）に対応し、サービス名を自動解決して表示します。
+
+### FortiOS 8.0 対応
+
+FortiOS 8.0 の `#config-version`、カスタムタグ（アドレス/アドレスグループ/サービス/ポリシー）、`internet-service-id`、IPv6 ポリシーアドレス、従来形式の `vpn ipsec phase1` / `phase2` をパースします。
 
 ### Excel出力のVDOM/vsys単位対応
 
@@ -434,7 +439,7 @@ pip-audit
 
 GitHub Actionsによる自動テストとコード品質チェックが設定されています：
 
-- Python 3.14 でのテスト
+- Python 3.12 以上でのテスト
 - コードフォーマットチェック（black, isort）
 - リンター（flake8）
 - 型チェック（mypy）

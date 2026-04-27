@@ -2,18 +2,6 @@
 
 {% block title %}エラー{% endblock %}
 
-{% block extra_css %}
-<style>
-    /* Error glow effect for this page */
-    body {
-        background-image:
-            radial-gradient(ellipse 80% 50% at 50% -20%, rgba(239, 68, 68, 0.15), transparent),
-            linear-gradient(var(--grid-color) 1px, transparent 1px),
-            linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-    }
-</style>
-{% endblock %}
-
 {% block content %}
 <!-- Error Card -->
 <section class="error-section">

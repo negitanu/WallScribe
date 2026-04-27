@@ -50,7 +50,7 @@ FortiGate と PA-Series ファイアウォールの設定ファイルから、�
 
 #### 2.1.1 FortiGate 設定ファイル (.conf)
 
-- FortiOS 6.x / 7.x 形式に対応
+- FortiOS 6.x / 7.x / 8.0 形式に対応
 - VDOM（Virtual Domain）構成に対応
 - エンコーディングは自動検出（UTF-8 / UTF-8 BOM / CP932(Shift-JIS) / Latin-1）
 
@@ -825,7 +825,7 @@ gunicorn -w 4 -b 0.0.0.0:8080 app:app
 
 ### 7.1 動作環境
 
-- Python 3.14 のみ
+- Python 3.12 以上
 - OS: Windows / Linux / macOS
 
 ### 7.2 依存パッケージ
@@ -888,7 +888,7 @@ flasgger>=0.9.7.1         # Swagger UI（Swagger 2.0）
 
 ### 9.2 対応バージョン
 
-- FortiOS: 6.0 以上を推奨（6.x/7.x で動作確認）
+- FortiOS: 6.0 以上を推奨（6.x/7.x/8.0 で動作確認）
 - PAN-OS: 10.0 以上を推奨（10.x/11.x で動作確認）
 
 ### 9.3 パフォーマンス

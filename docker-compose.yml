@@ -13,6 +13,8 @@ services:
       - UPLOAD_FOLDER=/app/uploads
       - MAX_CONTENT_LENGTH=${MAX_CONTENT_LENGTH:-52428800}
       - CLEANUP_INTERVAL=${CLEANUP_INTERVAL:-3600}
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
+      - GUNICORN_THREADS=${GUNICORN_THREADS:-2}
       - TZ=${TZ:-Asia/Tokyo}
     volumes:
       # アップロードファイルを永続化（オプション）
@@ -23,6 +25,7 @@ services:
       # - ./models:/app/models
       # - ./exporters:/app/exporters
       # - ./web:/app/web
+      # - ./services:/app/services
       # - ./static:/app/static
     restart: unless-stopped
     healthcheck:
@@ -46,6 +49,7 @@ services:
       - .:/app
     environment:
       - PYTHONPATH=/app
+      - WALLSCRIBE_DISABLE_CLEANUP_THREAD=1
       - TZ=${TZ:-Asia/Tokyo}
     command: ["pytest", "-v"]
     networks:

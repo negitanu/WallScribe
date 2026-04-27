@@ -6,26 +6,32 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, List, Optional
 
 from flask import jsonify, request
 from werkzeug.utils import secure_filename
 
+from routes.upload_common import (
+    PathValidationError,
+    ensure_child_path,
+    error_response,
+    parse_sections,
+    validate_output_dependency,
+    validate_uploaded_content,
+)
+from services.conversion import (
+    ExportCapabilities,
+    UnsupportedOutputFormat,
+    build_output_filename,
+    export_config,
+)
 from utils.storage import save_file_metadata
 
 logger = logging.getLogger(__name__)
-
-
-class PathValidationError(ValueError):
-    """パス検証エラー用のカスタム例外"""
-
-    pass
 
 
 def register(
@@ -52,146 +58,56 @@ def register(
         """ファイルアップロード・変換処理"""
         try:
             if "config_file" not in request.files:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {"code": "NO_FILE", "message": "ファイルが選択されていません"},
-                        }
-                    ),
-                    400,
-                )
+                return error_response("NO_FILE", "ファイルが選択されていません", 400)
 
             file = request.files["config_file"]
             if file.filename == "":
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {"code": "NO_FILE", "message": "ファイルが選択されていません"},
-                        }
-                    ),
-                    400,
-                )
+                return error_response("NO_FILE", "ファイルが選択されていません", 400)
 
             if not allowed_file(file.filename):
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {
-                                "code": "UNSUPPORTED_FORMAT",
-                                "message": "サポートされていないファイル形式です",
-                                "details": "対応形式: .conf (FortiGate), .xml (Palo Alto)",
-                            },
-                        }
-                    ),
+                return error_response(
+                    "UNSUPPORTED_FORMAT",
+                    "サポートされていないファイル形式です",
                     400,
+                    "対応形式: .conf (FortiGate), .xml (Palo Alto)",
                 )
 
             output_format = request.form.get("output_format", "html")
             is_valid_format, format_error = validate_output_format(output_format)
             if not is_valid_format:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {"code": "INVALID_OUTPUT_FORMAT", "message": format_error},
-                        }
-                    ),
-                    400,
-                )
+                return error_response("INVALID_OUTPUT_FORMAT", format_error, 400)
 
             # 依存関係チェック（オプショナル出力）
-            if output_format == "pdf" and not pdf_available:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {
-                                "code": "DEPENDENCY_MISSING",
-                                "message": "PDF出力にはweasyprintが必要です",
-                                "details": "pip install -r requirements.txt を実行してください",
-                            },
-                        }
-                    ),
-                    400,
-                )
-            if output_format == "excel" and not excel_available:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {
-                                "code": "DEPENDENCY_MISSING",
-                                "message": "Excel出力にはopenpyxlが必要です",
-                                "details": "pip install -r requirements.txt を実行してください",
-                            },
-                        }
-                    ),
-                    400,
-                )
+            dependency_error = validate_output_dependency(
+                output_format, pdf_available=pdf_available, excel_available=excel_available
+            )
+            if dependency_error:
+                return dependency_error
 
-            # 出力セクション
-            sections_json = request.form.get("sections", "[]")
-            try:
-                sections_list = json.loads(sections_json)
-                sections: Optional[List[Any]] = (
-                    sections_list if isinstance(sections_list, list) else None
-                )
-            except json.JSONDecodeError:
-                sections = None
+            sections = parse_sections(request.form.get("sections", "[]"))
 
             file_data = file.read()
-
-            is_valid_size, size_error = validate_file_size(
-                file_data, app.config["MAX_CONTENT_LENGTH"]
-            )
-            if not is_valid_size:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {"code": "FILE_TOO_LARGE", "message": size_error},
-                        }
-                    ),
-                    400,
-                )
-
             original_filename = secure_filename(file.filename)
-            is_valid_content, content_error = validate_file_content(file_data, original_filename)
-            if not is_valid_content:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {
-                                "code": "INVALID_FILE_CONTENT",
-                                "message": "ファイル内容の検証に失敗しました",
-                                "details": content_error,
-                            },
-                        }
-                    ),
-                    400,
-                )
+            validation_error = validate_uploaded_content(
+                file_data,
+                original_filename,
+                max_content_length=app.config["MAX_CONTENT_LENGTH"],
+                validate_file_size=validate_file_size,
+                validate_file_content=validate_file_content,
+            )
+            if validation_error:
+                return validation_error
 
             content, detected_encoding = detect_encoding(file_data)
             logger.info(f"検出されたエンコーディング: {detected_encoding}")
 
             parser = get_parser_for_content(content)
             if parser is None:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {
-                                "code": "UNSUPPORTED_FORMAT",
-                                "message": "設定ファイルの形式を判別できません",
-                                "details": "対応形式: .conf (FortiGate), .xml (Palo Alto)",
-                            },
-                        }
-                    ),
+                return error_response(
+                    "UNSUPPORTED_FORMAT",
+                    "設定ファイルの形式を判別できません",
                     400,
+                    "対応形式: .conf (FortiGate), .xml (Palo Alto)",
                 )
 
             logger.info(f"パース開始: {original_filename}")
@@ -205,84 +121,28 @@ def register(
             upload_folder = Path(app.config["UPLOAD_FOLDER"]).resolve()
             upload_folder.mkdir(parents=True, exist_ok=True)
 
-            if output_format == "html":
-                output_filename = f"{Path(original_filename).stem}_param.html"
-                output_path = (upload_folder / f"{file_id}_{output_filename}").resolve()
-                if not output_path.is_relative_to(upload_folder):
-                    raise PathValidationError("Invalid file path detected")
-
-                if sections is None or not isinstance(sections, list):
-                    exporter = html_exporter_cls(config)
-                else:
-                    sections_list_str = [s for s in sections if isinstance(s, str)]
-                    exporter = html_exporter_cls(config, sections=sections_list_str)
-                exporter.export(str(output_path))
-
-            elif output_format == "pdf":
-                if not pdf_available or pdf_exporter_cls is None:
-                    return (
-                        jsonify(
-                            {
-                                "success": False,
-                                "error": {
-                                    "code": "DEPENDENCY_MISSING",
-                                    "message": "PDF出力にはweasyprintが必要です",
-                                    "details": "pip install -r requirements.txt を実行してください",
-                                },
-                            }
-                        ),
-                        400,
-                    )
-                output_filename = f"{Path(original_filename).stem}_param.pdf"
-                output_path = (upload_folder / f"{file_id}_{output_filename}").resolve()
-                if not output_path.is_relative_to(upload_folder):
-                    raise PathValidationError("Invalid file path detected")
-                if sections is None or not isinstance(sections, list):
-                    exporter = pdf_exporter_cls(config)
-                else:
-                    sections_list_str = [s for s in sections if isinstance(s, str)]
-                    exporter = pdf_exporter_cls(config, sections=sections_list_str)
-                exporter.export(str(output_path))
-
-            elif output_format == "excel":
-                if not excel_available or excel_exporter_cls is None:
-                    return (
-                        jsonify(
-                            {
-                                "success": False,
-                                "error": {
-                                    "code": "DEPENDENCY_MISSING",
-                                    "message": "Excel出力にはopenpyxlが必要です",
-                                    "details": "pip install -r requirements.txt を実行してください",
-                                },
-                            }
-                        ),
-                        400,
-                    )
-                output_filename = f"{Path(original_filename).stem}_param.xlsx"
-                output_path = (upload_folder / f"{file_id}_{output_filename}").resolve()
-                if not output_path.is_relative_to(upload_folder):
-                    raise PathValidationError("Invalid file path detected")
-                if sections is None or not isinstance(sections, list):
-                    exporter = excel_exporter_cls(config)
-                else:
-                    sections_list_str = [s for s in sections if isinstance(s, str)]
-                    exporter = excel_exporter_cls(config, sections=sections_list_str)
-                exporter.export(str(output_path))
-
-            else:
-                return (
-                    jsonify(
-                        {
-                            "success": False,
-                            "error": {
-                                "code": "UNSUPPORTED_FORMAT",
-                                "message": f"サポートされていない出力形式です: {output_format}",
-                                "details": "対応形式: html, pdf, excel",
-                            },
-                        }
+            try:
+                output_filename = build_output_filename(Path(original_filename).stem, output_format)
+                output_path = ensure_child_path(upload_folder, upload_folder / f"{file_id}_{output_filename}")
+                export_config(
+                    config,
+                    output_format,
+                    output_path,
+                    ExportCapabilities(
+                        html_exporter_cls=html_exporter_cls,
+                        pdf_exporter_cls=pdf_exporter_cls,
+                        excel_exporter_cls=excel_exporter_cls,
+                        pdf_available=pdf_available,
+                        excel_available=excel_available,
                     ),
+                    sections=sections,
+                )
+            except UnsupportedOutputFormat:
+                return error_response(
+                    "UNSUPPORTED_FORMAT",
+                    f"サポートされていない出力形式です: {output_format}",
                     400,
+                    "対応形式: html, pdf, excel",
                 )
 
             summary = config.get_summary()
