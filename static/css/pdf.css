@@ -15,6 +15,7 @@ body {
     line-height: 1.35;
     background: white;
     color: black;
+    margin: 0;
 }
 
 /* 日本語フォントの設定 */
@@ -57,9 +58,12 @@ header, nav.toc, section {
 
 section {
     page-break-after: auto;
+    background: #ffffff;
     padding: 10px 8px;
     box-sizing: border-box;
+    border: 1px solid #e2e8f0;
     border-radius: 6px;
+    margin-bottom: 15px;
 }
 
 /* VDOM Section */
@@ -216,39 +220,97 @@ tfoot {
 /* 目次 */
 nav.toc {
     page-break-after: always;
-    padding: 10px 8px;
+    background: #ffffff;
+    padding: 16px 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    margin-bottom: 15px;
 }
 
 nav.toc ul {
     columns: 2;
     column-gap: 24px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
 }
 
 nav.toc h2 {
     font-size: 1.2em;
-    margin: 0.3em 0;
+    font-weight: 700;
+    color: #1a5276;
+    border-bottom: 2px solid #2980b9;
+    padding-bottom: 6px;
+    margin: 0 0 10px 0;
 }
 
 nav.toc li {
     font-size: 8.5pt;
     padding: 3px 0;
+    line-height: 1.4;
     break-inside: avoid;
+}
+
+nav.toc > ul > li {
+    padding: 5px 0;
+}
+
+nav.toc ul ul {
+    columns: 1;
+    margin: 5px 0 0 12px;
+    padding: 0;
+}
+
+nav.toc ul ul li {
+    font-size: 8pt;
+    padding: 2px 0;
+}
+
+nav.toc ul ul li::before {
+    content: ">";
+    color: #94a3b8;
+    margin-right: 4px;
+}
+
+nav.toc a {
+    color: #2980b9;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+nav.toc ul ul a {
+    color: #64748b;
+    font-weight: 400;
 }
 
 /* ヘッダーとフッターの調整 */
 header {
     page-break-after: avoid;
-    padding: 12px 8px;
-    background: linear-gradient(135deg, #1a5276, #2980b9);
+    padding: 18px 16px;
+    margin-bottom: 18px;
+    background: linear-gradient(135deg, #1a5276 0%, #2980b9 70%, #3498db 100%);
+    color: #ffffff;
+    border-radius: 8px;
 }
 
 header h1 {
-    font-size: 1.4em;
-    margin: 0.3em 0;
+    color: #ffffff;
+    font-size: 1.5em;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 8px 0;
 }
 
 header .meta {
+    color: rgba(255, 255, 255, 0.92);
     font-size: 0.85em;
+    line-height: 1.5;
+    margin: 0;
+}
+
+header .meta strong {
+    color: #ffffff;
+    font-weight: 600;
 }
 
 footer {
@@ -271,11 +333,36 @@ footer {
 .badge-outline {
     display: inline-block;
     white-space: nowrap;
+    color: #ffffff;
     font-size: 7pt;
     line-height: 1;
     padding: 2px 4px;
     border-radius: 999px;
 }
+
+.bg-primary { background-color: #0d6efd; }
+.bg-secondary { background-color: #6c757d; }
+.bg-success { background-color: #198754; }
+.bg-danger { background-color: #dc3545; }
+.bg-warning { background-color: #ffc107; color: #212529; }
+.bg-info { background-color: #0dcaf0; color: #212529; }
+.bg-light { background-color: #f8f9fa; color: #212529; border: 1px solid #dee2e6; }
+.bg-dark { background-color: #212529; }
+
+.badge-outline {
+    background-color: #ffffff;
+    color: #495057;
+    border: 0.5px solid #adb5bd;
+}
+
+.badge-outline-primary { color: #0d6efd; border-color: #0d6efd; }
+.badge-outline-secondary { color: #6c757d; border-color: #6c757d; }
+.badge-outline-success { color: #198754; border-color: #198754; }
+.badge-outline-danger { color: #dc3545; border-color: #dc3545; }
+.badge-outline-warning { color: #856404; border-color: #ffc107; }
+.badge-outline-info { color: #087990; border-color: #0dcaf0; }
+.badge-outline-light { color: #495057; border-color: #dee2e6; }
+.badge-outline-dark { color: #212529; border-color: #212529; }
 
 /* サマリーボックスと警告ボックスの調整 */
 .summary-box, .warning-box {

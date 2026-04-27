@@ -166,6 +166,28 @@ class TestHTMLExporter:
 
         # PDF用はscriptタグを含まない
         assert "<script>" not in html or "search" not in html.lower()
+        # PDF生成時は WeasyPrint 側でCSSを渡し、不要なツールチップHTMLも持たせない
+        assert "Minimal Bootstrap for PDF" not in html
+        assert "data-tooltip" not in html
+
+    def test_pdf_css_preserves_header_styles(self):
+        """PDF用CSSにタイトル領域の見た目が定義されている"""
+        css = Path("static/css/pdf.css").read_text(encoding="utf-8")
+
+        assert "header {" in css
+        assert "color: #ffffff" in css
+        assert "header h1" in css
+        assert "header .meta" in css
+
+    def test_pdf_css_preserves_toc_styles(self):
+        """PDF用CSSに目次領域の見た目が定義されている"""
+        css = Path("static/css/pdf.css").read_text(encoding="utf-8")
+
+        assert "nav.toc {" in css
+        assert "nav.toc ul {" in css
+        assert "list-style: none" in css
+        assert "nav.toc a" in css
+        assert "nav.toc ul ul" in css
 
     def test_export_contains_nat_mode(self, sample_config_model):
         """NATモードが含まれていることを確認"""

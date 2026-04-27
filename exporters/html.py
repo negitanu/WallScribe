@@ -13,7 +13,6 @@ from exporters.utils import (
     STATIC_DIR,
     HtmlFormatter,
     load_css,
-    load_css_for_pdf,
     load_isdb,
     load_search_js,
     load_tooltip_js,
@@ -517,22 +516,30 @@ class HTMLExporter:
 
     def _with_tooltip(self, text: str, tooltip: str) -> str:
         """ツールチップ付きのHTML要素を生成"""
+        if self.for_pdf:
+            return self.escape(text)
         if not tooltip:
             return self.escape(text)
         return f'<span class="has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(text)}</span>'
 
     def _interface_with_tooltip(self, name: str, vdom: str = "root") -> str:
         """インターフェース名をツールチップ付きで表示"""
+        if self.for_pdf:
+            return self.escape(name)
         tooltip = self._get_interface_tooltip(name, vdom)
         return self._with_tooltip(name, tooltip)
 
     def _address_with_tooltip(self, name: str, vdom: str = "root") -> str:
         """アドレス名をツールチップ付きで表示"""
+        if self.for_pdf:
+            return self.escape(name)
         tooltip = self._get_address_tooltip(name, vdom)
         return self._with_tooltip(name, tooltip)
 
     def _service_with_tooltip(self, name: str, vdom: str = "root") -> str:
         """サービス名をツールチップ付きで表示"""
+        if self.for_pdf:
+            return self.escape(name)
         tooltip = self._get_service_tooltip(name, vdom)
         return self._with_tooltip(name, tooltip)
 
@@ -562,6 +569,9 @@ class HTMLExporter:
 
                 app_name = self._isdb_cache.get(isdb_id) or self._isdb_cache.get(str(isdb_id))
                 display_name = app_name if app_name else f"Internet Service ({isdb_id})"
+                if self.for_pdf:
+                    lines.append(f'<span class="badge bg-info">{self.escape(display_name)}</span>')
+                    continue
                 tooltip = self._get_internet_service_tooltip(addr)
                 lines.append(
                     f'<span class="badge bg-info has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(display_name)}</span>'
@@ -577,6 +587,9 @@ class HTMLExporter:
         badges = []
         for svc in services:
             color = self.SERVICE_COLORS.get(svc.lower(), "secondary")
+            if self.for_pdf:
+                badges.append(f'<span class="badge bg-{color}">{self.escape(svc)}</span>')
+                continue
             tooltip = self._get_service_tooltip(svc, vdom)
             if tooltip:
                 badges.append(
@@ -689,6 +702,11 @@ class HTMLExporter:
                 profile_type = profile.lower()
 
             color = self.SECURITY_PROFILE_COLORS.get(profile_type, "secondary")
+            if self.for_pdf:
+                badges.append(
+                    f'<span class="badge badge-outline badge-outline-{color}">{self.escape(profile)}</span>'
+                )
+                continue
             tooltip = self._get_security_profile_tooltip(profile, vdom)
 
             badge_html = f'<span class="badge badge-outline badge-outline-{color} has-tooltip" data-tooltip="{self.escape(tooltip)}">{self.escape(profile)}</span>'
@@ -821,8 +839,8 @@ class HTMLExporter:
     </script>"""
         )
 
-        # PDF用は軽量CSS（Bootstrap除外）を使用して高速化
-        css_content = load_css_for_pdf() if self.for_pdf else load_css()
+        # PDF生成では WeasyPrint 側でキャッシュ済みCSSを渡すため、HTML内にCSSを重複展開しない。
+        css_content = "" if self.for_pdf else load_css()
 
         return f"""<!DOCTYPE html>
 <html lang="ja">

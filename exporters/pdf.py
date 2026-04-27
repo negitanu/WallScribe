@@ -11,6 +11,7 @@ HTMLExporterを再利用してHTMLを生成し、WeasyPrintでPDFに変換
 """
 
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Union
@@ -74,8 +75,11 @@ class PDFExporter:
         - FontConfigurationを再利用
         - presentational_hints=Falseで高速化
         """
-        # HTMLを生成（PDF用に最適化、Bootstrap除外で軽量）
+        started_at = time.perf_counter()
+
+        # HTMLを生成（PDF用に最適化、CSS/JavaScript/ツールチップを除外して軽量化）
         html_content = self.html_exporter.export()
+        html_generated_at = time.perf_counter()
 
         # PDF用のCSSオブジェクトを取得（パース済みをキャッシュから）
         pdf_css_obj = self._get_pdf_css_object()
@@ -88,18 +92,24 @@ class PDFExporter:
             font_config = self._get_font_config()
 
             # HTMLドキュメントを作成
-            html_doc = HTML(string=html_content)
+            html_doc = HTML(string=html_content, base_url=str(STATIC_DIR.parent))
 
-            # PDFを生成（最適化オプション付き）
+            # PDFを生成。画像がないため optimize_images は使わず、余計な最適化コストを避ける。
             html_doc.write_pdf(
                 output_path,
                 stylesheets=[pdf_css_obj, header_css],
                 font_config=font_config,
-                optimize_images=True,  # 画像最適化
                 presentational_hints=False,  # HTML属性からのスタイル推論を無効化（高速化）
             )
+            finished_at = time.perf_counter()
 
-            logger.info(f"PDF出力完了: {output_path}")
+            logger.info(
+                "PDF出力完了: %s (html=%.2fs, render=%.2fs, total=%.2fs)",
+                output_path,
+                html_generated_at - started_at,
+                finished_at - html_generated_at,
+                finished_at - started_at,
+            )
             return output_path
 
         except Exception as e:
