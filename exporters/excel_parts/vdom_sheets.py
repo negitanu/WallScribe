@@ -315,13 +315,14 @@ class ExcelVdomSheetsMixin:
 
         if address_groups:
             self._set_section_title(ws, row_idx, 1, "アドレスグループ", colspan=3)
-            grp_headers = ["グループ名", "メンバー", "説明"]
+            grp_headers = ["グループ名", "メンバー", "説明", "動的フィルター"]
             self._set_header_row(ws, grp_headers, row_idx + 1)
             row_idx += 2
             for grp in address_groups:
                 self._set_cell(ws, row_idx, 1, grp.name)
                 self._set_cell(ws, row_idx, 2, self._list_to_str(grp.members, ", "))
                 self._set_cell(ws, row_idx, 3, grp.description)
+                self._set_cell(ws, row_idx, 4, grp.dynamic_filter)
                 row_idx += 1
             row_idx += 1
 
@@ -378,12 +379,24 @@ class ExcelVdomSheetsMixin:
                 "セキュリティ",
                 "有効",
                 "説明",
+                "アプリケーション",
+                "スケジュール",
+                "送信元否定",
+                "宛先否定",
+                "送信元ユーザー",
+                "送信元グループ",
+                "開始ログ",
+                "終了ログ",
+                "ログ転送",
+                "タグ",
             ]
             if self._uses_legacy_sheet_names(vdom):
                 self._set_header_row(ws, headers, row_idx)
                 row_idx += 1
             else:
-                self._set_section_title(ws, row_idx, 1, "ファイアウォールポリシー", colspan=14)
+                self._set_section_title(
+                    ws, row_idx, 1, "ファイアウォールポリシー", colspan=len(headers)
+                )
                 self._set_header_row(ws, headers, row_idx + 1)
                 row_idx += 2
 
@@ -402,6 +415,20 @@ class ExcelVdomSheetsMixin:
                 self._set_cell(ws, row_idx, 12, self._list_to_str(policy.security_profiles))
                 self._set_status_cell(ws, row_idx, 13, policy.enabled)
                 self._set_cell(ws, row_idx, 14, policy.description)
+                extra_values = [
+                    self._list_to_str(policy.application),
+                    policy.schedule,
+                    "有効" if policy.source_negate else "無効",
+                    "有効" if policy.destination_negate else "無効",
+                    self._list_to_str(policy.source_users),
+                    self._list_to_str(policy.source_groups),
+                    "有効" if policy.log_start else "無効",
+                    "有効" if policy.log_end else "無効",
+                    policy.log_profile,
+                    self._list_to_str(policy.tags),
+                ]
+                for column, value in enumerate(extra_values, 15):
+                    self._set_cell(ws, row_idx, column, value)
                 row_idx += 1
 
             row_idx += 1

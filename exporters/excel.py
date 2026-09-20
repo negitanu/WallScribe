@@ -122,7 +122,9 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
         # ClusterConfigの場合、primary_configを使用
         if cluster_config is not None:
             self.cluster_config = cluster_config
-            self.config = config if isinstance(config, ConfigModel) else cluster_config.primary_config
+            self.config = (
+                config if isinstance(config, ConfigModel) else cluster_config.primary_config
+            )
             if self.config is None:
                 self.config = ConfigModel()
             self.is_cluster = cluster_config.is_cluster
@@ -157,9 +159,23 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
 
     def _get_vdom_list(self) -> List[str]:
         """出力対象のVDOM/vsysリストを取得"""
-        if self.config.device_info.vdom_list:
-            return self.config.device_info.vdom_list
-        return ["root"]  # デフォルト
+        vdoms = list(self.config.device_info.vdom_list) or ["root"]
+        objects = self.config.objects
+        if (
+            any(
+                item.vdom == "shared"
+                for items in (
+                    objects.addresses,
+                    objects.address_groups,
+                    objects.services,
+                    objects.service_groups,
+                )
+                for item in items
+            )
+            and "shared" not in vdoms
+        ):
+            vdoms.append("shared")
+        return vdoms
 
     def _get_vdom_label(self) -> str:
         """デバイスタイプに応じたラベルを返す（VDOM/vsys）"""

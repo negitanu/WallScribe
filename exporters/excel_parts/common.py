@@ -103,6 +103,9 @@ class ExcelCommonMixin:
         styles = self._get_vdom_styles()
         cell = ws.cell(row=row, column=col, value=str(value) if value is not None else "")
 
+        # Configuration strings are data, including values beginning with '='.
+        cell.data_type = "s"
+
         # ステータスセルの自動スタイリング
         if is_status and status_value is not None:
             if status_value:

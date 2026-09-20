@@ -293,6 +293,7 @@ class AddressGroup:
     members: List[str] = field(default_factory=list)
     vdom: str = "root"
     description: str = ""
+    dynamic_filter: str = ""
     tags: List[str] = field(default_factory=list)
 
 
@@ -349,6 +350,14 @@ class FirewallPolicy:
     enabled: bool = True
     description: str = ""
     tags: List[str] = field(default_factory=list)
+    schedule: str = ""
+    source_negate: bool = False
+    destination_negate: bool = False
+    source_users: List[str] = field(default_factory=list)
+    source_groups: List[str] = field(default_factory=list)
+    log_start: bool = False
+    log_end: bool = False
+    log_profile: str = ""
 
 
 @dataclass

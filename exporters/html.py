@@ -189,9 +189,23 @@ class HTMLExporter:
 
     def _get_vdom_list(self) -> List[str]:
         """出力対象のVDOM/vsysリストを取得"""
-        if self.config.device_info.vdom_list:
-            return self.config.device_info.vdom_list
-        return ["root"]  # デフォルト
+        vdoms = list(self.config.device_info.vdom_list) or ["root"]
+        objects = self.config.objects
+        if (
+            any(
+                item.vdom == "shared"
+                for items in (
+                    objects.addresses,
+                    objects.address_groups,
+                    objects.services,
+                    objects.service_groups,
+                )
+                for item in items
+            )
+            and "shared" not in vdoms
+        ):
+            vdoms.append("shared")
+        return vdoms
 
     def _filter_by_vdom(self, items: List[Any], vdom: str) -> List[Any]:
         """指定VDOMの項目のみをフィルタリング"""
@@ -426,7 +440,7 @@ class HTMLExporter:
             return result
 
         # アドレスオブジェクトを検索
-        addr = self._address_lookup.get((vdom, name))
+        addr = self._address_lookup.get((vdom, name)) or self._address_lookup.get(("shared", name))
         if addr:
             rows = [("項目", "値")]
             rows.append(("タイプ", addr.object_type or "-"))
@@ -439,7 +453,9 @@ class HTMLExporter:
             return result
 
         # アドレスグループを検索
-        grp = self._address_group_lookup.get((vdom, name))
+        grp = self._address_group_lookup.get((vdom, name)) or self._address_group_lookup.get(
+            ("shared", name)
+        )
         if grp:
             rows = [("項目", "値")]
             rows.append(("タイプ", "アドレスグループ"))
@@ -482,7 +498,7 @@ class HTMLExporter:
             return result
 
         # サービスオブジェクトを検索
-        svc = self._service_lookup.get((vdom, name))
+        svc = self._service_lookup.get((vdom, name)) or self._service_lookup.get(("shared", name))
         if svc:
             rows = [("項目", "値")]
             rows.append(("プロトコル", svc.protocol.upper() if svc.protocol else "-"))
@@ -496,7 +512,9 @@ class HTMLExporter:
             return result
 
         # サービスグループを検索
-        grp = self._service_group_lookup.get((vdom, name))
+        grp = self._service_group_lookup.get((vdom, name)) or self._service_group_lookup.get(
+            ("shared", name)
+        )
         if grp:
             rows = [("項目", "値")]
             rows.append(("タイプ", "サービスグループ"))
@@ -772,11 +790,9 @@ class HTMLExporter:
         vdom_label = self._get_vdom_label()
 
         # 1. グローバル設定セクション
-        sections_html.append(
-            f"""
+        sections_html.append(f"""
         <section id="global" class="vdom-section global-section">
-            <h2>1. グローバル設定</h2>"""
-        )
+            <h2>1. グローバル設定</h2>""")
 
         section_num = 1
         for key, title, method_name in self.GLOBAL_SECTIONS:
@@ -793,11 +809,9 @@ class HTMLExporter:
         # 2. 各VDOM/vsysセクション
         vdom_list = self._get_vdom_list()
         for vdom_idx, vdom in enumerate(vdom_list, 2):
-            sections_html.append(
-                f"""
+            sections_html.append(f"""
         <section id="vdom-{self.escape(vdom)}" class="vdom-section">
-            <h2>{vdom_idx}. {vdom_label}: {self.escape(vdom)}</h2>"""
-            )
+            <h2>{vdom_idx}. {vdom_label}: {self.escape(vdom)}</h2>""")
 
             for i, (key, title, method_name) in enumerate(self.VDOM_SECTIONS, 1):
                 method = getattr(self, method_name)
@@ -892,6 +906,7 @@ class HTMLExporter:
         ha_status = "未設定"
         if self.config.ha.mode != HAMode.STANDALONE:
             from models.config import DeviceType
+
             is_pa = self.config.device_info.device_type == DeviceType.PALOALTO
             priority_note = "低い方が優先" if is_pa else "高い方が優先"
             ha_status = f"{self.config.ha.mode.value} (Group: {self.config.ha.group_id}, Priority: {self.config.ha.priority}, {priority_note})"
@@ -1431,7 +1446,7 @@ class HTMLExporter:
 
         # アドレスオブジェクト（最初の100件）
         addr_rows = ""
-        for addr in addresses[:100]:
+        for addr in addresses:
             tags_html = ""
             if hasattr(addr, "tags") and addr.tags:
                 tags_html = " ".join(
@@ -1446,18 +1461,37 @@ class HTMLExporter:
 
         # サービスオブジェクト（最初の100件）
         svc_rows = ""
-        for svc in services[:100]:
+        for svc in services:
             tags_html = ""
             if hasattr(svc, "tags") and svc.tags:
-                tags_html = " ".join(
-                    f'<span class="tag">{self.escape(t)}</span>' for t in svc.tags
-                )
+                tags_html = " ".join(f'<span class="tag">{self.escape(t)}</span>' for t in svc.tags)
             svc_rows += f"""<tr>
                 <td>{self.escape(svc.name)}</td>
                 <td>{self.escape(svc.protocol)}</td>
                 <td>{self.escape(svc.port)}</td>
                 <td>{tags_html}</td>
             </tr>"""
+
+        group_tables = []
+        for title, items in (
+            ("アドレスグループ", self.config.objects.address_groups),
+            ("サービスグループ", self.config.objects.service_groups),
+        ):
+            groups = self._filter_by_vdom(items, vdom) if vdom else items
+            rows = "".join(
+                f"<tr><td>{self.escape(g.name)}</td>"
+                f"<td>{self.escape(', '.join(g.members))}</td>"
+                f"<td>{self.escape(getattr(g, 'dynamic_filter', ''))}</td>"
+                f"<td>{self.escape(g.description)}</td></tr>"
+                for g in groups
+            )
+            if rows:
+                group_tables.append(
+                    f'<h4>{title}</h4><div class="table-responsive">'
+                    '<table class="table table-striped table-bordered">'
+                    "<tr><th>グループ名</th><th>メンバー</th>"
+                    f"<th>動的フィルター</th><th>説明</th></tr>{rows}</table></div>"
+                )
 
         return f"""
             <div id="{section_id}" class="subsection">
@@ -1482,6 +1516,7 @@ class HTMLExporter:
                         {svc_rows if svc_rows else '<tr><td colspan="4">サービスオブジェクト設定なし</td></tr>'}
                     </table>
                 </div>
+                {''.join(group_tables)}
             </div>"""
 
     def _generate_policies_section(
@@ -1528,9 +1563,21 @@ class HTMLExporter:
                 else:
                     destination_display = " ".join(internet_services)
 
+            conditions = [
+                ("スケジュール", policy.schedule),
+                ("送信元否定", "有効" if policy.source_negate else "無効"),
+                ("宛先否定", "有効" if policy.destination_negate else "無効"),
+                ("ユーザー", ", ".join(policy.source_users)),
+                ("グループ", ", ".join(policy.source_groups)),
+                ("開始ログ", "有効" if policy.log_start else "無効"),
+                ("ログ転送", policy.log_profile),
+                ("タグ", ", ".join(policy.tags)),
+            ]
+            condition_html = "<br>".join(
+                f"{label}: {self.escape(value)}" for label, value in conditions if value
+            )
             id_cell = "" if is_paloalto else f"<td>{self.escape(policy.policy_id)}</td>"
-            policy_rows.append(
-                f"""<tr class="policy-row">
+            policy_rows.append(f"""<tr class="policy-row">
                 <td>{idx}</td>
                 {id_cell}
                 <td>{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
@@ -1545,8 +1592,8 @@ class HTMLExporter:
                 <td>{self._security_profiles_to_badges_with_tooltip(policy.security_profiles, current_vdom)}</td>
                 <td>{"有効" if policy.log_enabled else "無効"}</td>
                 <td>{self.escape(policy.description)}</td>
-            </tr>"""
-            )
+                <td>{condition_html}</td>
+            </tr>""")
 
         # Local-in ポリシー
         local_in_rows = []
@@ -1565,8 +1612,7 @@ class HTMLExporter:
                 source_if_display = "-"
 
             local_id_cell = "" if is_paloalto else f"<td>{self.escape(policy.policy_id)}</td>"
-            local_in_rows.append(
-                f"""<tr class="policy-row">
+            local_in_rows.append(f"""<tr class="policy-row">
                 <td>{idx}</td>
                 {local_id_cell}
                 <td>{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
@@ -1576,8 +1622,7 @@ class HTMLExporter:
                 <td>{self._services_to_badges_with_tooltip(policy.service, current_vdom)}</td>
                 <td class="{self._get_action_class(policy.action)}">{self.escape(policy.action.value)}</td>
                 <td>{self.escape(policy.description)}</td>
-            </tr>"""
-            )
+            </tr>""")
 
         return f"""
             <div id="{section_id}" class="subsection">
@@ -1605,11 +1650,11 @@ class HTMLExporter:
                                 <th>NAT</th>
                                 <th>セキュリティプロファイル</th>
                                 <th>ログ</th>
-                                <th>備考</th>
+                                <th>備考</th><th>詳細条件</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {''.join(policy_rows) if policy_rows else f'<tr><td colspan="{13 if is_paloalto else 13}">ポリシー設定なし</td></tr>'}
+                            {''.join(policy_rows) if policy_rows else f'<tr><td colspan="{14 if is_paloalto else 14}">ポリシー設定なし</td></tr>'}
                         </tbody>
                     </table>
                 </div>
@@ -1684,7 +1729,9 @@ class HTMLExporter:
                     <td>{self.escape(nat.description)}</td>
                 </tr>"""
             elif nat.nat_type == "central-snat":
-                protocol_display = self._format_protocol_number(nat.protocol) if nat.protocol else "ALL"
+                protocol_display = (
+                    self._format_protocol_number(nat.protocol) if nat.protocol else "ALL"
+                )
                 status_display = "有効" if nat.enabled else "無効"
                 central_snat_rows += f"""<tr>
                     <td>{self.escape(nat.name)}</td>
@@ -1746,6 +1793,7 @@ class HTMLExporter:
         # VPN設定はネットワークレベル（Palo Alto: device/network配下）のため、
         # vdom属性を持たないエントリは最初のvsysで表示する
         from models.config import DeviceType
+
         is_paloalto = self.config.device_info.device_type == DeviceType.PALOALTO
         first_vdom = self._get_vdom_list()[0] if self._get_vdom_list() else "root"
         if vdom:

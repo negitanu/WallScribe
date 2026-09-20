@@ -66,6 +66,13 @@ def _add_policies_from_config(config_model: ConfigModel, config: Dict, vdom: str
                     ),
                     service=to_list(policy_data.get("service", [])),
                     application=to_list(policy_data.get("application", [])),
+                    schedule=policy_data.get("schedule", ""),
+                    source_negate=policy_data.get("srcaddr-negate") == "enable",
+                    destination_negate=policy_data.get("dstaddr-negate") == "enable",
+                    source_users=to_list(policy_data.get("users", [])),
+                    source_groups=to_list(policy_data.get("groups", [])),
+                    log_start=policy_data.get("logtraffic-start") == "enable",
+                    log_end=policy_data.get("logtraffic", "") in ("enable", "all", "utm"),
                     action=action,
                     nat_enabled=policy_data.get("nat", "") == "enable",
                     log_enabled=policy_data.get("logtraffic", "") in ("enable", "all", "utm"),
@@ -99,6 +106,8 @@ def _parse_action(action_str: str) -> PolicyAction:
 def _extract_security_profiles(policy_data: Dict) -> list:
     """ポリシーからセキュリティプロファイルを抽出"""
     security_profiles = []
+    if policy_data.get("profile-group"):
+        security_profiles.append(f"Group:{policy_data['profile-group']}")
     if policy_data.get("av-profile"):
         security_profiles.append(f"AV:{policy_data.get('av-profile')}")
     if policy_data.get("webfilter-profile"):
@@ -270,7 +279,8 @@ def _add_central_snat(config_model: ConfigModel, config: Dict, vdom: str) -> Non
                     original_destination=dst_addr,
                     nat_ippool=nat_ippool,
                     interface=(
-                        f"{srcintf} -> {dstintf}" if srcintf and dstintf
+                        f"{srcintf} -> {dstintf}"
+                        if srcintf and dstintf
                         else srcintf or dstintf or ""
                     ),
                     protocol=str(protocol),

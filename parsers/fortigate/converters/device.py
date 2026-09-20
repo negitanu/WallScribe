@@ -32,7 +32,7 @@ def convert_device_info(config_model: ConfigModel, parsed_config: Dict, vdoms: L
         OperationMode.NAT_ROUTE if opmode == "0" else OperationMode.TRANSPARENT
     )
 
-    config_model.device_info.vdom_enabled = header.get("vdom_enabled", False)
+    config_model.device_info.vdom_enabled = header.get("vdom_enabled", False) or len(vdoms) > 1
     config_model.device_info.vdom_list = vdoms if vdoms else ["root"]
 
 

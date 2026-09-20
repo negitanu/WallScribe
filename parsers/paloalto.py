@@ -4,7 +4,6 @@
 Palo Alto Networks設定ファイルパーサー
 """
 
-import html
 import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -45,7 +44,7 @@ from models.config import (
 )
 
 from .base import BaseConfigParser
-from .paloalto_text import apply_set_cli_textfsm_to_model, is_paloalto_set_cli_text
+from .paloalto_text import is_paloalto_set_cli_text, set_cli_to_xml
 from .textfsm_utils import run_textfsm
 from .utils import ip_to_cidr
 
@@ -84,21 +83,17 @@ class PaloAltoParser(BaseConfigParser):
 
     def parse_content(self, content: str, filename: str = "") -> ConfigModel:
         """設定ファイルの内容をパース"""
+        self.errors = []
+        self.root = None
+        self.device = None
         self.config_model = ConfigModel()
+        self.config_model.parse_errors = self.errors
         self.config_model.source_file = filename
         self.config_model.device_info.device_type = DeviceType.PALOALTO
 
         if is_paloalto_set_cli_text(content):
-            self.config_model.device_info.operation_mode = OperationMode.NAT_ROUTE
-            self.config_model.device_info.model = "PA Series"
-            if self.identification:
-                if self.identification.model:
-                    self.config_model.device_info.model = self.identification.model
-                if self.identification.os_version:
-                    self.config_model.device_info.os_version = self.identification.os_version
-            apply_set_cli_textfsm_to_model(self.config_model, content)
-            self.config_model.parse_errors = self.errors
-            return self.config_model
+            content, warnings = set_cli_to_xml(content)
+            self.errors.extend(warnings)
 
         try:
             # XXE攻撃対策: defusedxmlを使用して安全にパース
@@ -123,6 +118,13 @@ class PaloAltoParser(BaseConfigParser):
         # デバイスエレメントを取得
         self.device = self.root.find('.//devices/entry[@name="localhost.localdomain"]')
 
+        if self.device is None:
+            entries = self.root.findall("devices/entry")
+            if len(entries) == 1:
+                self.device = entries[0]
+            elif len(entries) > 1:
+                self.add_error("複数デバイスのXMLは未対応です")
+
         # 各セクションをパース
         self._parse_device_info()
         self._parse_system_settings()
@@ -137,6 +139,11 @@ class PaloAltoParser(BaseConfigParser):
         self._parse_ha()
         self._parse_logging()
 
+        if self.identification:
+            if self.identification.model:
+                self.config_model.device_info.model = self.identification.model
+            if self.identification.os_version and not self.config_model.device_info.os_version:
+                self.config_model.device_info.os_version = self.identification.os_version
         self.config_model.parse_errors = self.errors
         return self.config_model
 
@@ -146,7 +153,7 @@ class PaloAltoParser(BaseConfigParser):
             return default
         found = element.find(path)
         if found is not None and found.text:
-            return html.unescape(found.text)
+            return found.text
         return default
 
     def _get_members(self, element: Optional[ET.Element], path: str) -> List[str]:
@@ -523,6 +530,9 @@ class PaloAltoParser(BaseConfigParser):
         if self.device is None:
             return
 
+        shared = self.root.find("shared")
+        if shared is not None:
+            self._parse_objects_for_vsys(shared, "shared")
         vsys_entries = self.device.findall(".//vsys/entry")
         for vsys in vsys_entries:
             vsys_name = vsys.get("name", "vsys1")
@@ -566,6 +576,8 @@ class PaloAltoParser(BaseConfigParser):
             grp_obj = AddressGroup(
                 name=grp_entry.get("name", ""),
                 members=members,
+                dynamic_filter=self._get_text(grp_entry, "dynamic/filter"),
+                tags=self._get_members(grp_entry, "tag"),
                 vdom=vsys_name,
                 description=self._get_text(grp_entry, "description"),
             )
@@ -643,7 +655,17 @@ class PaloAltoParser(BaseConfigParser):
                     service=self._get_members(rule_entry, "service"),
                     application=self._get_members(rule_entry, "application"),
                     action=action,
-                    log_enabled=self._get_text(rule_entry, "log-end", "no") == "yes",
+                    log_enabled=any(
+                        self._get_text(rule_entry, key) == "yes" for key in ("log-start", "log-end")
+                    ),
+                    log_start=self._get_text(rule_entry, "log-start") == "yes",
+                    log_end=self._get_text(rule_entry, "log-end") == "yes",
+                    log_profile=self._get_text(rule_entry, "log-setting"),
+                    schedule=self._get_text(rule_entry, "schedule"),
+                    source_negate=self._get_text(rule_entry, "negate-source") == "yes",
+                    destination_negate=self._get_text(rule_entry, "negate-destination") == "yes",
+                    source_users=self._get_members(rule_entry, "source-user"),
+                    tags=self._get_members(rule_entry, "tag"),
                     vdom=vsys_name,
                     enabled=self._get_text(rule_entry, "disabled", "no") != "yes",
                     description=self._get_text(rule_entry, "description"),
@@ -655,6 +677,13 @@ class PaloAltoParser(BaseConfigParser):
                     group = profile_setting.find("group")
                     if group is not None:
                         policy.security_profiles = self._get_members(profile_setting, "group")
+
+                    profiles = profile_setting.find("profiles")
+                    if profiles is not None:
+                        for profile in profiles:
+                            for member in profile.findall("member"):
+                                if member.text:
+                                    policy.security_profiles.append(f"{profile.tag}:{member.text}")
 
                 self.config_model.firewall_policies.append(policy)
 
@@ -766,7 +795,11 @@ class PaloAltoParser(BaseConfigParser):
             dh_groups = self._get_members(cp_entry, "dh-group")
             lifetime_hours = self._get_text(cp_entry, "lifetime/hours")
             lifetime_minutes = self._get_text(cp_entry, "lifetime/minutes")
-            lifetime = lifetime_hours + "h" if lifetime_hours else (lifetime_minutes + "m" if lifetime_minutes else "")
+            lifetime = (
+                lifetime_hours + "h"
+                if lifetime_hours
+                else (lifetime_minutes + "m" if lifetime_minutes else "")
+            )
 
             p1 = IPSecPhase1(
                 name=f"{name} (crypto-profile)",
@@ -786,7 +819,11 @@ class PaloAltoParser(BaseConfigParser):
             dh_group = self._get_text(cp_entry, "dh-group")
             lifetime_hours = self._get_text(cp_entry, "lifetime/hours")
             lifetime_minutes = self._get_text(cp_entry, "lifetime/minutes")
-            lifetime = lifetime_hours + "h" if lifetime_hours else (lifetime_minutes + "m" if lifetime_minutes else "")
+            lifetime = (
+                lifetime_hours + "h"
+                if lifetime_hours
+                else (lifetime_minutes + "m" if lifetime_minutes else "")
+            )
 
             p2 = IPSecPhase2(
                 name=f"{name} (crypto-profile)",
@@ -909,8 +946,12 @@ class PaloAltoParser(BaseConfigParser):
             for pg_entry in profile_groups:
                 pg_name = pg_entry.get("name", "")
                 member_types = [
-                    "virus", "spyware", "vulnerability",
-                    "url-filtering", "wildfire-analysis", "file-blocking",
+                    "virus",
+                    "spyware",
+                    "vulnerability",
+                    "url-filtering",
+                    "wildfire-analysis",
+                    "file-blocking",
                 ]
                 member_list = []
                 for mt in member_types:
@@ -1066,7 +1107,9 @@ class PaloAltoParser(BaseConfigParser):
             if base_elem is not None:
                 syslog_entries = base_elem.findall(syslog_path)
                 for entry in syslog_entries:
-                    server_addr = self._get_text(entry, "server")
+                    server_addr = (
+                        self._get_text(entry, "server") if not entry.findall("server/entry") else ""
+                    )
                     # 重複チェック
                     if server_addr and not any(
                         s.server == server_addr for s in self.config_model.logging.syslog_servers
@@ -1079,15 +1122,20 @@ class PaloAltoParser(BaseConfigParser):
                         )
                         self.config_model.logging.syslog_servers.append(server)
 
-        # vsys配下のlog-settings/syslogも確認
+        # Shared and vsys profiles both contain named server entries.
         vsys_entries = self.device.findall(".//vsys/entry")
+        shared = self.root.find("shared")
+        if shared is not None:
+            vsys_entries.append(shared)
         for vsys in vsys_entries:
             syslog_profiles = vsys.findall("log-settings/syslog/entry")
             for entry in syslog_profiles:
                 # syslog profileのserver設定を取得
                 server_entries = entry.findall("server/entry")
                 for server_entry in server_entries:
-                    server_addr = server_entry.get("name", "")
+                    server_addr = self._get_text(server_entry, "server") or server_entry.get(
+                        "name", ""
+                    )
                     if server_addr and not any(
                         s.server == server_addr for s in self.config_model.logging.syslog_servers
                     ):
