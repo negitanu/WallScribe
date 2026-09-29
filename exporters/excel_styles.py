@@ -52,143 +52,144 @@ except ImportError:  # pragma: no cover - openpyxl未導入環境向け
 from models.config import PolicyAction
 
 # ============================================================
-# VDOM/vsys用ユニバーサルデザインカラーパレット
-# 各VDOMに異なる色テーマを割り当て（最大10個）
-# 色覚多様性とコントラスト比（WCAG AA以上）に配慮
+# カラーパレット — 「仕様書 (Spec Sheet)」
+#   HTML / PDF 出力と共通のトーン。彩度を抑えた深色を見出しに、
+#   ごく淡い同系色を縞と区切りに使う。色は VDOM の識別と意味にだけ使う。
+#   header_bg は白文字に対して WCAG AA (4.5:1) 以上のコントラストを確保。
 # ============================================================
 VDOM_COLORS = [
-    {  # 0: 青（デフォルト/root）- コントラスト比7.1:1
-        "header_bg": "0066CC",
+    {  # 0: 藍 (blueprint) — root / 既定
+        "header_bg": "1D4F91",
         "header_text": "FFFFFF",
-        "accent": "E6F2FF",
-        "accent_dark": "0052A3",
-        "row_alt": "F0F8FF",
-        "border": "B3D9FF",
-        "tab_color": "0066CC",
+        "accent": "E8EEF7",
+        "accent_dark": "163D70",
+        "row_alt": "F5F8FC",
+        "border": "CFDCEF",
+        "tab_color": "1D4F91",
     },
-    {  # 1: 青緑（色覚多様性に配慮した緑）- コントラスト比7.0:1
-        "header_bg": "008080",
+    {  # 1: 緑青 (verdigris)
+        "header_bg": "0F7B5F",
         "header_text": "FFFFFF",
-        "accent": "E0F5F5",
-        "accent_dark": "006666",
-        "row_alt": "F0FAFA",
-        "border": "99E6E6",
-        "tab_color": "008080",
+        "accent": "E1F2EC",
+        "accent_dark": "0B5F49",
+        "row_alt": "F3FAF7",
+        "border": "B7DED0",
+        "tab_color": "0F7B5F",
     },
-    {  # 2: オレンジ（色覚多様性に配慮）- コントラスト比6.8:1
-        "header_bg": "FF6600",
+    {  # 2: 黄土 (ochre)
+        "header_bg": "9A5B00",
         "header_text": "FFFFFF",
-        "accent": "FFE6CC",
-        "accent_dark": "CC5200",
-        "row_alt": "FFF5E6",
-        "border": "FFCC99",
-        "tab_color": "FF6600",
+        "accent": "F8EFDC",
+        "accent_dark": "6D4100",
+        "row_alt": "FBF7EE",
+        "border": "E6CFA3",
+        "tab_color": "9A5B00",
     },
-    {  # 3: 紫（色覚多様性に配慮）- コントラスト比7.2:1
-        "header_bg": "6633CC",
+    {  # 3: 菫 (plum)
+        "header_bg": "6B3FA0",
         "header_text": "FFFFFF",
-        "accent": "E6D9FF",
-        "accent_dark": "4D2599",
-        "row_alt": "F0E6FF",
-        "border": "B399FF",
-        "tab_color": "6633CC",
+        "accent": "ECE4F5",
+        "accent_dark": "4E2C78",
+        "row_alt": "F7F3FB",
+        "border": "CDBDE3",
+        "tab_color": "6B3FA0",
     },
-    {  # 4: 青紫（色覚多様性に配慮）- コントラスト比7.0:1
-        "header_bg": "3366CC",
+    {  # 4: 鉄紺 (teal)
+        "header_bg": "2F6F8F",
         "header_text": "FFFFFF",
-        "accent": "D9E6FF",
-        "accent_dark": "1A4D99",
-        "row_alt": "E6F0FF",
-        "border": "99B3FF",
-        "tab_color": "3366CC",
+        "accent": "E1EEF4",
+        "accent_dark": "22506A",
+        "row_alt": "F3F8FB",
+        "border": "B9D3DF",
+        "tab_color": "2F6F8F",
     },
-    {  # 5: 茶色（色覚多様性に配慮）- コントラスト比6.9:1
-        "header_bg": "996633",
+    {  # 5: 煉瓦 (brick)
+        "header_bg": "8A4B2E",
         "header_text": "FFFFFF",
-        "accent": "FFE6CC",
-        "accent_dark": "664422",
-        "row_alt": "FFF5E6",
-        "border": "FFCC99",
-        "tab_color": "996633",
+        "accent": "F3E6DF",
+        "accent_dark": "63351F",
+        "row_alt": "FAF5F2",
+        "border": "DCC0B3",
+        "tab_color": "8A4B2E",
     },
-    {  # 6: 濃い青（色覚多様性に配慮）- コントラスト比7.3:1
-        "header_bg": "003366",
+    {  # 6: 濃藍 (navy)
+        "header_bg": "243B6B",
         "header_text": "FFFFFF",
-        "accent": "CCE6FF",
-        "accent_dark": "001F3D",
-        "row_alt": "E6F2FF",
-        "border": "80B3FF",
-        "tab_color": "003366",
+        "accent": "E2E7F1",
+        "accent_dark": "18294D",
+        "row_alt": "F4F6FA",
+        "border": "BAC5DA",
+        "tab_color": "243B6B",
     },
-    {  # 7: 濃い緑（青味が強い）- コントラスト比7.1:1
-        "header_bg": "006633",
+    {  # 7: 苔 (moss)
+        "header_bg": "3D6B2F",
         "header_text": "FFFFFF",
-        "accent": "CCF2E6",
-        "accent_dark": "004D26",
-        "row_alt": "E6F5F0",
-        "border": "80D9B3",
-        "tab_color": "006633",
+        "accent": "E6F0E1",
+        "accent_dark": "2B4C21",
+        "row_alt": "F5F9F2",
+        "border": "C2D8B8",
+        "tab_color": "3D6B2F",
     },
-    {  # 8: 濃いオレンジ（色覚多様性に配慮）- コントラスト比6.7:1
-        "header_bg": "CC3300",
+    {  # 8: 朱 (vermilion)
+        "header_bg": "9B2D2D",
         "header_text": "FFFFFF",
-        "accent": "FFD9CC",
-        "accent_dark": "992600",
-        "row_alt": "FFE6E6",
-        "border": "FF9999",
-        "tab_color": "CC3300",
+        "accent": "F5E3E3",
+        "accent_dark": "6F1F1F",
+        "row_alt": "FBF2F2",
+        "border": "E0B9B9",
+        "tab_color": "9B2D2D",
     },
-    {  # 9: 濃い紫（色覚多様性に配慮）- コントラスト比7.4:1
-        "header_bg": "4D0066",
+    {  # 9: 葡萄 (grape)
+        "header_bg": "5B2A5E",
         "header_text": "FFFFFF",
-        "accent": "E6CCFF",
-        "accent_dark": "33004D",
-        "row_alt": "F0E6FF",
-        "border": "B380FF",
-        "tab_color": "4D0066",
+        "accent": "EEE3EF",
+        "accent_dark": "401D42",
+        "row_alt": "F8F3F9",
+        "border": "D1B9D3",
+        "tab_color": "5B2A5E",
     },
 ]
 
-# グローバルセクション用カラー（グレー系、コントラスト比7.0:1）
+# グローバルセクション用 (インク色 / 無彩色)
 GLOBAL_COLOR = {
     "header_bg": "2C3E50",
     "header_text": "FFFFFF",
-    "accent": "ECF0F1",
-    "accent_dark": "34495E",
-    "row_alt": "F8F9FA",
-    "border": "BDC3C7",
+    "accent": "EEF1F4",
+    "accent_dark": "1C2530",
+    "row_alt": "F6F8FA",
+    "border": "D5DBE2",
     "tab_color": "2C3E50",
 }
 
 # ============================================================
-# モダンスタイル定義 - "Technical Elegance" テーマ
+# 共通スタイル定義
 # ============================================================
 
 COLORS = {
-    "primary_dark": "2C3E50",
-    "primary": "34495E",
-    "primary_light": "5D6D7E",
-    "section_bg": "0066CC",
+    "primary_dark": "1C2530",
+    "primary": "2C3E50",
+    "primary_light": "55606E",
+    "section_bg": "1D4F91",
     "section_text": "FFFFFF",
     "row_even": "FFFFFF",
-    "row_odd": "F8F9FA",
-    "border_light": "D5DBDB",
-    "border_medium": "AAB7B8",
-    "text_primary": "2C3E50",
-    "text_secondary": "5D6D7E",
+    "row_odd": "F6F8FA",
+    "border_light": "D9DEE5",
+    "border_medium": "B9C2CC",
+    "text_primary": "1C2530",
+    "text_secondary": "55606E",
     "text_header": "FFFFFF",
-    "allow_bg": "B3E5FC",
-    "allow_text": "006064",
-    "deny_bg": "FFCC80",
-    "deny_text": "E65100",
-    "drop_bg": "FFCDD2",
-    "drop_text": "B71C1C",
-    "enabled_bg": "BBDEFB",
-    "enabled_text": "0D47A1",
-    "disabled_bg": "E0E0E0",
-    "disabled_text": "424242",
-    "info_bg": "E3F2FD",
-    "info_border": "1976D2",
+    "allow_bg": "DFF3EA",
+    "allow_text": "0B5C46",
+    "deny_bg": "F9E1DF",
+    "deny_text": "8E1F18",
+    "drop_bg": "F8EFDC",
+    "drop_text": "6D4100",
+    "enabled_bg": "E8EEF7",
+    "enabled_text": "163D70",
+    "disabled_bg": "EEF0F3",
+    "disabled_text": "6B7684",
+    "info_bg": "E8EEF7",
+    "info_border": "1D4F91",
 }
 
 HEADER_FONT = Font(bold=True, color="FFFFFF", size=10, name="Yu Gothic UI")
@@ -196,25 +197,25 @@ HEADER_FILL = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="s
 HEADER_ALIGNMENT = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
 SUBHEADER_FONT = Font(bold=True, color="FFFFFF", size=9, name="Yu Gothic UI")
-SUBHEADER_FILL = PatternFill(start_color="34495E", end_color="34495E", fill_type="solid")
+SUBHEADER_FILL = PatternFill(start_color="55606E", end_color="55606E", fill_type="solid")
 
-SECTION_TITLE_FONT = Font(bold=True, color="0066CC", size=12, name="Yu Gothic UI")
-SECTION_TITLE_FILL = PatternFill(start_color="E6F2FF", end_color="E6F2FF", fill_type="solid")
+SECTION_TITLE_FONT = Font(bold=True, color="1D4F91", size=12, name="Yu Gothic UI")
+SECTION_TITLE_FILL = PatternFill(start_color="E8EEF7", end_color="E8EEF7", fill_type="solid")
 
-MAIN_TITLE_FONT = Font(bold=True, color="2C3E50", size=16, name="Yu Gothic UI")
+MAIN_TITLE_FONT = Font(bold=True, color="1C2530", size=16, name="Yu Gothic UI")
 
-CELL_FONT = Font(size=9, name="Yu Gothic UI", color="2C3E50")
-CELL_FONT_SECONDARY = Font(size=9, name="Yu Gothic UI", color="5D6D7E")
+CELL_FONT = Font(size=9, name="Yu Gothic UI", color="1C2530")
+CELL_FONT_SECONDARY = Font(size=9, name="Yu Gothic UI", color="55606E")
 CELL_ALIGNMENT = Alignment(vertical="center", wrap_text=True)
 CELL_ALIGNMENT_CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-LABEL_FONT = Font(bold=True, size=9, name="Yu Gothic UI", color="34495E")
+LABEL_FONT = Font(bold=True, size=9, name="Yu Gothic UI", color="55606E")
 
 THIN_BORDER = Border(
-    left=Side(style="thin", color="D5DBDB"),
-    right=Side(style="thin", color="D5DBDB"),
-    top=Side(style="thin", color="D5DBDB"),
-    bottom=Side(style="thin", color="D5DBDB"),
+    left=Side(style="thin", color="D9DEE5"),
+    right=Side(style="thin", color="D9DEE5"),
+    top=Side(style="thin", color="D9DEE5"),
+    bottom=Side(style="thin", color="D9DEE5"),
 )
 
 HEADER_BORDER = Border(
@@ -225,21 +226,26 @@ HEADER_BORDER = Border(
 )
 
 ROW_FILL_EVEN = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
-ROW_FILL_ODD = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+ROW_FILL_ODD = PatternFill(start_color="F6F8FA", end_color="F6F8FA", fill_type="solid")
 
 ACTION_FILLS = {
-    PolicyAction.ALLOW: PatternFill(start_color="B3E5FC", end_color="B3E5FC", fill_type="solid"),
-    PolicyAction.DENY: PatternFill(start_color="FFCC80", end_color="FFCC80", fill_type="solid"),
-    PolicyAction.DROP: PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid"),
+    PolicyAction.ALLOW: PatternFill(start_color="DFF3EA", end_color="DFF3EA", fill_type="solid"),
+    PolicyAction.DENY: PatternFill(start_color="F9E1DF", end_color="F9E1DF", fill_type="solid"),
+    PolicyAction.DROP: PatternFill(start_color="F8EFDC", end_color="F8EFDC", fill_type="solid"),
 }
 
 ACTION_FONTS = {
-    PolicyAction.ALLOW: Font(bold=True, size=9, name="Yu Gothic UI", color="006064"),
-    PolicyAction.DENY: Font(bold=True, size=9, name="Yu Gothic UI", color="E65100"),
-    PolicyAction.DROP: Font(bold=True, size=9, name="Yu Gothic UI", color="B71C1C"),
+    PolicyAction.ALLOW: Font(bold=True, size=9, name="Yu Gothic UI", color="0B5C46"),
+    PolicyAction.DENY: Font(bold=True, size=9, name="Yu Gothic UI", color="8E1F18"),
+    PolicyAction.DROP: Font(bold=True, size=9, name="Yu Gothic UI", color="6D4100"),
 }
 
-ENABLED_FILL = PatternFill(start_color="BBDEFB", end_color="BBDEFB", fill_type="solid")
-ENABLED_FONT = Font(size=9, name="Yu Gothic UI", color="0D47A1", bold=True)
-DISABLED_FILL = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
-DISABLED_FONT = Font(size=9, name="Yu Gothic UI", color="424242", bold=True)
+# ラベル/値の 2 列表 (機器概要など) のラベル側の地色と、集計値の書体
+INFO_FILL = PatternFill(start_color="F2F4F6", end_color="F2F4F6", fill_type="solid")
+STAT_FILL = PatternFill(start_color="E8EEF7", end_color="E8EEF7", fill_type="solid")
+STAT_FONT = Font(bold=True, size=11, name="Yu Gothic UI", color="1D4F91")
+
+ENABLED_FILL = PatternFill(start_color="E8EEF7", end_color="E8EEF7", fill_type="solid")
+ENABLED_FONT = Font(size=9, name="Yu Gothic UI", color="163D70", bold=True)
+DISABLED_FILL = PatternFill(start_color="EEF0F3", end_color="EEF0F3", fill_type="solid")
+DISABLED_FONT = Font(size=9, name="Yu Gothic UI", color="6B7684", bold=False)

@@ -97,6 +97,9 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
     HEADER_BORDER = styles.HEADER_BORDER
     ROW_FILL_EVEN = styles.ROW_FILL_EVEN
     ROW_FILL_ODD = styles.ROW_FILL_ODD
+    INFO_FILL = styles.INFO_FILL
+    STAT_FILL = styles.STAT_FILL
+    STAT_FONT = styles.STAT_FONT
 
     ACTION_FILLS = styles.ACTION_FILLS
     ACTION_FONTS = styles.ACTION_FONTS

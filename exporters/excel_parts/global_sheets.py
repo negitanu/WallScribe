@@ -13,10 +13,10 @@ from typing import Any
 from models.config import HAMode
 
 try:
-    from openpyxl.styles import Alignment, Font, PatternFill  # type: ignore
+    from openpyxl.styles import Alignment  # type: ignore
     from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
 except ImportError:  # pragma: no cover
-    from exporters.excel_styles import Alignment, Font, PatternFill  # type: ignore
+    from exporters.excel_styles import Alignment  # type: ignore
 
     Worksheet = Any  # type: ignore
 
@@ -41,7 +41,7 @@ class ExcelGlobalSheetsMixin:
         title_cell.font = self.MAIN_TITLE_FONT
         ws.row_dimensions[1].height = 36
 
-        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+        info_fill = self.INFO_FILL
         data = []
         if cluster_info.cluster_name:
             data.append(("クラスタ名", cluster_info.cluster_name))
@@ -126,7 +126,7 @@ class ExcelGlobalSheetsMixin:
 
         self._set_section_title(ws, 4, 1, "機器情報", colspan=2)
 
-        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+        info_fill = self.INFO_FILL
         nat_mode = "Central NAT" if self.config.system_settings.central_nat else "Policy Base NAT"
         device_data = [
             ("ホスト名", info.hostname),
@@ -166,8 +166,8 @@ class ExcelGlobalSheetsMixin:
             ("NAT設定数", len(self.config.nat_policies)),
         ]
 
-        stats_fill = PatternFill(start_color="E0F5F5", end_color="E0F5F5", fill_type="solid")
-        number_font = Font(bold=True, size=11, name="Yu Gothic UI", color="006666")
+        stats_fill = self.STAT_FILL
+        number_font = self.STAT_FONT
 
         for row_idx, (label, value) in enumerate(stats_data, stats_start + 1):
             label_cell = ws.cell(row=row_idx, column=1, value=label)
@@ -193,7 +193,7 @@ class ExcelGlobalSheetsMixin:
 
         self._set_section_title(ws, 1, 1, "管理アクセス設定", colspan=2)
 
-        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+        info_fill = self.INFO_FILL
         data = [
             ("管理用IPアドレス", settings.management_ip),
             ("サブネットマスク", settings.management_netmask),
@@ -269,7 +269,7 @@ class ExcelGlobalSheetsMixin:
             return
 
         self._set_section_title(ws, 1, 1, "HA基本設定", colspan=2)
-        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+        info_fill = self.INFO_FILL
 
         basic_data = [
             ("HAモード", ha.mode.value, False),
@@ -445,7 +445,7 @@ class ExcelGlobalSheetsMixin:
         self._set_section_title(ws, row_idx, 1, "集中管理", colspan=2)
         row_idx += 1
 
-        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+        info_fill = self.INFO_FILL
 
         if logging_config.fortianalyzer_server:
             label_cell = ws.cell(row=row_idx, column=1, value="FortiAnalyzer")

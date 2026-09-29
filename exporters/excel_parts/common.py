@@ -54,6 +54,12 @@ class ExcelCommonMixin:
         sheet_title = full_title[:31]
         ws = self.workbook.create_sheet(title=sheet_title)
 
+        # 罫線はセル側で引くため、Excel 既定のグリッド線は消して紙面を静かにする
+        try:
+            ws.sheet_view.showGridLines = False
+        except AttributeError:  # pragma: no cover - openpyxl未導入環境向け
+            pass
+
         # タブ色を設定（16進数文字列をRGBオブジェクトに変換）
         try:
             from openpyxl.styles.colors import RGB  # type: ignore

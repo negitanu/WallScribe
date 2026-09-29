@@ -9,11 +9,8 @@ from __future__ import annotations
 from typing import Any
 
 try:
-    from openpyxl.styles import PatternFill  # type: ignore
     from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
 except ImportError:  # pragma: no cover
-    from exporters.excel_styles import PatternFill  # type: ignore
-
     Worksheet = Any  # type: ignore
 
 
@@ -159,7 +156,7 @@ class ExcelVdomSheetsMixin:
         self._set_section_title(ws, row_idx, 1, f"{title}設定", colspan=4)
         row_idx += 1
 
-        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+        info_fill = self.INFO_FILL
         basic_data = [
             ("Router ID", ospf.router_id or "-"),
             ("デフォルトルート生成", "有効" if ospf.default_information_originate else "無効"),
@@ -226,7 +223,7 @@ class ExcelVdomSheetsMixin:
         self._set_section_title(ws, row_idx, 1, "BGP設定", colspan=4)
         row_idx += 1
 
-        info_fill = PatternFill(start_color="E3F2FD", end_color="E3F2FD", fill_type="solid")
+        info_fill = self.INFO_FILL
         basic_data = [("AS番号", bgp.as_number or "-"), ("Router ID", bgp.router_id or "-")]
         for label, value in basic_data:
             label_cell = ws.cell(row=row_idx, column=1, value=label)
