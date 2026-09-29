@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "WallScribe アーキテクチャ",
+    "output": "wallscribe-architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [1260, 760],
+    "views": [
+      {
+        "id": "web-flow",
+        "label": "Web 変換フロー",
+        "focus": ["browser", "flask_app", "upload_routes", "job_processor", "conversion_service", "exporters", "uploads"],
+        "note": "アップロード受付から非同期ジョブ、成果物保存までを追います。"
+      },
+      {
+        "id": "cli-flow",
+        "label": "CLI 変換フロー",
+        "focus": ["cli", "conversion_service", "parser_selector", "config_model", "exporters"],
+        "note": "main.py は共有変換サービスを通じて Web と同じ解析・出力経路を使います。"
+      },
+      {
+        "id": "parse-model-export",
+        "label": "解析から出力",
+        "focus": ["parser_selector", "device_parsers", "config_model", "exporters"],
+        "note": "機器識別、統一モデル化、HTML/PDF/Excel 出力の責務を分離しています。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "利用者ブラウザ",
+      "sublabel": "アップロード操作",
+      "pos": [48, 260],
+      "size": [160, 76]
+    },
+    {
+      "id": "cli",
+      "type": "external",
+      "label": "CLI 利用者",
+      "sublabel": "python main.py",
+      "pos": [48, 470],
+      "size": [160, 70]
+    },
+    {
+      "id": "flask_app",
+      "type": "backend",
+      "label": "Flask アプリ",
+      "sublabel": "create_app / routes",
+      "pos": [282, 258],
+      "size": [170, 82]
+    },
+    {
+      "id": "upload_routes",
+      "type": "backend",
+      "label": "アップロード API",
+      "sublabel": "API / legacy",
+      "pos": [526, 258],
+      "size": [176, 82],
+      "tag": "入力検証"
+    },
+    {
+      "id": "job_processor",
+      "type": "backend",
+      "label": "非同期ジョブ処理",
+      "sublabel": "進捗と成果物",
+      "pos": [526, 74],
+      "size": [176, 78]
+    },
+    {
+      "id": "conversion_service",
+      "type": "backend",
+      "label": "変換サービス",
+      "sublabel": "解析・出力の共有層",
+      "pos": [784, 258],
+      "size": [190, 84],
+      "tag": "CLI と Web で共有"
+    },
+    {
+      "id": "parser_selector",
+      "type": "backend",
+      "label": "機器識別・パーサ選択",
+      "sublabel": "TextFSM / 内容判定",
+      "pos": [784, 470],
+      "size": [190, 82]
+    },
+    {
+      "id": "device_parsers",
+      "type": "backend",
+      "label": "機器別パーサ",
+      "sublabel": "FortiGate / Palo Alto",
+      "pos": [1022, 470],
+      "size": [174, 82]
+    },
+    {
+      "id": "config_model",
+      "type": "database",
+      "label": "統一設定モデル",
+      "sublabel": "ConfigModel / ClusterConfig",
+      "pos": [1022, 258],
+      "size": [174, 82]
+    },
+    {
+      "id": "exporters",
+      "type": "backend",
+      "label": "エクスポータ",
+      "sublabel": "HTML / PDF / Excel",
+      "pos": [1022, 74],
+      "size": [174, 82]
+    },
+    {
+      "id": "uploads",
+      "type": "database",
+      "label": "uploads 保存領域",
+      "sublabel": "入力・成果物",
+      "pos": [784, 74],
+      "size": [190, 78]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "WallScribe アプリケーション境界",
+      "wraps": ["flask_app", "upload_routes", "job_processor", "conversion_service", "parser_selector", "device_parsers", "config_model", "exporters", "uploads"],
+      "pad": 32
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-to-flask",
+      "from": "browser",
+      "to": "flask_app",
+      "label": "HTTP アクセス",
+      "variant": "emphasis"
+    },
+    {
+      "id": "flask-to-upload",
+      "from": "flask_app",
+      "to": "upload_routes",
+      "label": "ルート登録"
+    },
+    {
+      "id": "upload-to-job",
+      "from": "upload_routes",
+      "to": "job_processor",
+      "label": "非同期実行",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "upload-to-conversion",
+      "from": "upload_routes",
+      "to": "conversion_service",
+      "label": "同期変換"
+    },
+    {
+      "id": "job-to-storage",
+      "from": "job_processor",
+      "to": "uploads",
+      "label": "進捗・成果物保存",
+      "labelAt": [743, 166]
+    },
+    {
+      "id": "job-to-conversion",
+      "from": "job_processor",
+      "to": "conversion_service",
+      "label": "解析と出力を委譲",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "cli-to-conversion",
+      "from": "cli",
+      "to": "conversion_service",
+      "label": "ファイルパスと出力形式",
+      "variant": "emphasis"
+    },
+    {
+      "id": "conversion-to-selector",
+      "from": "conversion_service",
+      "to": "parser_selector",
+      "label": "文字コード検出後に判定",
+      "labelDy": 24
+    },
+    {
+      "id": "selector-to-parsers",
+      "from": "parser_selector",
+      "to": "device_parsers",
+      "label": "対応パーサ生成",
+      "labelAt": [998, 566]
+    },
+    {
+      "id": "parsers-to-model",
+      "from": "device_parsers",
+      "to": "config_model",
+      "label": "正規化データを構築",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "model-to-exporters",
+      "from": "config_model",
+      "to": "exporters",
+      "label": "表示用セクション生成"
+    },
+    {
+      "id": "exporters-to-storage",
+      "from": "exporters",
+      "to": "uploads",
+      "label": "HTML/PDF/XLSX を保存",
+      "labelAt": [998, 170]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "入口",
+      "items": ["Web は Flask ルートからアップロードを受け付ける", "CLI は main.py から共有変換サービスを直接呼び出す"]
+    },
+    {
+      "dot": "emerald",
+      "title": "中核",
+      "items": ["services/conversion.py が読み込み、HA 判定、解析、出力を共通化", "ConfigModel と ClusterConfig が出力形式に依存しない中間表現になる"]
+    },
+    {
+      "dot": "violet",
+      "title": "出力",
+      "items": ["HTML は標準出力形式、PDF と Excel は WeasyPrint / openpyxl の有無で利用可否を切り替える", "Web の非同期処理は進捗と成果物を uploads 配下のメタデータで管理する"]
+    }
+  ]
+}
