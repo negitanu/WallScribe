@@ -1,6 +1,6 @@
 /**
- * パラメータシート生成ツール - メインJavaScript
- * Bootstrap 5 + Dark Theme Version
+ * WallScribe - Web UI メインスクリプト
+ * ファイル選択 / 非同期アップロード / 進捗ポーリング / ステージ表示
  */
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -24,19 +24,74 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressBarFill = document.getElementById('progressBarFill');
     const progressPercent = document.getElementById('progressPercent');
     const sectionsGrid = document.getElementById('sectionsGrid');
+    const filesCount = document.getElementById('filesCount');
+    const submitHint = document.getElementById('submitHint');
+    const stageItems = Array.from(document.querySelectorAll('#stageList .stage'));
 
     let currentFiles = [];
     let progressPollTimer = null;
 
-    // プリセット定義
+    // サーバー側ステージ → 表示ステージへの写像
+    const STAGE_ORDER = ['received', 'detect', 'parsing', 'exporting', 'finalizing'];
+    const STAGE_MAP = {
+        queued: 'received',
+        received: 'received',
+        detect_encoding: 'detect',
+        detect_parser: 'detect',
+        parsing: 'parsing',
+        exporting: 'exporting',
+        finalizing: 'finalizing',
+        done: 'finalizing'
+    };
+
+    function setStage(serverStage) {
+        const key = STAGE_MAP[serverStage];
+        if (!key || stageItems.length === 0) return;
+        const activeIdx = STAGE_ORDER.indexOf(key);
+        stageItems.forEach(li => {
+            const idx = STAGE_ORDER.indexOf(li.dataset.stage);
+            li.classList.toggle('is-done', idx < activeIdx || serverStage === 'done');
+            li.classList.toggle('is-active', idx === activeIdx && serverStage !== 'done');
+        });
+    }
+
+    function resetStages() {
+        stageItems.forEach(li => li.classList.remove('is-done', 'is-active'));
+    }
+
+    function formatSize(bytes) {
+        if (!Number.isFinite(bytes)) return '';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    // プリセット定義（用途別。旧 normal/detailed は互換エイリアス）
+    const ALL_SECTIONS = [
+        'device_info', 'system_settings', 'ha', 'logging',
+        'network', 'objects', 'policies', 'nat', 'vpn', 'security_profiles'
+    ];
     const presets = {
+        overview: ['device_info', 'network', 'policies'],
+        connectivity: ['device_info', 'network', 'nat', 'vpn'],
+        policy: ['device_info', 'objects', 'policies', 'nat', 'security_profiles'],
+        ops: ['device_info', 'system_settings', 'network', 'policies', 'nat', 'ha', 'logging'],
+        all: ALL_SECTIONS.slice(),
+        // 互換
         normal: ['device_info', 'system_settings', 'network', 'policies', 'nat'],
-        detailed: ['device_info', 'system_settings', 'network', 'objects', 'policies', 'nat', 'vpn', 'security_profiles', 'ha', 'logging']
+        detailed: ALL_SECTIONS.slice()
     };
 
     // プリセット選択の処理
     const presetRadios = document.querySelectorAll('input[name="output_preset"]');
     const sectionCheckboxes = document.querySelectorAll('input[name="sections"]');
+    const sectionsHint = document.getElementById('sectionsHint');
+
+    function updateSectionsHint() {
+        if (!sectionsHint) return;
+        const n = Array.from(sectionCheckboxes).filter(c => c.checked).length;
+        sectionsHint.textContent = n + ' / ' + sectionCheckboxes.length;
+    }
 
     function applyPresetFromCurrentSelection() {
         const current = document.querySelector('input[name="output_preset"]:checked');
@@ -44,19 +99,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const preset = current.value;
 
         if (preset === 'custom') {
-            // カスタムの場合はグリッドを有効化
             sectionsGrid.classList.remove('disabled');
+            updateSectionsHint();
             return;
         }
 
-        // プリセット選択時はグリッドを無効化
         sectionsGrid.classList.add('disabled');
 
-        // チェックボックスをプリセットに合わせて設定
         const selectedSections = presets[preset] || [];
         sectionCheckboxes.forEach(checkbox => {
             checkbox.checked = selectedSections.includes(checkbox.value);
         });
+        updateSectionsHint();
     }
 
     presetRadios.forEach(radio => {
@@ -73,6 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 customRadio.checked = true;
                 sectionsGrid.classList.remove('disabled');
             }
+            updateSectionsHint();
         });
     });
 
@@ -146,19 +201,29 @@ document.addEventListener('DOMContentLoaded', function() {
         filesList.innerHTML = '';
         currentFiles.forEach((file, index) => {
             const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-            const iconClass = ext === '.conf' ? 'text-info' : 'text-warning';
+            const extClass = ext === '.conf' ? 'is-conf' : 'is-xml';
 
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
             fileItem.innerHTML = `
-                <i class="bi bi-file-earmark-code file-icon ${iconClass}"></i>
-                <span class="file-name">${escapeHtml(file.name)}</span>
-                <button type="button" class="remove-btn" data-index="${index}" aria-label="削除">
+                <span class="file-ext mono ${extClass}">${escapeHtml(ext.replace('.', '').toUpperCase())}</span>
+                <span class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+                <span class="file-size mono">${formatSize(file.size)}</span>
+                <button type="button" class="remove-btn" data-index="${index}" aria-label="${escapeHtml(file.name)} を削除">
                     <i class="bi bi-x-lg"></i>
                 </button>
             `;
             filesList.appendChild(fileItem);
         });
+
+        if (filesCount) {
+            filesCount.textContent = currentFiles.length + ' 件';
+        }
+        if (submitHint) {
+            submitHint.textContent = currentFiles.length >= 2
+                ? currentFiles.length + ' ファイルを HA 構成として 1 冊のシートにまとめます（扱いは「HA 構成の扱い」で変更可）'
+                : '1 ファイルを単一機器として処理します';
+        }
 
         // 削除ボタンのイベント
         filesList.querySelectorAll('.remove-btn').forEach(btn => {
@@ -208,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const preset = document.querySelector('input[name="output_preset"]:checked').value;
 
         if (preset !== 'custom') {
-            return presets[preset] || presets.normal;
+            return presets[preset] || presets.ops;
         }
 
         // カスタムの場合はチェックされたものを取得
@@ -238,6 +303,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // UI状態変更
         showProgress();
+        resetStages();
+        setStage('received');
 
         const formData = new FormData();
 
@@ -321,9 +388,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const percent = data.progress?.percent ?? 0;
             const message = data.progress?.message ?? '';
             updateProgress(percent, message);
+            setStage(data.progress?.stage || data.status);
 
             if (data.status === 'done') {
                 updateProgress(100, 'パラメータシートを生成しました');
+                setStage('done');
                 window.location.href = '/result/' + fileId;
                 return;
             }
@@ -361,6 +430,7 @@ document.addEventListener('DOMContentLoaded', function() {
         progressSection.style.display = 'none';
         errorSection.style.display = 'none';
         updateProgress(0, '設定ファイルを解析しています');
+        resetStages();
     });
 
     // ドロップゾーンのクリックでファイル選択

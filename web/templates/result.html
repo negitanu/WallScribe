@@ -3,114 +3,58 @@
 {% block title %}生成完了{% endblock %}
 
 {% block content %}
-<!-- Result Card -->
-<section class="result-section">
-    <div class="glass-card success-glow">
-        <div class="card-body p-4 p-md-5">
-            <!-- Success Icon with Animation -->
-            <div class="text-center mb-4">
-                <div class="success-icon-wrapper">
-                    <div class="success-icon-bg"></div>
-                    <div class="success-icon success-pulse">
-                        <i class="bi bi-check-circle"></i>
-                    </div>
-                </div>
-            </div>
+{% set summary = file_info.summary or {} %}
+{% set is_fortigate = file_info.device_type and 'FortiGate' in file_info.device_type %}
+<section class="hero hero-compact">
+    <p class="eyebrow eyebrow-success"><span class="eyebrow-dot" aria-hidden="true"></span>完了</p>
+    <h1 class="hero-title">パラメータシートを生成しました</h1>
+</section>
 
-            <!-- Title -->
-            <h3 class="text-center text-success mb-4">
-                <i class="bi bi-file-earmark-check me-2"></i>
-                パラメータシートの生成が完了しました
-            </h3>
-
-            <!-- File Info Card -->
-            <div class="info-card mb-4">
-                <div class="info-card-header">
-                    <i class="bi bi-info-circle me-2"></i>生成情報
-                </div>
-                <div class="info-card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="info-item">
-                                <span class="info-label">
-                                    <i class="bi bi-file-earmark-text me-1"></i>ファイル名
-                                </span>
-                                <span class="info-value font-mono">{{ file_info.filename }}</span>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="info-item">
-                                <span class="info-label">
-                                    <i class="bi bi-router me-1"></i>機器タイプ
-                                </span>
-                                <span class="info-value">
-                                    {% if file_info.device_type and 'FortiGate' in file_info.device_type %}
-                                    <span class="badge bg-info-subtle text-info">{{ file_info.device_type }}</span>
-                                    {% else %}
-                                    <span class="badge bg-warning-subtle text-warning">{{ file_info.device_type }}</span>
-                                    {% endif %}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="info-item">
-                                <span class="info-label">
-                                    <i class="bi bi-hdd-network me-1"></i>ホスト名
-                                </span>
-                                <span class="info-value font-mono">{{ file_info.hostname }}</span>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="info-item">
-                                <span class="info-label">
-                                    <i class="bi bi-code-square me-1"></i>OSバージョン
-                                </span>
-                                <span class="info-value font-mono">{{ file_info.version }}</span>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="info-item">
-                                <span class="info-label">
-                                    <i class="bi bi-shield-check me-1"></i>ポリシー数
-                                </span>
-                                <span class="info-value">
-                                    <span class="badge bg-primary-subtle text-primary fs-6">{{ file_info.summary.policies | default(0) }}</span>
-                                </span>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="info-item">
-                                <span class="info-label">
-                                    <i class="bi bi-box me-1"></i>オブジェクト数
-                                </span>
-                                <span class="info-value">
-                                    <span class="badge bg-secondary-subtle text-secondary fs-6">{{ file_info.summary.objects | default(0) }}</span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="d-flex flex-wrap justify-content-center gap-3 mb-4">
-                <a href="{{ url_for('download_file', file_id=file_id) }}" class="btn btn-gradient btn-lg">
-                    <i class="bi bi-download me-2"></i>ダウンロード
-                </a>
-                <a href="{{ url_for('preview_file', file_id=file_id) }}" class="btn btn-success btn-lg" target="_blank">
-                    <i class="bi bi-eye me-2"></i>プレビュー
-                </a>
-                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-lg">
-                    <i class="bi bi-arrow-repeat me-2"></i>別のファイルを変換
-                </a>
-            </div>
-
-            <!-- Note -->
-            <div class="alert alert-secondary border-0 text-center mb-0">
-                <i class="bi bi-clock-history me-1"></i>
-                生成されたファイルは<strong>1時間後</strong>に自動削除されます。必要な場合はダウンロードしてください。
-            </div>
+<section class="result">
+    <!-- 表題欄 -->
+    <div class="title-block">
+        <div class="tb-cell tb-wide">
+            <span class="tb-label">ホスト名</span>
+            <span class="tb-value mono">{{ file_info.hostname or '—' }}</span>
+        </div>
+        <div class="tb-cell">
+            <span class="tb-label">機器</span>
+            <span class="tb-value">
+                <span class="chip {{ 'chip-fortigate' if is_fortigate else 'chip-paloalto' }}">{{ file_info.device_type or '—' }}</span>
+            </span>
+        </div>
+        <div class="tb-cell">
+            <span class="tb-label">OS バージョン</span>
+            <span class="tb-value mono">{{ file_info.version or '—' }}</span>
+        </div>
+        {% if file_info.is_cluster %}
+        <div class="tb-cell">
+            <span class="tb-label">HA</span>
+            <span class="tb-value">{{ summary.ha_mode or 'クラスタ' }}{% if summary.member_count %} · {{ summary.member_count }} 台{% endif %}</span>
+        </div>
+        {% endif %}
+        <div class="tb-cell tb-wide">
+            <span class="tb-label">出力ファイル</span>
+            <span class="tb-value mono">{{ file_info.filename }}</span>
         </div>
     </div>
+
+    <!-- 集計 -->
+    <dl class="stat-row">
+        <div class="stat"><dt>インターフェース</dt><dd class="mono">{{ summary.interfaces | default(0) }}</dd></div>
+        <div class="stat"><dt>ルート</dt><dd class="mono">{{ summary.routes | default(0) }}</dd></div>
+        <div class="stat"><dt>ポリシー</dt><dd class="mono">{{ summary.policies | default(0) }}</dd></div>
+        <div class="stat"><dt>NAT</dt><dd class="mono">{{ summary.nat_rules | default(0) }}</dd></div>
+        <div class="stat"><dt>オブジェクト</dt><dd class="mono">{{ summary.objects | default(0) }}</dd></div>
+    </dl>
+
+    <!-- 操作 -->
+    <div class="action-row">
+        <a href="{{ url_for('download_file', file_id=file_id) }}" class="btn-primary btn-lg">ダウンロード</a>
+        <a href="{{ url_for('preview_file', file_id=file_id) }}" class="btn-secondary btn-lg" target="_blank" rel="noopener">プレビュー</a>
+        <a href="{{ url_for('index') }}" class="btn-ghost btn-lg">別のファイルを変換</a>
+    </div>
+
+    <p class="result-note">このファイルは生成から 1 時間後に自動削除されます。</p>
 </section>
 {% endblock %}
