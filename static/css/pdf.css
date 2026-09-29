@@ -1,137 +1,318 @@
 /**
- * PDF出力用スタイルシート
- * WeasyPrintでPDF生成時に適用
- * Bootstrap互換 + PDF最適化
+ * WallScribe パラメータシート (PDF 出力)
+ * WeasyPrint で A3 横に組版する。Bootstrap は読み込まない (自己完結)。
+ *
+ * デザイン言語は HTML 版と共通の「仕様書 (Spec Sheet)」。
+ *   - 装飾ではなく罫線と余白で階層を作る
+ *   - 色は「意味」(allow / deny / drop、ゾーン) にだけ使う
+ *   - 表題欄 (header .meta) は HTML 版と同じ格子
+ *
+ * WeasyPrint の制約: box-shadow / grid の一部 / backdrop-filter は未対応。
  */
 
-/* Bootstrapの `text-align: var(--bs-body-text-align)` がWeasyPrintで警告になるため補完 */
+/* Bootstrap の `text-align: var(--bs-body-text-align)` 参照を補完 */
 :root {
     --bs-body-text-align: left;
 }
 
-/* ベースフォントサイズを小さく設定 */
-body {
-    font-size: 9pt;
-    line-height: 1.35;
-    background: white;
-    color: black;
-    margin: 0;
+/* ------------------------------------------------------------------
+   page
+   ------------------------------------------------------------------ */
+@page {
+    size: A3 landscape;
+    margin: 1.4cm 1.5cm 1.5cm;
+    @bottom-center {
+        content: "ページ " counter(page) " / " counter(pages);
+        font-size: 8.5pt;
+        color: #8b95a3;
+        font-family: 'Noto Sans CJK JP', 'Noto Sans CJK', 'Meiryo', sans-serif;
+    }
+    @bottom-right {
+        content: "WallScribe";
+        font-size: 7.5pt;
+        letter-spacing: 0.08em;
+        color: #b9c2cc;
+        font-family: 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+    }
 }
 
-/* 日本語フォントの設定 */
+/* ------------------------------------------------------------------
+   base
+   ------------------------------------------------------------------ */
+body {
+    margin: 0;
+    font-size: 9pt;
+    line-height: 1.4;
+    color: #1c2530;
+    background: #ffffff;
+}
+
 body, p, div, span, td, th, li, h1, h2, h3, h4, h5, h6 {
     font-family: 'Noto Sans CJK JP', 'Noto Sans CJK', 'Meiryo', 'MS Gothic', sans-serif;
 }
 
 code {
     font-family: 'Noto Sans Mono CJK JP', 'Noto Sans Mono CJK', 'Consolas', 'Courier New', monospace;
-    font-size: 8pt;
+    font-size: 7.5pt;
+    color: #1c2530;
     word-wrap: break-word;
     overflow-wrap: break-word;
     word-break: break-all;
     white-space: pre-wrap;
 }
 
-/* box-shadowはWeasyPrintでサポートされていないため削除 */
+a {
+    color: #1d4f91;
+    text-decoration: none;
+}
+
 header, nav.toc, section {
     box-shadow: none;
 }
 
-/* ページ設定 - ヘッダーはPDFExporterで動的に生成 */
-@page {
-    size: A3 landscape;
-    margin: 1.5cm;
-    @bottom-center {
-        content: "ページ " counter(page) " / " counter(pages);
-        font-size: 10pt;
-        color: #666;
-        font-family: 'Noto Sans CJK JP', 'Noto Sans CJK', 'Meiryo', sans-serif;
-    }
-}
-
-/* コンテナとセクションの幅制限 */
 .container {
     max-width: 100%;
-    padding: 8px;
+    padding: 0;
     box-sizing: border-box;
 }
 
-section {
-    page-break-after: auto;
+p {
+    margin: 0.4em 0;
+    font-size: 9pt;
+}
+
+li {
+    margin: 0.2em 0;
+    font-size: 9pt;
+}
+
+/* ------------------------------------------------------------------
+   header — 表題欄
+   ------------------------------------------------------------------ */
+header {
+    page-break-after: avoid;
+    margin: 0 0 14px;
+    padding: 14px 18px 16px;
     background: #ffffff;
-    padding: 10px 8px;
-    box-sizing: border-box;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    margin-bottom: 15px;
+    color: #1c2530;
+    border: 1px solid #b9c2cc;
+    border-top: 3pt solid #1c2530;
+    border-radius: 4px;
 }
 
-/* VDOM Section */
-.vdom-section {
-    border-left: 3px solid #2980b9;
-    padding-left: 12px;
-    margin-bottom: 15px;
+header .doc-kind {
+    margin: 0 0 3px;
+    font-family: 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+    font-size: 8pt;
+    letter-spacing: 0.08em;
+    color: #8b95a3;
 }
 
-.vdom-section.global-section {
-    border-left-color: #1a5276;
+header h1 {
+    margin: 0 0 12px;
+    font-size: 20pt;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: #1c2530;
 }
 
-/* Subsection */
-.subsection {
-    margin: 10px 0;
-    padding: 8px 0;
-    border-top: 1px dashed #dee2e6;
-    page-break-before: auto;
+header .meta {
+    display: table;
+    width: 100%;
+    margin: 0;
+    font-size: 8.5pt;
+    border: 1px solid #b9c2cc;
+    border-radius: 3px;
+    border-collapse: separate;
 }
 
-.subsection:first-child {
-    border-top: none;
-    padding-top: 0;
+header .meta-item {
+    display: table-cell;
+    width: 25%;
+    padding: 6px 10px;
+    border-right: 1px solid #dde2e8;
+    vertical-align: top;
 }
 
-.subsection h3 {
-    margin-top: 0;
+header .meta-item:last-child {
+    border-right: 0;
 }
 
-/* info-card はページを跨がない（小さい要素のため） */
-.info-card {
-    page-break-inside: avoid;
+header .meta-label {
+    display: block;
+    font-size: 7pt;
+    letter-spacing: 0.04em;
+    color: #8b95a3;
+}
+
+header .meta-value {
+    display: block;
+    font-family: 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+    font-weight: 600;
+    color: #1c2530;
+}
+
+/* 旧マークアップ互換 */
+header .meta strong {
+    color: #1c2530;
+    font-weight: 600;
+}
+
+/* ------------------------------------------------------------------
+   nav.toc — 目次
+   ------------------------------------------------------------------ */
+nav.toc {
+    page-break-after: always;
+    margin-bottom: 14px;
+    padding: 14px 18px 16px;
+    background: #ffffff;
+    border: 1px solid #dde2e8;
+    border-radius: 4px;
+}
+
+nav.toc h2 {
+    margin: 0 0 10px;
+    padding-bottom: 6px;
+    font-size: 11pt;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #1c2530;
+    border-bottom: 1px solid #b9c2cc;
+}
+
+nav.toc ul {
+    columns: 3;
+    column-gap: 28px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+nav.toc li {
+    font-size: 8.5pt;
+    line-height: 1.4;
+    padding: 3px 0;
     break-inside: avoid;
 }
 
-/* セクションの見出し */
+nav.toc > ul > li {
+    padding: 4px 0;
+    font-weight: 600;
+}
+
+nav.toc a {
+    color: #1c2530;
+    text-decoration: none;
+}
+
+nav.toc ul ul {
+    columns: 1;
+    margin: 4px 0 2px 0;
+    padding: 0 0 0 10px;
+    list-style: none;
+    border-left: 1px solid #dde2e8;
+}
+
+nav.toc ul ul li {
+    padding: 1.5px 0;
+    font-size: 8pt;
+    font-weight: 400;
+}
+
+nav.toc ul ul a {
+    color: #4b5563;
+}
+
+/* ------------------------------------------------------------------
+   section
+   ------------------------------------------------------------------ */
+section {
+    page-break-after: auto;
+    margin-bottom: 14px;
+    padding: 12px 16px 10px;
+    background: #ffffff;
+    border: 1px solid #dde2e8;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.vdom-section {
+    border-left: 3pt solid #1d4f91;
+}
+
+.vdom-section.global-section {
+    border-left-color: #1c2530;
+}
+
+.subsection {
+    margin: 0;
+    padding: 12px 0 4px;
+    border-top: 1px solid #dde2e8;
+    page-break-before: auto;
+}
+
+.subsection:first-of-type {
+    border-top: none;
+}
+
+/* ------------------------------------------------------------------
+   headings
+   ------------------------------------------------------------------ */
 section > h2 {
     page-break-after: avoid;
-    page-break-before: auto;
-    font-size: 1.3em;
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
+    margin: 0 0 4px;
+    padding-bottom: 6px;
+    font-size: 14pt;
+    font-weight: 700;
+    color: #1c2530;
+    border-bottom: 1.5pt solid #1c2530;
 }
 
 h3 {
     page-break-after: avoid;
-    font-size: 1.1em;
-    margin-top: 0.4em;
-    margin-bottom: 0.4em;
+    margin: 0 0 8px;
+    font-size: 11pt;
+    font-weight: 700;
+    color: #1c2530;
+}
+
+h3::before {
+    content: "";
+    display: inline-block;
+    width: 8pt;
+    height: 2.2pt;
+    margin-right: 7pt;
+    vertical-align: middle;
+    background: #0f7b5f;
 }
 
 h4 {
     page-break-after: avoid;
-    font-size: 1.0em;
-    margin-top: 0.3em;
-    margin-bottom: 0.3em;
+    margin: 10px 0 5px;
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #1c2530;
 }
 
 h5 {
     page-break-after: avoid;
-    font-size: 0.95em;
-    margin-top: 0.25em;
-    margin-bottom: 0.2em;
-    color: #6c757d;
+    margin: 8px 0 4px;
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #4b5563;
 }
 
-/* Bootstrap テーブルのPDF最適化 */
+/* ------------------------------------------------------------------
+   tables
+   ------------------------------------------------------------------ */
+.table-responsive {
+    width: 100%;
+    margin: 6px 0 4px;
+    overflow: visible;
+}
+
 table,
 .table {
     width: 100%;
@@ -139,29 +320,29 @@ table,
     table-layout: auto;
     border-collapse: collapse;
     page-break-inside: auto;
+    margin-bottom: 0.4rem;
     font-size: 7pt;
-    margin-bottom: 0.5rem;
-}
-
-.table-responsive {
-    overflow: visible;
-    width: 100%;
+    border: 1px solid #dde2e8;
 }
 
 th, td,
 .table th, .table td {
-    padding: 4px 6px;
-    line-height: 1.3;
+    padding: 3.5px 6px;
+    line-height: 1.35;
     vertical-align: top;
-    border: 1px solid #dee2e6;
+    border: 1px solid #dde2e8;
 }
 
 th,
 .table th {
     font-size: 7pt;
-    font-weight: 600;
-    background-color: #e9ecef !important;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #4b5563;
+    background-color: #f2f4f6 !important;
+    border-bottom: 1.5pt solid #b9c2cc;
     white-space: nowrap;
+    text-align: left;
 }
 
 td,
@@ -172,17 +353,10 @@ td,
     overflow-wrap: break-word;
 }
 
-/* Bootstrap table-striped のPDF対応 */
 .table-striped > tbody > tr:nth-of-type(odd) > * {
-    background-color: rgba(0, 0, 0, 0.02);
+    background-color: #f8f9fb;
 }
 
-/* table-striped を付けていない表にも、わずかに縞を入れて視線誘導（配色は維持） */
-table tbody > tr:nth-of-type(even) > * {
-    background-color: rgba(0, 0, 0, 0.01);
-}
-
-/* Bootstrap table-sm のPDF対応 */
 .table-sm th,
 .table-sm td {
     padding: 2px 4px;
@@ -201,7 +375,25 @@ tfoot {
     display: table-footer-group;
 }
 
-/* 情報カードとグリッドの調整 */
+/* ポリシー表 */
+tr.policy-row td.policy-name { font-weight: 700; }
+tr.policy-row td.policy-flag,
+tr.policy-row td.policy-cond { white-space: nowrap; }
+tr.policy-row td.policy-cond,
+tr.policy-row td.policy-note { color: #4b5563; }
+
+/* ------------------------------------------------------------------
+   semantic colors
+   ------------------------------------------------------------------ */
+.allow, td.allow { color: #0b5f49; font-weight: 700; }
+.deny,  td.deny  { color: #b3261e; font-weight: 700; }
+.drop,  td.drop  { color: #9a5b00; font-weight: 700; }
+.disabled        { color: #8b95a3; }
+.text-muted      { color: #8b95a3; }
+
+/* ------------------------------------------------------------------
+   info-grid / info-card
+   ------------------------------------------------------------------ */
 .info-grid {
     display: block;
     width: 100%;
@@ -209,196 +401,179 @@ tfoot {
 
 .info-card {
     width: 100%;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    border: 1px solid #dde2e8;
+    border-radius: 3px;
     box-sizing: border-box;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.info-card h4,
+.info-card h5 {
+    margin: 0 0 6px;
+    padding-bottom: 4px;
+    font-size: 8pt;
+    letter-spacing: 0.03em;
+    color: #4b5563;
+    border-bottom: 1px solid #dde2e8;
 }
 
 .info-card table {
     width: 100%;
+    border: 0;
 }
 
-/* 目次 */
-nav.toc {
-    page-break-after: always;
-    background: #ffffff;
-    padding: 16px 18px;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    margin-bottom: 15px;
-}
-
-nav.toc ul {
-    columns: 2;
-    column-gap: 24px;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-nav.toc h2 {
-    font-size: 1.2em;
-    font-weight: 700;
-    color: #1a5276;
-    border-bottom: 2px solid #2980b9;
-    padding-bottom: 6px;
-    margin: 0 0 10px 0;
-}
-
-nav.toc li {
-    font-size: 8.5pt;
-    padding: 3px 0;
-    line-height: 1.4;
-    break-inside: avoid;
-}
-
-nav.toc > ul > li {
-    padding: 5px 0;
-}
-
-nav.toc ul ul {
-    columns: 1;
-    margin: 5px 0 0 12px;
-    padding: 0;
-}
-
-nav.toc ul ul li {
-    font-size: 8pt;
-    padding: 2px 0;
-}
-
-nav.toc ul ul li::before {
-    content: ">";
-    color: #94a3b8;
-    margin-right: 4px;
-}
-
-nav.toc a {
-    color: #2980b9;
-    text-decoration: none;
+.info-card th {
+    width: 36%;
+    background-color: transparent !important;
+    color: #8b95a3;
     font-weight: 500;
+    white-space: normal;
+    border: 0;
+    border-bottom: 1px solid #dde2e8;
 }
 
-nav.toc ul ul a {
-    color: #64748b;
-    font-weight: 400;
+.info-card td {
+    font-family: 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+    border: 0;
+    border-bottom: 1px solid #dde2e8;
 }
 
-/* ヘッダーとフッターの調整 */
-header {
-    page-break-after: avoid;
-    padding: 18px 16px;
-    margin-bottom: 18px;
-    background: linear-gradient(135deg, #1a5276 0%, #2980b9 70%, #3498db 100%);
-    color: #ffffff;
-    border-radius: 8px;
+/* 2 列の「項目 / 値」表では 1 列目がラベル */
+.info-card td:first-child {
+    width: 36%;
+    font-family: 'Noto Sans CJK JP', 'Noto Sans CJK', 'Meiryo', sans-serif;
+    color: #4b5563;
 }
 
-header h1 {
-    color: #ffffff;
-    font-size: 1.5em;
-    font-weight: 700;
-    line-height: 1.2;
-    margin: 0 0 8px 0;
+/* ------------------------------------------------------------------
+   boxes
+   ------------------------------------------------------------------ */
+.summary-box, .warning-box {
+    margin: 6px 0 8px;
+    padding: 6px 10px;
+    font-size: 8pt;
+    border: 1px solid #dde2e8;
+    border-left: 2.5pt solid #1d4f91;
+    border-radius: 3px;
+    background: #f8f9fb;
 }
 
-header .meta {
-    color: rgba(255, 255, 255, 0.92);
-    font-size: 0.85em;
-    line-height: 1.5;
-    margin: 0;
+.warning-box {
+    background: #f8efdc;
+    border-color: #e6cfa3;
+    border-left-color: #9a5b00;
+    color: #6d4100;
 }
 
-header .meta strong {
-    color: #ffffff;
-    font-weight: 600;
-}
-
-footer {
-    page-break-before: avoid;
-    padding: 10px 8px;
-    font-size: 0.8em;
-}
-
-/* タグの調整 */
+/* ------------------------------------------------------------------
+   tags / badges / buttons
+   ------------------------------------------------------------------ */
 .tag {
     display: inline-block;
-    padding: 1px 4px;
-    font-size: 6pt;
-    margin: 1px;
-    border: 1px solid #ccc;
+    margin: 1px 2px 1px 0;
+    padding: 0.5px 4px;
+    font-family: 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+    font-size: 6.5pt;
+    color: #4b5563;
+    background: #f8f9fb;
+    border: 0.5pt solid #c4ccd6;
+    border-radius: 2px;
 }
 
-/* バッジ（セキュリティプロファイルなど）が切れないように高さを確保 */
+.tag-trust   { color: #0b5f49; background: #e1f2ec; border-color: #b7ded0; }
+.tag-untrust { color: #8e1f18; background: #f9e6e4; border-color: #ecc1bd; }
+.tag-dmz     { color: #9a5b00; background: #f8efdc; border-color: #e6cfa3; }
+
 .badge,
 .badge-outline {
     display: inline-block;
+    margin: 1px 3px 1px 0;
+    padding: 1.5px 5px;
+    font-size: 6.8pt;
+    font-weight: 600;
+    line-height: 1.2;
     white-space: nowrap;
     color: #ffffff;
-    font-size: 7pt;
-    line-height: 1;
-    padding: 2px 4px;
-    border-radius: 999px;
+    border: 0.5pt solid transparent;
+    border-radius: 2px;
 }
 
-.bg-primary { background-color: #0d6efd; }
-.bg-secondary { background-color: #6c757d; }
-.bg-success { background-color: #198754; }
-.bg-danger { background-color: #dc3545; }
-.bg-warning { background-color: #ffc107; color: #212529; }
-.bg-info { background-color: #0dcaf0; color: #212529; }
-.bg-light { background-color: #f8f9fa; color: #212529; border: 1px solid #dee2e6; }
-.bg-dark { background-color: #212529; }
+/* 塗りバッジ → 淡色地 + 濃色文字 */
+.bg-primary   { background-color: #e8eef7; color: #163d70; border-color: #cfdcef; }
+.bg-secondary { background-color: #eef0f3; color: #4b5563; border-color: #c4ccd6; }
+.bg-success   { background-color: #e1f2ec; color: #0b5f49; border-color: #b7ded0; }
+.bg-danger    { background-color: #f9e6e4; color: #8e1f18; border-color: #ecc1bd; }
+.bg-warning   { background-color: #f8efdc; color: #9a5b00; border-color: #e6cfa3; }
+.bg-info      { background-color: #e1eef4; color: #2f6f8f; border-color: #b9d3df; }
+.bg-light     { background-color: #ffffff; color: #4b5563; border-color: #c4ccd6; }
+.bg-dark      { background-color: #1c2530; color: #ffffff; border-color: #1c2530; }
 
 .badge-outline {
     background-color: #ffffff;
-    color: #495057;
-    border: 0.5px solid #adb5bd;
+    color: #4b5563;
+    border-color: #c4ccd6;
 }
 
-.badge-outline-primary { color: #0d6efd; border-color: #0d6efd; }
-.badge-outline-secondary { color: #6c757d; border-color: #6c757d; }
-.badge-outline-success { color: #198754; border-color: #198754; }
-.badge-outline-danger { color: #dc3545; border-color: #dc3545; }
-.badge-outline-warning { color: #856404; border-color: #ffc107; }
-.badge-outline-info { color: #087990; border-color: #0dcaf0; }
-.badge-outline-light { color: #495057; border-color: #dee2e6; }
-.badge-outline-dark { color: #212529; border-color: #212529; }
+.badge-outline-primary   { color: #163d70; border-color: #1d4f91; }
+.badge-outline-secondary { color: #4b5563; border-color: #c4ccd6; }
+.badge-outline-success   { color: #0b5f49; border-color: #0f7b5f; }
+.badge-outline-danger    { color: #8e1f18; border-color: #b3261e; }
+.badge-outline-warning   { color: #9a5b00; border-color: #9a5b00; }
+.badge-outline-info      { color: #2f6f8f; border-color: #2f6f8f; }
+.badge-outline-light     { color: #8b95a3; border-color: #dde2e8; }
+.badge-outline-dark      { color: #1c2530; border-color: #1c2530; }
 
-/* サマリーボックスと警告ボックスの調整 */
-.summary-box, .warning-box {
-    padding: 8px;
-    margin: 8px 0;
-    font-size: 8pt;
+.btn, .btn-sm {
+    display: inline-block !important;
+    margin: 0 2px 1px 0 !important;
+    padding: 0.5px 4px !important;
+    font-family: 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+    font-size: 6.8pt !important;
+    font-weight: 600;
+    line-height: 1.3 !important;
+    white-space: nowrap !important;
+    color: #4b5563;
+    background: #ffffff;
+    border: 0.5pt solid #c4ccd6 !important;
+    border-radius: 2px;
+    text-decoration: none;
 }
 
-/* 段落とリストの調整 */
-p {
-    margin: 0.4em 0;
-    font-size: 9pt;
+.btn-outline-primary   { color: #163d70; border-color: #1d4f91 !important; }
+.btn-outline-secondary { color: #4b5563; border-color: #c4ccd6 !important; }
+.btn-outline-success   { color: #0b5f49; border-color: #0f7b5f !important; }
+.btn-outline-danger    { color: #8e1f18; border-color: #b3261e !important; }
+.btn-outline-warning   { color: #9a5b00; border-color: #9a5b00 !important; }
+.btn-outline-info      { color: #2f6f8f; border-color: #2f6f8f !important; }
+
+.btn.disabled {
+    color: #8b95a3;
+    border-style: dashed !important;
+    border-color: #dde2e8 !important;
 }
 
-li {
-    font-size: 9pt;
-    margin: 0.2em 0;
+/* ------------------------------------------------------------------
+   footer / hidden
+   ------------------------------------------------------------------ */
+footer {
+    page-break-before: avoid;
+    padding: 6px 0 0;
+    text-align: center;
 }
 
-/* 検索ボックスを非表示（PDF用） */
+footer p {
+    display: inline-block;
+    margin: 0;
+    padding: 4px 10px;
+    font-family: 'Noto Sans Mono CJK JP', 'Consolas', monospace;
+    font-size: 7.5pt;
+    color: #8b95a3;
+    border-top: 1px solid #b9c2cc;
+}
+
 .search-box {
     display: none;
-}
-
-/* ボタンのサイズ調整（PDF用） */
-.btn, .btn-sm {
-    font-size: 7pt !important;
-    padding: 1px 4px !important;
-    line-height: 1.2 !important;
-    border-width: 0.5px !important;
-    margin: 0 1px 1px 0 !important;
-    display: inline-block !important;
-    white-space: nowrap !important;
-}
-
-/* ボタンの無効化状態 */
-.btn.disabled {
-    opacity: 0.6;
 }
