@@ -869,11 +869,13 @@ class HTMLExporter:
 <body>
     <div class="container">
         <header>
-            <h1>{self.escape(device_info.model or device_info.device_type.value)} パラメータシート</h1>
+            <p class="doc-kind">{self.escape(device_info.device_type.value)} パラメータシート</p>
+            <h1>{self.escape(device_info.hostname or device_info.model or device_info.device_type.value)}</h1>
             <div class="meta">
-                <strong>ファイル名:</strong> {self.escape(Path(self.config.source_file).name)} |
-                <strong>バージョン:</strong> {self.escape(device_info.os_version)} |
-                <strong>作成日:</strong> {today}
+                <div class="meta-item"><span class="meta-label">機種</span><span class="meta-value">{self.escape(device_info.model or device_info.device_type.value)}</span></div>
+                <div class="meta-item"><span class="meta-label">OS バージョン</span><span class="meta-value">{self.escape(device_info.os_version)}</span></div>
+                <div class="meta-item"><span class="meta-label">設定ファイル</span><span class="meta-value">{self.escape(Path(self.config.source_file).name)}</span></div>
+                <div class="meta-item"><span class="meta-label">作成日</span><span class="meta-value">{today}</span></div>
             </div>
 {search_box}
         </header>
@@ -1580,7 +1582,7 @@ class HTMLExporter:
             policy_rows.append(f"""<tr class="policy-row">
                 <td>{idx}</td>
                 {id_cell}
-                <td>{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
+                <td class="policy-name">{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
                 <td>{self._interfaces_to_lines_with_tooltip(policy.source_interface, current_vdom)}</td>
                 <td>{self._interfaces_to_lines_with_tooltip(policy.destination_interface, current_vdom)}</td>
                 <td>{self._addresses_to_lines_with_tooltip(policy.source_address, current_vdom)}</td>
@@ -1588,11 +1590,11 @@ class HTMLExporter:
                 {'<td>' + ' '.join(f'<span class="tag">{self.escape(app)}</span>' for app in policy.application) + '</td>' if is_paloalto else ''}
                 <td>{self._services_to_badges_with_tooltip(policy.service, current_vdom)}</td>
                 <td class="{self._get_action_class(policy.action)}">{self.escape(policy.action.value)}</td>
-                <td>{"有効" if policy.nat_enabled else "無効"}</td>
+                <td class="policy-flag">{"有効" if policy.nat_enabled else "無効"}</td>
                 <td>{self._security_profiles_to_badges_with_tooltip(policy.security_profiles, current_vdom)}</td>
-                <td>{"有効" if policy.log_enabled else "無効"}</td>
-                <td>{self.escape(policy.description)}</td>
-                <td>{condition_html}</td>
+                <td class="policy-flag">{"有効" if policy.log_enabled else "無効"}</td>
+                <td class="policy-note">{self.escape(policy.description)}</td>
+                <td class="policy-cond">{condition_html}</td>
             </tr>""")
 
         # Local-in ポリシー
@@ -1615,13 +1617,13 @@ class HTMLExporter:
             local_in_rows.append(f"""<tr class="policy-row">
                 <td>{idx}</td>
                 {local_id_cell}
-                <td>{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
+                <td class="policy-name">{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
                 <td>{source_if_display}</td>
                 <td>{self._addresses_to_lines_with_tooltip(policy.source_address, current_vdom)}</td>
                 <td>{self._addresses_to_lines_with_tooltip(policy.destination_address, current_vdom)}</td>
                 <td>{self._services_to_badges_with_tooltip(policy.service, current_vdom)}</td>
                 <td class="{self._get_action_class(policy.action)}">{self.escape(policy.action.value)}</td>
-                <td>{self.escape(policy.description)}</td>
+                <td class="policy-note">{self.escape(policy.description)}</td>
             </tr>""")
 
         return f"""

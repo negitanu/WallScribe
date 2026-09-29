@@ -22,12 +22,12 @@
         tooltipElement.style.cssText = `
             position: fixed;
             padding: 12px 16px;
-            background: #212529;
+            background: #1c2530;
             color: #fff;
             font-size: 0.9rem;
             font-weight: normal;
             line-height: 1.6;
-            border-radius: 8px;
+            border-radius: 6px;
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -36,7 +36,7 @@
             min-width: 250px;
             white-space: normal;
             word-wrap: break-word;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 24px rgba(28, 37, 48, 0.28);
             pointer-events: none;
             text-align: left;
             overflow-wrap: break-word;
@@ -50,7 +50,7 @@
             width: 0;
             height: 0;
             border: 8px solid transparent;
-            border-top-color: #212529;
+            border-top-color: #1c2530;
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -142,10 +142,10 @@
         const arrowSize = 8;
         if (pos.showBelow) {
             tooltipArrow.style.borderTopColor = 'transparent';
-            tooltipArrow.style.borderBottomColor = '#212529';
+            tooltipArrow.style.borderBottomColor = '#1c2530';
             tooltipArrow.style.top = (pos.top - arrowSize - 1) + 'px';
         } else {
-            tooltipArrow.style.borderTopColor = '#212529';
+            tooltipArrow.style.borderTopColor = '#1c2530';
             tooltipArrow.style.borderBottomColor = 'transparent';
             tooltipArrow.style.top = (pos.top + tooltipElement.offsetHeight) + 'px';
         }
