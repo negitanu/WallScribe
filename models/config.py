@@ -114,6 +114,10 @@ class Interface:
     allowed_access: List[str] = field(default_factory=list)
     status: str = "up"
     description: str = ""
+    management_profile: str = ""
+    management_permitted_ips: List[str] = field(default_factory=list)
+    management_access_known: bool = True
+    vdom_assignment_known: bool = True
 
 
 @dataclass
@@ -129,6 +133,9 @@ class Route:
     route_type: str = "static"  # static, connected, ospf, bgp
     priority: str = ""  # For policy routes
     comment: str = ""
+    enabled: bool = True
+    routing_context: str = ""
+    vdom_assignment_known: bool = True
 
 
 @dataclass

@@ -359,11 +359,19 @@ class PaloAltoParser(BaseConfigParser):
         # Parse zones to associate with interfaces
         self._parse_zones()
 
+        for vsys in self.device.findall("vsys/entry"):
+            for member in vsys.findall("import/network/interface/member"):
+                for iface in self.config_model.interfaces:
+                    if iface.name == member.text and iface.vdom == "root":
+                        iface.vdom = vsys.get("name", "vsys1")
+                        iface.vdom_assignment_known = True
+
         # ゾーン未割り当てのインターフェースに最初のvsysを設定
         first_vsys = self._get_first_vsys_name()
         for iface in self.config_model.interfaces:
             if iface.vdom == "root":
                 iface.vdom = first_vsys
+                iface.vdom_assignment_known = False
 
     def _parse_interface_entry(self, entry: ET.Element, iface_type: str) -> Optional[Interface]:
         """インターフェースエントリをパース"""
@@ -392,7 +400,23 @@ class PaloAltoParser(BaseConfigParser):
         if not mgmt_profile:
             mgmt_profile = self._get_text(entry, "interface-management-profile")
         if mgmt_profile:
-            iface.allowed_access.append(mgmt_profile)
+            iface.management_profile = mgmt_profile
+            profiles = self.device.findall("network/profiles/interface-management-profile/entry")
+            profile = next((p for p in profiles if p.get("name") == mgmt_profile), None)
+            iface.management_access_known = profile is not None
+            if profile is not None:
+                iface.allowed_access = [
+                    protocol
+                    for protocol in ("http", "https", "ssh", "telnet", "ping", "snmp")
+                    if self._get_text(profile, protocol) == "yes"
+                ]
+                iface.management_permitted_ips = [
+                    ip.get("name", "")
+                    for ip in profile.findall("permitted-ip/entry")
+                    if ip.get("name")
+                ]
+        if self._get_text(entry, "link-state") == "down":
+            iface.status = "down"
 
         return iface
 
@@ -461,14 +485,22 @@ class PaloAltoParser(BaseConfigParser):
                     route_type = "next-vr"
                     gateway = self._get_text(route_entry, "nexthop/next-vr")
 
+                owners = {
+                    iface.vdom
+                    for iface in self.config_model.interfaces
+                    if iface.name == self._get_text(route_entry, "interface")
+                    and iface.vdom_assignment_known
+                }
                 route = Route(
+                    routing_context=vr_name,
+                    vdom_assignment_known=len(owners) == 1,
                     name=route_entry.get("name", ""),
                     destination=destination,
                     gateway=gateway,
                     interface=self._get_text(route_entry, "interface"),
                     distance=self._get_text(route_entry, "metric"),
                     route_type=route_type,
-                    vdom=first_vsys,
+                    vdom=next(iter(owners)) if len(owners) == 1 else first_vsys,
                 )
                 self.config_model.routes.append(route)
 

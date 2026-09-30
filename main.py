@@ -6,9 +6,12 @@
 
 import argparse
 import logging
+import json
 import sys
 from pathlib import Path
 
+from analyzers import analyze_security, infer_topology
+from models.cluster import ClusterConfig
 from exporters.html import HTMLExporter
 from services.conversion import (
     ExportCapabilities,
@@ -80,6 +83,12 @@ HA構成:
         help="HAモード: auto=自動判定, single=単一機器として処理, cluster=クラスタとして処理 (デフォルト: auto)",
     )
 
+    parser.add_argument(
+        "--analysis-json",
+        type=Path,
+        help="セキュリティ診断・推定ネットワーク構造を JSON に追加出力",
+    )
+
     parser.add_argument("-v", "--verbose", action="store_true", help="詳細ログを出力")
 
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -144,6 +153,16 @@ def main():
     # 出力
     output_path = Path(args.output)
 
+    if args.analysis_json:
+        protected_paths = {Path(path).resolve() for path in input_paths}
+        protected_paths.add(output_path.resolve())
+        if args.format == "excel":
+            protected_paths.add(output_path.with_suffix(".xlsx").resolve())
+        if args.analysis_json.resolve() in protected_paths:
+            raise ValueError(
+                "診断 JSON の保存先は入力設定・出力レポートと別のパスを指定してください"
+            )
+
     if args.format == "html":
         export_config(
             config,
@@ -171,6 +190,21 @@ def main():
             ),
         )
         logger.info(f"Excel出力: {output_path}")
+
+    if args.analysis_json:
+        representative = config.primary_config if isinstance(config, ClusterConfig) else config
+        if representative is None:
+            raise ValueError("診断できる設定がありません")
+        payload = {
+            "schema_version": 1,
+            "scope": "primary_config" if isinstance(config, ClusterConfig) else "single_device",
+            "security": analyze_security(representative).to_dict(),
+            "topology": infer_topology(representative).to_dict(),
+        }
+        args.analysis_json.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        logger.info("診断 JSON 出力: %s", args.analysis_json)
 
     logger.info("完了")
 

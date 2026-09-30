@@ -33,6 +33,7 @@ except ImportError:  # pragma: no cover - openpyxl未導入環境向け
 
 
 from exporters import excel_styles as styles
+from exporters.excel_parts.insights import ExcelInsightsMixin
 from exporters.excel_parts.common import ExcelCommonMixin
 from exporters.excel_parts.global_sheets import ExcelGlobalSheetsMixin
 from exporters.excel_parts.vdom_sheets import ExcelVdomSheetsMixin
@@ -42,7 +43,9 @@ from models.config import ConfigModel, DeviceType, HAMode, PolicyAction
 logger = logging.getLogger(__name__)
 
 
-class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMixin):
+class ExcelExporter(
+    ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMixin, ExcelInsightsMixin
+):
     """Excel形式でパラメータシートを出力（VDOM/vsys単位）"""
 
     # ============================================================
@@ -51,6 +54,8 @@ class ExcelExporter(ExcelCommonMixin, ExcelGlobalSheetsMixin, ExcelVdomSheetsMix
 
     # グローバルセクション定義（VDOM横断の共通設定）
     GLOBAL_SECTIONS = [
+        ("security_analysis", "セキュリティ診断", "_create_security_analysis_sheet"),
+        ("topology", "推定ネットワーク構造", "_create_topology_sheet"),
         ("cluster_overview", "クラスタ概要", "_create_cluster_overview_sheet"),
         ("device_info", "機器概要", "_create_overview_sheet"),
         ("system_settings", "システム設定", "_create_system_sheet"),

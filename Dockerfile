@@ -55,6 +55,7 @@ COPY --from=builder /root/.local /home/appuser/.local
 COPY app.py main.py exceptions.py ./
 COPY parsers/ ./parsers/
 COPY models/ ./models/
+COPY analyzers/ ./analyzers/
 COPY exporters/ ./exporters/
 COPY web/ ./web/
 COPY static/ ./static/

@@ -19,6 +19,7 @@ COPY requirements.txt pyproject.toml README.md ./
 COPY app.py main.py exceptions.py ./
 COPY parsers/ ./parsers/
 COPY models/ ./models/
+COPY analyzers/ ./analyzers/
 COPY exporters/ ./exporters/
 COPY web/ ./web/
 COPY static/ ./static/

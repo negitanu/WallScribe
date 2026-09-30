@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from exporters.insights import render_security, render_topology
 from exporters.utils import (
     STATIC_DIR,
     HtmlFormatter,
@@ -28,6 +29,8 @@ class HTMLExporter:
 
     # グローバルセクション定義（VDOM横断の設定）
     GLOBAL_SECTIONS = [
+        ("security_analysis", "セキュリティ診断", "_generate_security_analysis_section"),
+        ("topology", "推定ネットワーク構造", "_generate_topology_section"),
         ("cluster_overview", "クラスタ概要", "_generate_cluster_overview_section"),
         ("device_info", "機器概要", "_generate_device_info_section"),
         ("system_settings", "システム設定", "_generate_system_settings_section"),
@@ -68,7 +71,7 @@ class HTMLExporter:
             self.config = config
             self.is_cluster = False
 
-        # セクション指定は現在未使用（将来の拡張用に保持）
+        # Output section selection is shared with the Excel exporter.
         self.sections = sections
         self.for_pdf = for_pdf
         # ISDBデータをキャッシュ（ループ内での関数呼び出し削減）
@@ -748,6 +751,33 @@ class HTMLExporter:
 
         return html_content
 
+    def _section_selected(self, key):
+        if not self.sections:
+            return True
+        aliases = {
+            "device": {"device_info", "system_settings", "ha", "logging"},
+            "policy": {"policies", "nat"},
+            "interfaces": {"network"},
+            "routes": {"network"},
+            "dhcp": {"network"},
+        }
+        selected = set(self.sections)
+        for section in self.sections:
+            selected.update(aliases.get(section, set()))
+        return key in selected
+
+    def _generate_security_analysis_section(
+        self, section_num="1.1", section_id="global-security_analysis"
+    ):
+        return render_security(
+            self.config, section_num, section_id, self.cluster_config is not None
+        )
+
+    def _generate_topology_section(self, section_num="1.2", section_id="global-topology"):
+        return render_topology(
+            self.config, section_num, section_id, self.for_pdf, self.cluster_config is not None
+        )
+
     def _generate_toc(self) -> str:
         """階層的目次を生成（グローバル設定 → 各VDOM/vsys）"""
         toc = []
@@ -758,6 +788,8 @@ class HTMLExporter:
         toc.append("                    <ul>")
         section_num = 1
         for key, title, _ in self.GLOBAL_SECTIONS:
+            if not self._section_selected(key):
+                continue
             # クラスタ概要はクラスタ構成時のみ表示
             if key == "cluster_overview" and not self.is_cluster:
                 continue
@@ -770,12 +802,21 @@ class HTMLExporter:
 
         # 2. 各VDOM/vsysセクション
         vdom_list = self._get_vdom_list()
-        for vdom_idx, vdom in enumerate(vdom_list, 2):
+        for vdom_idx, vdom in enumerate(
+            (
+                vdom_list
+                if any(self._section_selected(key) for key, _, _ in self.VDOM_SECTIONS)
+                else []
+            ),
+            2,
+        ):
             toc.append(
                 f'                <li><a href="#vdom-{self.escape(vdom)}">{vdom_idx}. {vdom_label}: {self.escape(vdom)}</a>'
             )
             toc.append("                    <ul>")
             for i, (key, title, _) in enumerate(self.VDOM_SECTIONS, 1):
+                if not self._section_selected(key):
+                    continue
                 toc.append(
                     f'                        <li><a href="#vdom-{self.escape(vdom)}-{key}">{vdom_idx}.{i} {title}</a></li>'
                 )
@@ -790,12 +831,16 @@ class HTMLExporter:
         vdom_label = self._get_vdom_label()
 
         # 1. グローバル設定セクション
-        sections_html.append(f"""
+        sections_html.append(
+            f"""
         <section id="global" class="vdom-section global-section">
-            <h2>1. グローバル設定</h2>""")
+            <h2>1. グローバル設定</h2>"""
+        )
 
         section_num = 1
         for key, title, method_name in self.GLOBAL_SECTIONS:
+            if not self._section_selected(key):
+                continue
             # クラスタ概要はクラスタ構成時のみ表示
             if key == "cluster_overview" and not self.is_cluster:
                 continue
@@ -808,12 +853,23 @@ class HTMLExporter:
 
         # 2. 各VDOM/vsysセクション
         vdom_list = self._get_vdom_list()
-        for vdom_idx, vdom in enumerate(vdom_list, 2):
-            sections_html.append(f"""
+        for vdom_idx, vdom in enumerate(
+            (
+                vdom_list
+                if any(self._section_selected(key) for key, _, _ in self.VDOM_SECTIONS)
+                else []
+            ),
+            2,
+        ):
+            sections_html.append(
+                f"""
         <section id="vdom-{self.escape(vdom)}" class="vdom-section">
-            <h2>{vdom_idx}. {vdom_label}: {self.escape(vdom)}</h2>""")
+            <h2>{vdom_idx}. {vdom_label}: {self.escape(vdom)}</h2>"""
+            )
 
             for i, (key, title, method_name) in enumerate(self.VDOM_SECTIONS, 1):
+                if not self._section_selected(key):
+                    continue
                 method = getattr(self, method_name)
                 section_html = method(
                     section_num=f"{vdom_idx}.{i}",
@@ -1579,7 +1635,8 @@ class HTMLExporter:
                 f"{label}: {self.escape(value)}" for label, value in conditions if value
             )
             id_cell = "" if is_paloalto else f"<td>{self.escape(policy.policy_id)}</td>"
-            policy_rows.append(f"""<tr class="policy-row">
+            policy_rows.append(
+                f"""<tr class="policy-row">
                 <td>{idx}</td>
                 {id_cell}
                 <td class="policy-name">{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
@@ -1595,7 +1652,8 @@ class HTMLExporter:
                 <td class="policy-flag">{"有効" if policy.log_enabled else "無効"}</td>
                 <td class="policy-note">{self.escape(policy.description)}</td>
                 <td class="policy-cond">{condition_html}</td>
-            </tr>""")
+            </tr>"""
+            )
 
         # Local-in ポリシー
         local_in_rows = []
@@ -1614,7 +1672,8 @@ class HTMLExporter:
                 source_if_display = "-"
 
             local_id_cell = "" if is_paloalto else f"<td>{self.escape(policy.policy_id)}</td>"
-            local_in_rows.append(f"""<tr class="policy-row">
+            local_in_rows.append(
+                f"""<tr class="policy-row">
                 <td>{idx}</td>
                 {local_id_cell}
                 <td class="policy-name">{self.escape(policy.name)} {"" if policy.enabled else '<span class="disabled">(無効)</span>'}</td>
@@ -1624,7 +1683,8 @@ class HTMLExporter:
                 <td>{self._services_to_badges_with_tooltip(policy.service, current_vdom)}</td>
                 <td class="{self._get_action_class(policy.action)}">{self.escape(policy.action.value)}</td>
                 <td class="policy-note">{self.escape(policy.description)}</td>
-            </tr>""")
+            </tr>"""
+            )
 
         return f"""
             <div id="{section_id}" class="subsection">

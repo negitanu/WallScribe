@@ -137,6 +137,7 @@ def _add_routes_from_config(
                     interface=route_data.get("device", ""),
                     distance=str(route_data.get("distance", "")),
                     vdom=vdom,
+                    enabled=route_data.get("status") != "disable",
                     route_type=effective_route_type,
                 )
                 config_model.routes.append(route)
