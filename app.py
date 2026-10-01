@@ -10,10 +10,11 @@ from pathlib import Path
 from flask import Flask
 
 from exporters.html import HTMLExporter
-from parsers.base import detect_encoding, get_parser_for_content
 from jobs.processor import JobProcessor
+from parsers.base import detect_encoding, get_parser_for_content
 from routes.files import register as register_file_routes
 from routes.jobs import register as register_job_routes
+from routes.lab import register as register_lab_routes
 from routes.pages import register as register_page_routes
 from routes.status import register as register_status_routes
 from routes.system import register as register_system_routes
@@ -103,6 +104,7 @@ def create_app() -> Flask:
     register_job_routes(app, limiter)
     register_system_routes(app, RUNTIME.get_metrics)
     register_page_routes(app)
+    register_lab_routes(app, limiter)
     register_file_routes(app)
     register_status_routes(app)
     register_upload_async_routes(
