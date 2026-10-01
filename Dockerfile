@@ -43,7 +43,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-ins
     && rm -rf /var/lib/apt/lists/*
 
 # 非rootユーザーを作成
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN groupadd -r appuser && useradd -r -m -g appuser appuser
 
 # 作業ディレクトリを設定
 WORKDIR /app
@@ -68,7 +68,7 @@ COPY gunicorn_config.py ./
 
 # アップロードディレクトリとフォントキャッシュディレクトリを作成
 RUN mkdir -p /app/uploads /home/appuser/.cache/fontconfig && \
-    chown -R appuser:appuser /app /home/appuser/.cache
+    chown -R appuser:appuser /app /home/appuser
 
 # 環境変数を設定
 ENV PATH=/home/appuser/.local/bin:$PATH

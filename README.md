@@ -37,7 +37,7 @@ python3 -c 'import secrets; print(secrets.token_hex(32))'
 docker compose up --build -d
 ```
 
-ブラウザで http://127.0.0.1:8080 を開きます。停止は `docker compose down`。ポートは `.env` の `WALLSCRIBE_PORT` で変更できます。初期設定はローカルホストのみで公開します。チームで利用する場合は認証付きリバースプロキシの配下に配置してください。
+ブラウザで http://localhost:80 を開きます。停止は `docker compose down`。ホスト側の既定ポートは 80、コンテナ内は 8080 です。ポートは `.env` の `WALLSCRIBE_PORT` で変更できます。初期設定はローカルホストのみで公開します。チームで利用する場合は認証付きリバースプロキシの配下に配置してください。
 
 ### ローカル開発
 
