@@ -187,14 +187,14 @@
 
         // マウスイベントを監視
         document.addEventListener('mouseenter', function(e) {
-            const target = e.target.closest('.has-tooltip');
+            const target = e.target?.closest?.('.has-tooltip');
             if (target && target.dataset.tooltip) {
                 showTooltip(target, target.dataset.tooltip);
             }
         }, true);
 
         document.addEventListener('mouseleave', function(e) {
-            const target = e.target.closest('.has-tooltip');
+            const target = e.target?.closest?.('.has-tooltip');
             if (target) {
                 hideTooltip();
             }

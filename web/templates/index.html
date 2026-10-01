@@ -4,8 +4,21 @@
 
 {% block content %}
 <!-- 概要: 何ができるか / 何が必要か -->
-<section class="hero">
-    <h1 class="hero-title">パラメータシート生成</h1>
+<section class="hero hero-workspace">
+    <div class="hero-intro">
+        <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span><span class="mono">CONFIGURATION → DOCUMENTATION</span></p>
+        <h1 class="hero-title">設定を、<br><span class="hero-emphasis">読み解ける設計書に。</span></h1>
+        <p class="hero-sub">ファイアウォールの設定から、構成・ルール・確認事項を一冊に。調べる、引き継ぐ、レビューするためのパラメータシート。</p>
+        <a class="hero-action" href="#uploadSection">パラメータシートを作成 <span aria-hidden="true">↘</span></a>
+    </div>
+    <div class="hero-blueprint" aria-hidden="true">
+        <div class="blueprint-heading"><span>WallScribe / DOCUMENT ENGINE</span><span>01—03</span></div>
+        <div class="blueprint-source"><span class="blueprint-index">01</span><div><strong>Configuration</strong><small>FortiGate .conf / PA-Series .xml</small></div></div>
+        <div class="blueprint-connector"></div>
+        <div class="blueprint-document"><span class="blueprint-index">02</span><strong>Parameter sheet</strong><div class="blueprint-lines"><i></i><i></i><i></i><i></i></div><div class="blueprint-tags"><span>NETWORK</span><span>POLICY</span><span>REVIEW</span></div></div>
+        <div class="blueprint-connector"></div>
+        <div class="blueprint-output"><span class="blueprint-index">03</span><span>HTML</span><span>PDF</span><span>XLSX</span></div>
+    </div>
     <dl class="spec-list">
         <div class="spec-row">
             <dt>入力</dt>
@@ -46,10 +59,8 @@
                             </div>
                             <p class="drop-title">設定ファイルをここにドロップ</p>
                             <p class="drop-sub">または</p>
-                            <label class="btn-primary btn-md">
-                                ファイルを選ぶ
-                                <input type="file" id="fileInput" name="config_files[]" accept=".conf,.xml" multiple hidden>
-                            </label>
+                            <button type="button" class="btn-primary btn-md" onclick="document.getElementById('fileInput').click()">ファイルを選ぶ</button>
+                            <input type="file" id="fileInput" name="config_files[]" accept=".conf,.xml" multiple hidden>
                             <div class="drop-formats">
                                 <span class="chip chip-fortigate"><span class="mono">.conf</span> FortiGate</span>
                                 <span class="chip chip-paloalto"><span class="mono">.xml</span> PA-Series</span>
@@ -60,7 +71,7 @@
                             <div class="files-head">
                                 <span class="files-title">選択したファイル <span class="files-count mono" id="filesCount"></span></span>
                                 <div class="files-actions">
-                                    <label for="fileInput" class="btn-ghost btn-sm">追加</label>
+                                    <button type="button" class="btn-ghost btn-sm" onclick="document.getElementById('fileInput').click()">追加</button>
                                     <button type="button" class="btn-ghost btn-sm is-danger" id="clearFiles">すべて外す</button>
                                 </div>
                             </div>
@@ -134,7 +145,7 @@
                         <input type="radio" class="seg-input" name="output_preset" id="presetConnectivity" value="connectivity">
                         <label class="preset-row" for="presetConnectivity">
                             <span class="preset-name">接続</span>
-                            <span class="preset-desc">IF・ルート・NAT・VPN。疎通と経路</span>
+                            <span class="preset-desc">統合ネットワーク図・IF・経路・NAT・VPN</span>
                         </label>
                         <input type="radio" class="seg-input" name="output_preset" id="presetPolicy" value="policy">
                         <label class="preset-row" for="presetPolicy">
@@ -144,7 +155,7 @@
                         <input type="radio" class="seg-input" name="output_preset" id="presetOps" value="ops" checked>
                         <label class="preset-row" for="presetOps">
                             <span class="preset-name">運用<small>推奨</small></span>
-                            <span class="preset-desc">システム・HA・ログまで。引き継ぎ・障害対応</span>
+                            <span class="preset-desc">オブジェクト・VPN・UTM・HA・ログを含む。引き継ぎ・障害対応</span>
                         </label>
                         <input type="radio" class="seg-input" name="output_preset" id="presetAll" value="all">
                         <label class="preset-row" for="presetAll">
@@ -201,10 +212,11 @@
                             <label class="check-item">
                                 <input type="checkbox" name="sections" value="topology" id="secTopology" checked>
                                 <span class="check-body"><span class="check-name">推定ネットワーク構造</span>
-                                <span class="check-desc">HTML / PDF は図、Excel は構造・接続一覧</span></span>
+                                <span class="check-desc">全 VDOM の統合図・リンク追跡（Excel は構造・接続一覧）</span></span>
                             </label>
                         </div>
 
+<div class="sections-group"><div class="sections-group-label">通信調査</div><label class="check-item"><input type="checkbox" name="sections" value="flow_analysis" checked><span class="check-body"><span class="check-name">通信候補の確認</span><span class="check-desc">HTML で IP・TCP/UDP ポートを入力して根拠を確認</span></span></label></div>
                         <div class="sections-group">
                             <div class="sections-group-label">VDOM / vsys</div>
                             <label class="check-item">
@@ -254,6 +266,10 @@
                     </div>
                 </div>
 
+                <div class="preferences-bar">
+                    <p id="preferencesStatus" role="status">出力設定をこのブラウザに記憶します（設定ファイルはブラウザに保存しません）</p>
+                    <button type="button" class="btn-ghost btn-sm" id="resetPreferences">設定をリセット</button>
+                </div>
                 <button type="submit" class="btn-primary btn-lg btn-block submit-btn" id="submitBtn" disabled>
                     <span class="btn-text">パラメータシートを生成</span>
                     <span class="btn-loading" style="display: none;">生成中…</span>

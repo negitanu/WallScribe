@@ -67,15 +67,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // プリセット定義（用途別。旧 normal/detailed は互換エイリアス）
-    const ALL_SECTIONS = [
-        'device_info', 'system_settings', 'ha', 'logging',
-        'network', 'objects', 'policies', 'nat', 'vpn', 'security_profiles'
-    ];
+    const ALL_SECTIONS = Array.from(document.querySelectorAll('input[name="sections"]'), c => c.value);
     const presets = {
         overview: ['device_info', 'network', 'policies'],
-        connectivity: ['device_info', 'network', 'nat', 'vpn'],
+        connectivity: ['device_info', 'topology', 'network', 'nat', 'vpn'],
         policy: ['device_info', 'objects', 'policies', 'nat', 'security_profiles'],
-        ops: ['device_info', 'system_settings', 'network', 'policies', 'nat', 'ha', 'logging'],
+        ops: ['device_info', 'system_settings', 'network', 'objects', 'policies', 'nat', 'vpn', 'security_profiles', 'ha', 'logging'],
         all: ALL_SECTIONS.slice(),
         // 互換
         normal: ['device_info', 'system_settings', 'network', 'policies', 'nat'],
@@ -133,6 +130,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初期状態：現在選択されているプリセットを適用
     applyPresetFromCurrentSelection();
+
+    // Remember only output preferences, never uploaded files or configuration data.
+    const preferencesKey = 'wallscribe.output-preferences.v1';
+    const preferencesStatus = document.getElementById('preferencesStatus');
+    const formatRadios = Array.from(document.querySelectorAll('input[name="output_format"]'));
+    function saveOutputPreferences() {
+        try {
+            localStorage.setItem(preferencesKey, JSON.stringify({
+                version: 1,
+                format: formatRadios.find(r => r.checked)?.value || 'html',
+                preset: Array.from(presetRadios).find(r => r.checked)?.value || 'ops',
+                sections: Array.from(sectionCheckboxes).filter(c => c.checked).map(c => c.value)
+            }));
+            preferencesStatus.textContent = '出力設定をこのブラウザに保存しました';
+        } catch (_) {
+            preferencesStatus.textContent = 'ブラウザでの設定保存を利用できません';
+        }
+    }
+    try {
+        const saved = JSON.parse(localStorage.getItem(preferencesKey));
+        if (saved?.version === 1 && Array.isArray(saved.sections)) {
+            const preset = Array.from(presetRadios).find(r => r.value === saved.preset);
+            const format = formatRadios.find(r => r.value === saved.format && !r.disabled);
+            if (preset && format) {
+                preset.checked = true;
+                format.checked = true;
+                applyPresetFromCurrentSelection();
+                if (saved.preset === 'custom') {
+                    sectionCheckboxes.forEach(c => { c.checked = saved.sections.includes(c.value); });
+                    updateSectionsHint();
+                }
+                preferencesStatus.textContent = '前回の出力設定を復元しました';
+            }
+        }
+    } catch (_) { /* Invalid or unavailable storage keeps the default choices. */ }
+    [...presetRadios, ...sectionCheckboxes, ...formatRadios].forEach(control => {
+        control.addEventListener('change', saveOutputPreferences);
+    });
+    document.getElementById('resetPreferences').addEventListener('click', () => {
+        try { localStorage.removeItem(preferencesKey); } catch (_) { /* Defaults still work. */ }
+        document.getElementById('presetOps').checked = true;
+        document.getElementById('formatHtml').checked = true;
+        applyPresetFromCurrentSelection();
+        preferencesStatus.textContent = '出力設定を初期値に戻しました';
+    });
 
     // ドラッグ＆ドロップイベント
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
