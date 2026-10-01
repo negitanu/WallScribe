@@ -1,6 +1,5 @@
 """Fail closed on Python, Jinja, JavaScript and CSS syntax errors."""
 
-import ast
 import shutil
 import subprocess
 import sys
@@ -95,7 +94,7 @@ def check(root):
             try:
                 source = path.read_text(encoding="utf-8-sig")
                 if kind == "Python":
-                    ast.parse(source, filename=str(path))
+                    compile(source, str(path), "exec", dont_inherit=True)
                 elif kind == "Jinja":
                     Environment().parse(source)
                 elif kind == "JavaScript":

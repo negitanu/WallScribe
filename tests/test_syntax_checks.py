@@ -11,6 +11,7 @@ from scripts.check_syntax import check
     "relative, source",
     [
         ("app.py", "def broken(:\n"),
+        ("app.py", "return 1\n"),
         ("web/templates/broken.html", "{% if value %}"),
         ("static/css/broken.css", ".card { color red; }"),
         ("static/js/broken.js", "const = ;"),
