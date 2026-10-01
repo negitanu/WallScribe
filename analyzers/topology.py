@@ -25,6 +25,7 @@ class TopologyEdge:
     relation: str
     confidence: str
     evidence: str
+    directed: bool = False
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,7 @@ class Topology:
         default_factory=lambda: [
             "論理構造の推定です。物理配線、隣接スイッチ、実通信・到達性は設定単体では確定できません。",
             "実線は設定上の IF 所属・ルート、破線は IF アドレスから推定した直結ネットワークです。",
-            "許可ポリシーは通信条件として別記し、物理接続として描画しません。デフォルトルートもインターネット接続の証明ではありません。",
+            "VDOM 間リンクは設定にある論理接続です。ポリシー・NAT・経路・実機状態で通信可否は変わります。",
         ]
     )
 
@@ -66,11 +67,17 @@ def infer_topology(config: ConfigModel) -> Topology:
     scopes = dict.fromkeys(config.device_info.vdom_list)
     for iface in config.interfaces:
         scopes[_interface_scope(iface)] = None
+    for vr in config.virtual_routers:
+        scopes["VR: " + vr.name] = None
     for route in config.routes:
         scope = (
-            route.vdom
-            if route.vdom_assignment_known
-            else f"VR: {route.routing_context or '未確定'} (vsys 未確定)"
+            "VR: " + route.routing_context
+            if config.virtual_routers and route.routing_context
+            else (
+                route.vdom
+                if route.vdom_assignment_known
+                else f"VR: {route.routing_context or '未確定'} (vsys 未確定)"
+            )
         )
         scopes[scope] = None
     if not scopes:
@@ -83,14 +90,20 @@ def infer_topology(config: ConfigModel) -> Topology:
             TopologyNode(
                 node_id,
                 scope,
-                "device",
-                config.device_info.hostname or config.device_info.device_type.value,
+                "router" if scope.startswith("VR: ") else "device",
+                (
+                    scope[4:]
+                    if scope.startswith("VR: ")
+                    else config.device_info.hostname or config.device_info.device_type.value
+                ),
                 [scope, "同一機器内の論理区画"],
             )
         )
+    interface_nodes = {}
     for index, iface in enumerate(config.interfaces):
         scope = _interface_scope(iface)
         node_id = _id("interface", scope, iface.name, str(index))
+        interface_nodes[(scope, iface.name)] = node_id
         details = [
             text
             for text in (
@@ -141,13 +154,97 @@ def infer_topology(config: ConfigModel) -> Topology:
                     f"IF {iface.name} のアドレス: {iface.ip_address}",
                 )
             )
+    for vr in config.virtual_routers:
+        router_id = devices["VR: " + vr.name]
+        for iface in config.interfaces:
+            if iface.name in vr.interfaces:
+                topology.edges.append(
+                    TopologyEdge(
+                        interface_nodes[(_interface_scope(iface), iface.name)],
+                        router_id,
+                        "VR 所属",
+                        "configured",
+                        f"IF={iface.name}; VR={vr.name}",
+                    )
+                )
+    zones = {}
+    for conn in config.vsys_connections:
+        if conn.source not in devices:
+            continue
+        key = (conn.source, conn.zone)
+        if key not in zones:
+            zones[key] = _id("external-zone", *key)
+            topology.nodes.append(
+                TopologyNode(
+                    zones[key],
+                    conn.source,
+                    "interface",
+                    conn.zone,
+                    ["外部ゾーン", "接続先: " + conn.target, "visible-vsys: " + str(conn.visible)],
+                )
+            )
+            topology.edges.append(
+                TopologyEdge(
+                    devices[conn.source], zones[key], "外部ゾーン所属", "configured", conn.zone
+                )
+            )
+    for conn in config.vsys_connections:
+        if not conn.visible or conn.target not in devices or (conn.source, conn.zone) not in zones:
+            continue
+        reverse = next(
+            (
+                c
+                for c in config.vsys_connections
+                if c.source == conn.target and c.target == conn.source and c.visible
+            ),
+            None,
+        )
+        target = zones.get((reverse.source, reverse.zone)) if reverse else devices[conn.target]
+        topology.edges.append(
+            TopologyEdge(
+                zones[(conn.source, conn.zone)],
+                target,
+                "vsys 間接続",
+                "configured",
+                f"external zone={conn.zone}; visible-vsys={conn.target}; 経路と両側ポリシーの確認が必要",
+                True,
+            )
+        )
+    seen_pairs = set()
+    interfaces = {iface.name: iface for iface in config.interfaces}
+    for iface in config.interfaces:
+        peer = interfaces.get(iface.vdom_link_peer)
+        if (
+            not peer
+            or peer.vdom_link_peer != iface.name
+            or not iface.vdom_assignment_known
+            or not peer.vdom_assignment_known
+        ):
+            continue
+        pair = tuple(sorted((iface.name, peer.name)))
+        if pair in seen_pairs or iface.vdom == peer.vdom:
+            continue
+        seen_pairs.add(pair)
+        topology.edges.append(
+            TopologyEdge(
+                interface_nodes[(_interface_scope(iface), iface.name)],
+                interface_nodes[(_interface_scope(peer), peer.name)],
+                "VDOM 間リンク",
+                "configured",
+                iface.vdom_link_evidence,
+            )
+        )
     for index, route in enumerate(config.routes):
         if not route.enabled:
             continue
         scope = (
-            route.vdom
-            if route.vdom_assignment_known
-            else f"VR: {route.routing_context or '未確定'} (vsys 未確定)"
+            "VR: " + route.routing_context
+            if config.virtual_routers and route.routing_context
+            else (
+                route.vdom
+                if route.vdom_assignment_known
+                else f"VR: {route.routing_context or '未確定'} (vsys 未確定)"
+            )
         )
         route_id = _id("route", scope, route.name, str(index))
         discard = route.route_type.startswith("blackhole")
@@ -169,22 +266,59 @@ def infer_topology(config: ConfigModel) -> Topology:
         )
         topology.edges.append(
             TopologyEdge(
-                devices[scope],
+                interface_nodes.get((scope, route.interface), devices[scope]),
                 route_id,
                 "破棄経路" if discard else "設定ルート",
                 "configured",
                 f"route={route.name}; type={route.route_type}; IF={route.interface}",
             )
         )
+    for route in config.routes:
+        if (
+            route.enabled
+            and route.route_type == "next-vr"
+            and "VR: " + route.routing_context in devices
+            and "VR: " + route.gateway in devices
+        ):
+            topology.edges.append(
+                TopologyEdge(
+                    devices["VR: " + route.routing_context],
+                    devices["VR: " + route.gateway],
+                    "next-vr",
+                    "configured",
+                    "宛先: " + route.destination,
+                    True,
+                )
+            )
     for policy in config.firewall_policies:
         if not policy.enabled or policy.action != PolicyAction.ALLOW:
             continue
-        conditions = (
-            f"src={', '.join(policy.source_address)}; dst={', '.join(policy.destination_address)}; "
+
+        def names(values):
+            return ", ".join(values) or "未指定"
+
+        source = (
+            "Internet Service DB（実行時に判定）"
+            if policy.internet_service_source_enabled
+            else names(policy.source_address)
         )
-        conditions += f"service={', '.join(policy.service)}; app={', '.join(policy.application) or '未指定'}; "
-        conditions += f"src-negate={policy.source_negate}; dst-negate={policy.destination_negate}; "
-        conditions += f"schedule={policy.schedule or '未指定'}; users={', '.join(policy.source_users)}; groups={', '.join(policy.source_groups)}"
+        destination = (
+            "Internet Service DB（実行時に判定）"
+            if policy.internet_service_enabled
+            else names(policy.destination_address)
+        )
+        conditions = f"送信元: {source}{' 以外' if policy.source_negate else ''} → 宛先: {destination}{' 以外' if policy.destination_negate else ''}。"
+        conditions += f" サービス: {'Internet Service DB' if policy.internet_service_enabled else names(policy.service)}。"
+        if policy.application:
+            conditions += f" アプリ: {names(policy.application)}。"
+        if policy.url_categories:
+            conditions += f" URL カテゴリ: {names(policy.url_categories)}。"
+        if policy.rule_type != "universal":
+            conditions += f" ゾーン条件: {policy.rule_type}。"
+        if policy.schedule:
+            conditions += f" 時間: {policy.schedule}。"
+        if policy.source_users or policy.source_groups:
+            conditions += f" 利用者: {names(policy.source_users + policy.source_groups)}。"
         topology.flows.append(
             PolicyFlow(
                 policy.vdom,

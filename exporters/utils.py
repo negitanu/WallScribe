@@ -92,7 +92,7 @@ def load_css() -> str:
     if cached is not None:
         return cached
 
-    css_parts = []
+    css_parts = [(STATIC_DIR / "css" / "tokens.css").read_text(encoding="utf-8")]
 
     # Bootstrap CSS
     bootstrap_path = STATIC_DIR / "css" / "bootstrap.min.css"
@@ -127,7 +127,7 @@ def load_css_for_pdf() -> str:
     if cached is not None:
         return cached
 
-    css_parts = []
+    css_parts = [(STATIC_DIR / "css" / "tokens.css").read_text(encoding="utf-8")]
 
     # PDF用の最小限Bootstrapサブセット（テーブルとグリッドのみ）
     css_parts.append(_get_minimal_bootstrap_for_pdf())

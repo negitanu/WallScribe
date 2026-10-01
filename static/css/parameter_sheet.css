@@ -8,44 +8,6 @@
  */
 
 :root {
-    /* ink & paper */
-    --ink: #1c2530;
-    --ink-2: #4b5563;
-    --ink-3: #8b95a3;
-    --paper: #f2f4f6;
-    --sheet: #ffffff;
-    --sheet-2: #f8f9fb;
-    --rule: #dde2e8;
-    --rule-2: #c4ccd6;
-
-    /* semantic */
-    --blueprint: #1d4f91;
-    --blueprint-ink: #163d70;
-    --blueprint-tint: #e8eef7;
-    --verdigris: #0f7b5f;
-    --verdigris-ink: #0b5f49;
-    --verdigris-tint: #e1f2ec;
-    --vermilion: #b3261e;
-    --vermilion-ink: #8e1f18;
-    --vermilion-tint: #f9e6e4;
-    --ochre: #9a5b00;
-    --ochre-tint: #f8efdc;
-    --plum: #6b3fa0;
-    --plum-tint: #ece4f5;
-    --teal: #2f6f8f;
-    --teal-tint: #e1eef4;
-
-    --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Noto Sans JP",
-        "Segoe UI", system-ui, sans-serif;
-    --font-mono: "SF Mono", "Cascadia Code", Menlo, Consolas, "Noto Sans Mono CJK JP",
-        ui-monospace, monospace;
-
-    --r-sm: 3px;
-    --r-md: 6px;
-    --r-lg: 8px;
-    --shadow-sheet: 0 1px 0 rgba(28, 37, 48, 0.04), 0 1px 2px rgba(28, 37, 48, 0.06);
-    --ease: 140ms ease;
-
     /* Bootstrap 変数の上書き */
     --bs-body-font-family: var(--font-sans);
     --bs-body-color: var(--ink);
@@ -952,3 +914,57 @@ footer p {
 .security-analysis .finding-medium td:first-child { border-left: 4px solid #b7791f; }
 .security-analysis .finding-info td:first-child { border-left: 4px solid #366e9f; }
 .network-topology summary { cursor: pointer; padding: .7em 0; }
+
+/* Evidence investigation and human decisions */
+.flow-query { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding: 16px; background: #f4f7fb; }
+.flow-query label { display: flex; flex-direction: column; gap: 4px; }
+.flow-query input, .flow-query select { max-width: 100%; padding: 6px; border: 1px solid #adb9c9; border-radius: 4px; }
+#flow-result pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; background: #f4f7fb; }
+.investigation-card { border: 1px solid #d0d9e5; border-radius: 8px; margin: 12px 0; padding: 14px; scroll-margin-top: 20px; }
+.investigation-card:target { border: 3px solid #276ac2; background: #eef5ff; }
+.topology-figure a { cursor: pointer; }
+
+/* Reading and navigation polish; dense tables scroll within their own frame. */
+.skip-link { position: fixed; top: 8px; left: 16px; z-index: 999; padding: 12px 20px; color: white; background: var(--ink); transform: translateY(-150%); }
+.skip-link:focus { transform: none; color: white; }
+:focus-visible { outline: 2px solid var(--blueprint); outline-offset: 3px; }
+header { border-top-color: var(--blueprint-ink); }
+header h1 { font-size: clamp(26px, 3vw, 42px); overflow-wrap: anywhere; }
+.document-summary { display: flex; flex-wrap: wrap; gap: 16px 32px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--rule); }
+.document-summary span { display: flex; align-items: baseline; gap: 8px; color: var(--ink-2); font-size: 12px; }
+.document-summary strong { font-family: var(--font-mono); font-size: 22px; color: var(--blueprint-ink); font-variant-numeric: tabular-nums; }
+section, .subsection { scroll-margin-top: 24px; }
+.table-responsive { border-radius: var(--r-md); }
+.table td { overflow-wrap: anywhere; }
+.flow-query input, .flow-query select { min-height: 40px; font: inherit; }
+.flow-query label { flex: 1 1 150px; min-width: 0; }
+.flow-query button { min-height: 40px; padding: 8px 18px; background: var(--blueprint-ink); color: white; border: 0; border-radius: var(--r-md); }
+#searchResults { font-variant-numeric: tabular-nums; }
+.document-tools { position: sticky; top: 8px; z-index: 50; margin-bottom: 24px; padding: 12px 16px; background: var(--sheet); border: 1px solid var(--rule-2); border-radius: var(--r-lg); box-shadow: 0 4px 16px #1c253010; }
+.document-tools .search-box { margin-top: 0; }
+.search-navigation { display: inline-flex; gap: 6px; }
+.search-navigation[hidden] { display: none; }
+.search-navigation button { padding: 9px 12px; background: var(--sheet-2); border: 1px solid var(--rule-2); border-radius: var(--r-md); color: var(--ink); font: inherit; font-weight: 600; }
+.search-help { margin: 8px 0 0; color: var(--ink-2); font-size: 11px; }
+.vdom-section, .subsection { scroll-margin-top: 150px; }
+@media (max-width: 768px) {
+    .vdom-section, .subsection { scroll-margin-top: 160px; }
+    .search-help { display: none; }
+    .search-navigation button { padding: 9px 10px; font-size: 12px; }
+}
+mark.search-highlight { padding: 0; color: inherit; }
+mark.search-current { background: #ffe08a; outline: 2px solid #9a5b00; outline-offset: 2px; }
+@media print { .document-tools { display: none; } }
+@media (max-width: 768px) { #searchInput { min-width: 0; } .document-summary { gap: 12px 20px; } }
+@media screen and (max-width: 768px) {
+    .table-responsive table:has(th:nth-child(3)) { min-width: 720px; }
+    .table-responsive table:has(th:nth-child(7)) { min-width: 1100px; }
+    .topology-figure { overflow-x: auto; }
+    .topology-figure svg { min-width: 760px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+@media print { .skip-link { display: none; } section { page-break-inside: auto; } h2, h3, h4 { break-after: avoid; } }
+
+.flow-query { padding: 20px; border: 1px solid #d9e1e8; border-radius: 12px; background: #f7f9fc; gap: 16px; }
+.flow-query input, .flow-query select { border: 1px solid #bac8d5; border-radius: 6px; padding: 9px; background: #fff; color: #243e57; }
+.flow-query button { border: 0; border-radius: 8px; background: #243e57; color: #fff; padding: 12px 18px; font: inherit; cursor: pointer; }

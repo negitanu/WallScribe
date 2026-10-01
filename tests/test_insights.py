@@ -28,7 +28,6 @@ from models.config import (
 from parsers.fortigate import FortiGateParser
 from parsers.paloalto import PaloAltoParser
 
-
 FORTIGATE = """#config-version=FGT60F-7.4.8-FW-build2795:opmode=0:vdom=1:user=admin
 config global
 config system global
@@ -228,7 +227,7 @@ def test_paloalto_management_profile_and_virtual_router_provenance():
     assert public.severity == "medium"
     assert not config.routes[0].vdom_assignment_known
     graph = infer_topology(config)
-    assert any(node.scope == "VR: vr-mystery (vsys 未確定)" for node in graph.nodes)
+    assert any(node.scope == "VR: vr-mystery" for node in graph.nodes)
 
 
 def test_topology_disabled_routes_and_no_policy_links():
@@ -276,7 +275,11 @@ def test_html_svg_xml_safety_and_section_selection(tmp_path):
     assert "global-security_analysis" not in excluded and "global-topology" not in excluded
     assert "vdom-root-network" in excluded
     pdf_html = HTMLExporter(config, sections=["topology"], for_pdf=True).export()
-    assert "<svg " in pdf_html and "<script>" not in pdf_html and "<details open>" in pdf_html
+    assert (
+        "<svg " in pdf_html
+        and "<script>" not in pdf_html
+        and "どこから、どこへ、何を許可する設定か" not in pdf_html
+    )
 
 
 def test_excel_reports_roundtrip_and_selection(tmp_path):
@@ -296,14 +299,14 @@ def test_excel_reports_roundtrip_and_selection(tmp_path):
     )
 
 
-def test_many_interfaces_are_paginated_and_not_truncated():
+def test_many_interfaces_are_in_one_map_and_not_truncated():
     config = ConfigModel(
         interfaces=[
             Interface(name=f"interface-{i}", ip_address=f"10.0.{i}.1/24") for i in range(11)
         ]
     )
     html = HTMLExporter(config, sections=["topology"]).export()
-    assert html.count("<svg ") == 3
+    assert html.count("<svg ") == 1
     assert "interface-10" in html and "10.0.10.0/24" in html
 
 
@@ -359,14 +362,15 @@ def test_paloalto_unassigned_interfaces_are_not_attributed_to_first_vsys():
     assert iface.scope == "IF 所属未確定"
 
 
-def test_long_japanese_names_are_wrapped_within_node_width():
-    from exporters.insights import _lines
-    from analyzers.topology import TopologyNode
+def test_long_japanese_names_are_bounded_and_full_text_retained():
+    from exporters.network_map import short_label
 
-    node = TopologyNode("n1", "root", "device", "非常に長い日本語の機器名称が表示される場合", [])
-    lines = _lines(node, 20)
-    assert all(len(line) <= 10 for line in lines)
-    assert "".join(lines) == node.label
+    name = "非常に長い日本語の機器名称が表示される場合"
+    label = short_label(name, 20)
+    assert label.endswith("…") and len(label) <= 11
+    config = ConfigModel(interfaces=[Interface(name=name)])
+    html = HTMLExporter(config, sections=["topology"]).export()
+    assert name in html
 
 
 def test_cluster_reports_identify_representative_configuration():

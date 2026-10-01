@@ -586,3 +586,14 @@ footer p {
 .security-analysis .finding-medium td:first-child { border-left: 4px solid #b7791f; }
 .security-analysis .finding-info td:first-child { border-left: 4px solid #366e9f; }
 .network-topology summary { cursor: pointer; padding: .7em 0; }
+
+/* Match the document identity without sacrificing printable detail. */
+.skip-link { display: none; }
+header { border-top-color: #163d70; }
+.document-summary { margin-top: 12px; padding-top: 8px; border-top: 0.5pt solid #dde2e8; }
+.document-summary span { display: inline-block; margin-right: 24px; color: #4b5563; font-size: 8pt; }
+.document-summary strong { font-size: 15pt; color: #163d70; margin-right: 5px; }
+h2, h3, h4, figcaption { break-after: avoid; }
+th, .table th { white-space: normal; overflow-wrap: anywhere; }
+.policy-row td.policy-cond, .policy-row td.policy-flag { white-space: normal; }
+footer p, header .meta-label { color: #55606e; }

@@ -4,7 +4,8 @@
 ネットワーク設定コンバーター（インターフェース、ルート、DHCP、OSPF、BGP）
 """
 
-from typing import Any, Dict, List
+import re
+from typing import Dict
 
 from models.config import (
     BGPNeighbor,
@@ -48,6 +49,7 @@ def convert_interfaces(config_model: ConfigModel, parsed_config: Dict) -> None:
                     name=iface_data.get("_name", iface_name),
                     alias=iface_data.get("alias", ""),
                     interface_type=iface_type,
+                    parent_interface=iface_data.get("interface", ""),
                     vlan_id=str(vlan_id),
                     vdom=iface_data.get("vdom", "root"),
                     role=iface_data.get("role", ""),
@@ -76,6 +78,41 @@ def convert_interfaces(config_model: ConfigModel, parsed_config: Dict) -> None:
                         iface.allowed_access = [allowaccess]
 
                 config_model.interfaces.append(iface)
+
+    # Only declared software pairs or documented NPU names establish a pair.
+    interfaces = {iface.name: iface for iface in config_model.interfaces}
+    declared = get_nested(global_cfg, "system vdom-link", default={})
+    pairs = {}
+    if isinstance(declared, dict):
+        for name in declared:
+            pairs[(name + "0", name + "1")] = (name, "system vdom-link: " + name)
+    for name in interfaces:
+        match = re.fullmatch(r"(npu\d+[_-]vlink)([01])", name)
+        if match:
+            base = match.group(1)
+            pairs[(base + "0", base + "1")] = (base, "NPU VDOM link IF pair: " + base)
+    for (left, right), (name, evidence) in pairs.items():
+        if left in interfaces and right in interfaces:
+            for local, peer in ((left, right), (right, left)):
+                interfaces[local].vdom_link_peer = peer
+                interfaces[local].vdom_link_name = name
+                interfaces[local].vdom_link_evidence = evidence
+    # VLAN links require opposite peer parents and the same explicit VLAN ID.
+    for iface in interfaces.values():
+        parent = interfaces.get(iface.parent_interface)
+        if not parent or not parent.vdom_link_peer or not iface.vlan_id:
+            continue
+        candidates = [
+            other
+            for other in interfaces.values()
+            if other.parent_interface == parent.vdom_link_peer and other.vlan_id == iface.vlan_id
+        ]
+        if len(candidates) == 1:
+            iface.vdom_link_peer = candidates[0].name
+            iface.vdom_link_name = parent.vdom_link_name + "/VLAN " + iface.vlan_id
+            iface.vdom_link_evidence = (
+                "opposite NPU/link parents and same VLAN ID: " + iface.vlan_id
+            )
 
 
 def convert_routes(config_model: ConfigModel, parsed_config: Dict) -> None:

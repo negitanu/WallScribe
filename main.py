@@ -5,14 +5,20 @@
 """
 
 import argparse
-import logging
 import json
+import logging
 import sys
 from pathlib import Path
 
-from analyzers import analyze_security, infer_topology
-from models.cluster import ClusterConfig
+from analyzers import (
+    analyze_cleanup,
+    analyze_review,
+    analyze_security,
+    infer_topology,
+    investigate_flow,
+)
 from exporters.html import HTMLExporter
+from models.cluster import ClusterConfig
 from services.conversion import (
     ExportCapabilities,
     UnsupportedConfigFormat,
@@ -89,6 +95,19 @@ HA構成:
         help="セキュリティ診断・推定ネットワーク構造を JSON に追加出力",
     )
 
+    parser.add_argument(
+        "--flow",
+        nargs=4,
+        metavar=("SOURCE", "DEST", "PROTOCOL", "PORT"),
+        help="通信候補を照合。JSON 指定時は同じファイルに格納、未指定時は標準出力",
+    )
+    parser.add_argument(
+        "--firmware-version", help="実機で確認したファームウェアの版。クラスタでは代表機にのみ適用"
+    )
+    parser.add_argument("--flow-scope", default="root", help="通信照合の VDOM/vsys")
+    parser.add_argument("--source-interface", default="", help="送信元 IF/ゾーン（任意）")
+    parser.add_argument("--destination-interface", default="", help="宛先 IF/ゾーン（任意）")
+
     parser.add_argument("-v", "--verbose", action="store_true", help="詳細ログを出力")
 
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -129,6 +148,12 @@ def main():
 
     config = parse_result.config
     is_cluster = parse_result.is_cluster
+    if args.firmware_version:
+        representative = config.primary_config if isinstance(config, ClusterConfig) else config
+        if representative is None:
+            raise ValueError("ファームウェアの版を指定できる設定がありません")
+        representative.device_info.os_version = args.firmware_version
+        representative.device_info.os_version_source = "human supplied CLI"
 
     if is_cluster:
         cluster_info = config.cluster_info
@@ -200,12 +225,34 @@ def main():
             "scope": "primary_config" if isinstance(config, ClusterConfig) else "single_device",
             "security": analyze_security(representative).to_dict(),
             "topology": infer_topology(representative).to_dict(),
+            "cleanup": analyze_cleanup(representative),
+            "review": analyze_review(representative),
         }
+        if args.flow:
+            payload["flow"] = investigate_flow(
+                representative,
+                *args.flow[:3],
+                port=int(args.flow[3]),
+                scope=args.flow_scope,
+                source_interface=args.source_interface,
+                destination_interface=args.destination_interface,
+            )
         args.analysis_json.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         logger.info("診断 JSON 出力: %s", args.analysis_json)
 
+    if args.flow and not args.analysis_json:
+        representative = config.primary_config if isinstance(config, ClusterConfig) else config
+        result = investigate_flow(
+            representative,
+            *args.flow[:3],
+            port=int(args.flow[3]),
+            scope=args.flow_scope,
+            source_interface=args.source_interface,
+            destination_interface=args.destination_interface,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
     logger.info("完了")
 
 

@@ -44,6 +44,8 @@ class ExcelVdomSheetsMixin:
             "状態",
             "説明",
         ]
+        if self.config.virtual_routers:
+            headers.append("仮想ルーター")
         self._set_header_row(ws, headers)
 
         for row_idx, iface in enumerate(interfaces, 2):
@@ -69,12 +71,26 @@ class ExcelVdomSheetsMixin:
                 disabled_text=iface.status or "down",
             )
             self._set_cell(ws, row_idx, 9, iface.description)
+            if self.config.virtual_routers:
+                self._set_cell(ws, row_idx, 10, iface.routing_context or "所属未確定")
 
         self._auto_column_width(ws)
 
     def _create_routes_sheet_for_vdom(self, vdom: str):
         """指定VDOMのルーティングシートを作成（スタティック、OSPF、BGP、ポリシールート）"""
         routes = self._filter_by_vdom(self.config.routes, vdom)
+        if self.config.virtual_routers:
+            contexts = {
+                vr.name
+                for vr in self.config.virtual_routers
+                if vdom in vr.vsys
+                or (not vr.vsys and vdom == (self.config.device_info.vdom_list or ["root"])[0])
+            }
+            routes = [
+                r
+                for r in self.config.routes
+                if r.routing_context in contexts or (not r.routing_context and r.vdom == vdom)
+            ]
         ospf_list = self._filter_by_vdom(self.config.routing.ospf, vdom)
         ospf6_list = self._filter_by_vdom(self.config.routing.ospf6, vdom)
         bgp_list = self._filter_by_vdom(self.config.routing.bgp, vdom)
@@ -96,6 +112,8 @@ class ExcelVdomSheetsMixin:
                 "ディスタンス",
                 "タイプ",
             ]
+            if self.config.virtual_routers:
+                headers.append("仮想ルーター")
             self._set_header_row(ws, headers, row_idx + 1)
             row_idx += 2
 
@@ -113,6 +131,8 @@ class ExcelVdomSheetsMixin:
                 self._set_cell(ws, row_idx, 4, route.interface or "-")
                 self._set_cell(ws, row_idx, 5, route.distance, center=True)
                 self._set_cell(ws, row_idx, 6, route.route_type, center=True)
+                if self.config.virtual_routers:
+                    self._set_cell(ws, row_idx, 7, route.routing_context)
                 row_idx += 1
             row_idx += 1
 
@@ -403,8 +423,34 @@ class ExcelVdomSheetsMixin:
                 self._set_cell(ws, row_idx, 3, policy.name)
                 self._set_cell(ws, row_idx, 4, self._list_to_str(policy.source_interface))
                 self._set_cell(ws, row_idx, 5, self._list_to_str(policy.destination_interface))
-                self._set_cell(ws, row_idx, 6, self._list_to_str(policy.source_address))
-                self._set_cell(ws, row_idx, 7, self._list_to_str(policy.destination_address))
+                self._set_cell(
+                    ws,
+                    row_idx,
+                    6,
+                    (
+                        (
+                            "ISDB: "
+                            + self._list_to_str(policy.internet_service_source_name)
+                            + (" (否定)" if policy.internet_service_source_negate else "")
+                        )
+                        if getattr(policy, "internet_service_source_enabled", False)
+                        else self._list_to_str(policy.source_address)
+                    ),
+                )
+                self._set_cell(
+                    ws,
+                    row_idx,
+                    7,
+                    (
+                        (
+                            "ISDB: "
+                            + self._list_to_str(policy.internet_service_name)
+                            + (" (否定)" if policy.internet_service_negate else "")
+                        )
+                        if policy.internet_service_enabled
+                        else self._list_to_str(policy.destination_address)
+                    ),
+                )
                 self._set_cell(ws, row_idx, 8, self._list_to_str(policy.service))
                 self._set_action_cell(ws, row_idx, 9, policy.action)
                 self._set_status_cell(ws, row_idx, 10, policy.nat_enabled)

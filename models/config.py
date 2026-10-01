@@ -68,6 +68,7 @@ class DeviceInfo:
     vdom_enabled: bool = False
     vdom_list: List[str] = field(default_factory=list)
     license: LicenseInfo = field(default_factory=LicenseInfo)
+    os_version_source: str = ""
 
 
 @dataclass
@@ -114,10 +115,40 @@ class Interface:
     allowed_access: List[str] = field(default_factory=list)
     status: str = "up"
     description: str = ""
+    routing_context: str = ""
+    parent_interface: str = ""
+    vdom_link_peer: str = ""
+    vdom_link_name: str = ""
+    vdom_link_evidence: str = ""
     management_profile: str = ""
     management_permitted_ips: List[str] = field(default_factory=list)
     management_access_known: bool = True
     vdom_assignment_known: bool = True
+
+
+@dataclass
+class VirtualRouter:
+    name: str = ""
+    interfaces: List[str] = field(default_factory=list)
+    vsys: List[str] = field(default_factory=list)
+    dynamic_protocols: List[str] = field(default_factory=list)
+
+
+@dataclass
+class VsysConnection:
+    source: str = ""
+    target: str = ""
+    zone: str = ""
+    visible: bool = False
+
+
+@dataclass
+class ApplicationDefinition:
+    name: str = ""
+    vdom: str = "shared"
+    ports: List[str] = field(default_factory=list)
+    members: List[str] = field(default_factory=list)
+    dynamic: bool = False
 
 
 @dataclass
@@ -136,6 +167,7 @@ class Route:
     enabled: bool = True
     routing_context: str = ""
     vdom_assignment_known: bool = True
+    metric: str = ""
 
 
 @dataclass
@@ -315,6 +347,8 @@ class ServiceObject:
     description: str = ""
     tags: List[str] = field(default_factory=list)
 
+    source_port: str = ""
+
 
 @dataclass
 class ServiceGroup:
@@ -365,6 +399,14 @@ class FirewallPolicy:
     log_start: bool = False
     log_end: bool = False
     log_profile: str = ""
+    rule_type: str = "universal"
+    url_categories: List[str] = field(default_factory=list)
+    internet_service_source_name: List[str] = field(default_factory=list)
+    internet_service_negate: bool = False
+    internet_service_source_negate: bool = False
+    internet_service_enabled: bool = False
+    internet_service_source_enabled: bool = False
+    unmodeled_fields: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -650,6 +692,9 @@ class ConfigModel:
     system_settings: SystemSettings = field(default_factory=SystemSettings)
     interfaces: List[Interface] = field(default_factory=list)
     routes: List[Route] = field(default_factory=list)
+    virtual_routers: List[VirtualRouter] = field(default_factory=list)
+    vsys_connections: List[VsysConnection] = field(default_factory=list)
+    applications: List[ApplicationDefinition] = field(default_factory=list)
     routing: RoutingSettings = field(default_factory=RoutingSettings)
     dhcp_servers: List[DHCPServer] = field(default_factory=list)
     objects: Objects = field(default_factory=Objects)
@@ -666,6 +711,7 @@ class ConfigModel:
     source_file: str = ""
     parse_errors: List[str] = field(default_factory=list)
     default_fields: Set[str] = field(default_factory=set)
+    unsupported_sections: List[str] = field(default_factory=list)
 
     def get_summary(self) -> Dict[str, Any]:
         """設定のサマリー情報を取得"""

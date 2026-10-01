@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from analyzers.review import default_provenance
 from models.config import HAMode
 
 try:
@@ -25,7 +26,12 @@ class ExcelGlobalSheetsMixin:
     def _annotate_default(self, value, field_path: str) -> str:
         """デフォルト値の場合にアノテーションを追加"""
         if field_path in self.config.default_fields:
-            return f"{value}（デフォルト値）"
+            provenance = default_provenance(self.config, field_path)
+            return (
+                f"{value}（公式資料の既定値・人の確認を参照）"
+                if provenance["status"] == "documented_default"
+                else "未記載・既定値未検証"
+            )
         return str(value)
 
     def _create_cluster_overview_sheet(self):
@@ -45,11 +51,13 @@ class ExcelGlobalSheetsMixin:
         data = []
         if cluster_info.cluster_name:
             data.append(("クラスタ名", cluster_info.cluster_name))
-        data.extend([
-            ("グループID", cluster_info.group_id),
-            ("HAモード", cluster_info.ha_mode.value),
-            ("メンバー数", cluster_info.get_member_count()),
-        ])
+        data.extend(
+            [
+                ("グループID", cluster_info.group_id),
+                ("HAモード", cluster_info.ha_mode.value),
+                ("メンバー数", cluster_info.get_member_count()),
+            ]
+        )
 
         for row_idx, (label, value) in enumerate(data, 3):
             label_cell = ws.cell(row=row_idx, column=1, value=label)
@@ -81,7 +89,9 @@ class ExcelGlobalSheetsMixin:
             self._set_cell(ws, row_idx, 2, member.hostname)
             self._set_cell(ws, row_idx, 3, member.model or "-")
             self._set_cell(ws, row_idx, 4, member.os_version or "-", center=True)
-            self._set_cell(ws, row_idx, 5, member.priority if member.priority is not None else "-", center=True)
+            self._set_cell(
+                ws, row_idx, 5, member.priority if member.priority is not None else "-", center=True
+            )
             self._set_cell(ws, row_idx, 6, member.ha_mgmt_ip or "-")
             self._set_cell(ws, row_idx, 7, member.serial_number or "-")
             self._set_cell(
@@ -277,7 +287,11 @@ class ExcelGlobalSheetsMixin:
             ("グループ名", ha.group_name or "-", False),
             (
                 "優先度",
-                self._annotate_default(ha.priority, "ha.priority") if ha.priority is not None else "-",
+                (
+                    self._annotate_default(ha.priority, "ha.priority")
+                    if ha.priority is not None
+                    else "-"
+                ),
                 False,
             ),
             ("プリエンプト", ha.preempt, True),
@@ -309,16 +323,16 @@ class ExcelGlobalSheetsMixin:
             ("セッションピックアップ", ha.session_pickup, True),
             (
                 "ハートビート間隔",
-                self._annotate_default(ha.hb_interval, "ha.hb_interval")
-                if ha.hb_interval
-                else "-",
+                self._annotate_default(ha.hb_interval, "ha.hb_interval") if ha.hb_interval else "-",
                 False,
             ),
             (
                 "ハートビート損失閾値",
-                self._annotate_default(ha.hb_lost_threshold, "ha.hb_lost_threshold")
-                if ha.hb_lost_threshold
-                else "-",
+                (
+                    self._annotate_default(ha.hb_lost_threshold, "ha.hb_lost_threshold")
+                    if ha.hb_lost_threshold
+                    else "-"
+                ),
                 False,
             ),
             ("暗号化", ha.encryption, True),
@@ -369,7 +383,9 @@ class ExcelGlobalSheetsMixin:
             row_idx += 2
             for hb in ha.heartbeat_interfaces_detail:
                 self._set_cell(ws, row_idx, 1, hb.interface)
-                self._set_cell(ws, row_idx, 2, hb.priority if hb.priority is not None else "-", center=True)
+                self._set_cell(
+                    ws, row_idx, 2, hb.priority if hb.priority is not None else "-", center=True
+                )
                 row_idx += 1
         elif ha.heartbeat_interfaces:
             self._set_section_title(ws, row_idx, 1, "ハートビートインターフェース", colspan=2)

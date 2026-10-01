@@ -251,7 +251,7 @@ class TestHTMLExporter:
         exporter = HTMLExporter(sample_config_model)
         html = exporter.export()
 
-        assert "デフォルト値" in html
+        assert "未記載・既定値未検証" in html
 
     def test_escape_special_characters(self, sample_config_model):
         """特殊文字のエスケープ"""

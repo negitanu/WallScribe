@@ -13,8 +13,8 @@ from models.config import (
     AddressGroup,
     AddressObject,
     AdminUser,
+    ApplicationDefinition,
     ConfigModel,
-    DeviceInfo,
     DeviceType,
     DHCPServer,
     FirewallPolicy,
@@ -25,22 +25,19 @@ from models.config import (
     Interface,
     IPSecPhase1,
     IPSecPhase2,
-    LoggingSettings,
     NATPolicy,
-    Objects,
     OperationMode,
     PolicyAction,
     Route,
     SecurityProfile,
-    SecurityProfiles,
     ServiceGroup,
     ServiceObject,
     SNMPSettings,
     SSLInspectionProfile,
     SSLVPNSettings,
     SyslogServer,
-    SystemSettings,
-    VPNSettings,
+    VirtualRouter,
+    VsysConnection,
 )
 
 from .base import BaseConfigParser
@@ -90,6 +87,9 @@ class PaloAltoParser(BaseConfigParser):
         self.config_model.parse_errors = self.errors
         self.config_model.source_file = filename
         self.config_model.device_info.device_type = DeviceType.PALOALTO
+        self.config_model.default_fields.update(
+            {"system_settings.https_port", "system_settings.ssh_port"}
+        )
 
         if is_paloalto_set_cli_text(content):
             content, warnings = set_cli_to_xml(content)
@@ -129,6 +129,7 @@ class PaloAltoParser(BaseConfigParser):
         self._parse_device_info()
         self._parse_system_settings()
         self._parse_interfaces()
+        self._parse_virtual_contexts()
         self._parse_routes()
         self._parse_dhcp()
         self._parse_objects()
@@ -144,6 +145,9 @@ class PaloAltoParser(BaseConfigParser):
                 self.config_model.device_info.model = self.identification.model
             if self.identification.os_version and not self.config_model.device_info.os_version:
                 self.config_model.device_info.os_version = self.identification.os_version
+        from analyzers.coverage import capture_pan_coverage
+
+        capture_pan_coverage(self.config_model, self.root)
         self.config_model.parse_errors = self.errors
         return self.config_model
 
@@ -171,7 +175,9 @@ class PaloAltoParser(BaseConfigParser):
             detail_version = self.root.get("detail-version")
             if detail_version:
                 self.config_model.device_info.os_version = detail_version
+                self.config_model.device_info.os_version_source = "detail-version"
             else:
+                self.config_model.device_info.os_version_source = "config-schema-version"
                 root_line = f'<config version="{self.root.get("version", "")}">'
                 rows = run_textfsm("identify/paloalto_config_root.textfsm", root_line)
                 if rows and rows[0].get("version"):
@@ -366,6 +372,23 @@ class PaloAltoParser(BaseConfigParser):
                         iface.vdom = vsys.get("name", "vsys1")
                         iface.vdom_assignment_known = True
 
+        owners = {}
+        for vsys in self.device.findall("vsys/entry"):
+            owner = vsys.get("name", "")
+            names = self._get_members(vsys, "import/network/interface")
+            names += [m.text for m in vsys.findall("zone/entry/network/layer3/member") if m.text]
+            for name in names:
+                owners.setdefault(name, set()).add(owner)
+        for iface in self.config_model.interfaces:
+            assigned = owners.get(iface.name, set())
+            if len(assigned) == 1:
+                iface.vdom = next(iter(assigned))
+                iface.vdom_assignment_known = True
+            elif len(assigned) > 1:
+                iface.vdom = "所属競合"
+                iface.vdom_assignment_known = False
+                self.add_error("複数 vsys に所属する IF: " + iface.name)
+
         # ゾーン未割り当てのインターフェースに最初のvsysを設定
         first_vsys = self._get_first_vsys_name()
         for iface in self.config_model.interfaces:
@@ -443,6 +466,7 @@ class PaloAltoParser(BaseConfigParser):
                                 if iface.name == member:
                                     iface.zone = zone_name
                                     iface.vdom = vsys_name
+                                    iface.vdom_assignment_known = True
 
     def _get_first_vsys_name(self) -> str:
         """最初のvsys名を取得（ネットワークレベル設定のvdom割り当て用）"""
@@ -452,6 +476,70 @@ class PaloAltoParser(BaseConfigParser):
         if vsys_entries:
             return vsys_entries[0].get("name", "vsys1")
         return "root"
+
+    def _parse_virtual_contexts(self):
+        """Keep forwarding contexts distinct from security scopes."""
+        if self.device is None:
+            return
+        for vr in self.device.findall("network/virtual-router/entry"):
+            name = vr.get("name", "")
+            members = self._get_members(vr, "interface")
+            owners = {
+                i.vdom
+                for i in self.config_model.interfaces
+                if i.name in members and i.vdom_assignment_known
+            }
+            owners.update(
+                v.get("name", "")
+                for v in self.device.findall("vsys/entry")
+                if name in self._get_members(v, "import/network/virtual-router")
+            )
+            dynamic = [
+                proto
+                for proto in ("bgp", "ospf", "ospfv3", "rip")
+                if vr.find("protocol/" + proto) is not None
+                and self._get_text(vr, "protocol/" + proto + "/enable") != "no"
+            ]
+            self.config_model.virtual_routers.append(
+                VirtualRouter(name, members, sorted(owners), dynamic)
+            )
+            for iface in self.config_model.interfaces:
+                if iface.name in members:
+                    if iface.routing_context:
+                        self.add_error("複数 VR に所属する IF: " + iface.name)
+                        iface.routing_context = "所属競合"
+                    else:
+                        iface.routing_context = name
+        for vsys in self.device.findall("vsys/entry"):
+            owner = vsys.get("name", "")
+            visible = self._get_members(vsys, "visible-vsys")
+            for zone in vsys.findall("zone/entry"):
+                for target in self._get_members(zone, "network/external"):
+                    self.config_model.vsys_connections.append(
+                        VsysConnection(owner, target, zone.get("name", ""), target in visible)
+                    )
+        containers = [("shared", self.root.find("shared"))] + [
+            (v.get("name", ""), v) for v in self.device.findall("vsys/entry")
+        ]
+        for owner, container in containers:
+            if container is None:
+                continue
+            for entry in container.findall("application/entry"):
+                self.config_model.applications.append(
+                    ApplicationDefinition(
+                        entry.get("name", ""), owner, self._get_members(entry, "default/port")
+                    )
+                )
+            for entry in container.findall("application-group/entry"):
+                self.config_model.applications.append(
+                    ApplicationDefinition(
+                        entry.get("name", ""), owner, members=self._get_members(entry, "members")
+                    )
+                )
+            for entry in container.findall("application-filter/entry"):
+                self.config_model.applications.append(
+                    ApplicationDefinition(entry.get("name", ""), owner, dynamic=True)
+                )
 
     def _parse_routes(self):
         """ルーティングをパース"""
@@ -467,7 +555,9 @@ class PaloAltoParser(BaseConfigParser):
             vr_name = vr.get("name", "")
 
             # Static routes
-            static_routes = vr.findall("routing-table/ip/static-route/entry")
+            static_routes = vr.findall("routing-table/ip/static-route/entry") + vr.findall(
+                "routing-table/ipv6/static-route/entry"
+            )
             for route_entry in static_routes:
                 # 宛先ネットワークをCIDR表記に変換
                 destination = self._get_text(route_entry, "destination")
@@ -494,11 +584,13 @@ class PaloAltoParser(BaseConfigParser):
                 route = Route(
                     routing_context=vr_name,
                     vdom_assignment_known=len(owners) == 1,
+                    enabled=self._get_text(route_entry, "disabled", "no") != "yes",
                     name=route_entry.get("name", ""),
                     destination=destination,
                     gateway=gateway,
                     interface=self._get_text(route_entry, "interface"),
-                    distance=self._get_text(route_entry, "metric"),
+                    distance=self._get_text(route_entry, "admin-dist"),
+                    metric=self._get_text(route_entry, "metric"),
                     route_type=route_type,
                     vdom=next(iter(owners)) if len(owners) == 1 else first_vsys,
                 )
@@ -636,6 +728,7 @@ class PaloAltoParser(BaseConfigParser):
                 name=name,
                 protocol=protocol,
                 port=port,
+                source_port=self._get_text(tcp if tcp is not None else udp, "source-port"),
                 vdom=vsys_name,
                 description=self._get_text(svc_entry, "description"),
                 tags=self._get_members(svc_entry, "tag"),
@@ -672,7 +765,7 @@ class PaloAltoParser(BaseConfigParser):
                     action = PolicyAction.ALLOW
                 elif action_str == "deny":
                     action = PolicyAction.DENY
-                elif action_str == "drop":
+                elif action_str in ("drop", "reset-client", "reset-server", "reset-both"):
                     action = PolicyAction.DROP
                 else:
                     action = PolicyAction.UNKNOWN
@@ -686,6 +779,8 @@ class PaloAltoParser(BaseConfigParser):
                     destination_address=self._get_members(rule_entry, "destination"),
                     service=self._get_members(rule_entry, "service"),
                     application=self._get_members(rule_entry, "application"),
+                    rule_type=self._get_text(rule_entry, "rule-type", "universal"),
+                    url_categories=self._get_members(rule_entry, "category"),
                     action=action,
                     log_enabled=any(
                         self._get_text(rule_entry, key) == "yes" for key in ("log-start", "log-end")
@@ -717,6 +812,39 @@ class PaloAltoParser(BaseConfigParser):
                                 if member.text:
                                     policy.security_profiles.append(f"{profile.tag}:{member.text}")
 
+                modeled = {
+                    "from",
+                    "to",
+                    "source",
+                    "destination",
+                    "service",
+                    "application",
+                    "rule-type",
+                    "category",
+                    "action",
+                    "log-start",
+                    "log-end",
+                    "log-setting",
+                    "schedule",
+                    "negate-source",
+                    "negate-destination",
+                    "source-user",
+                    "tag",
+                    "disabled",
+                    "description",
+                    "profile-setting",
+                }
+                policy.unmodeled_fields = [
+                    "未モデル化オプション: " + child.tag
+                    for child in rule_entry
+                    if child.tag not in modeled
+                ]
+                for key in ("action", "disabled", "log-start", "log-end"):
+                    if rule_entry.find(key) is None:
+                        policy.unmodeled_fields.append("省略された設定の既定値未検証: " + key)
+                        self.config_model.default_fields.add(
+                            f"policy.{vsys_name}.{policy.policy_id}.{key}"
+                        )
                 self.config_model.firewall_policies.append(policy)
 
     def _parse_nat(self):
@@ -796,6 +924,7 @@ class PaloAltoParser(BaseConfigParser):
                 nat = NATPolicy(
                     name=name,
                     nat_type=nat_type if nat_type else "nat",
+                    enabled=self._get_text(rule_entry, "disabled", "no") != "yes",
                     original_source=", ".join(original_src) if original_src else "",
                     original_destination=", ".join(original_dst) if original_dst else "",
                     translated_source=translated_src,

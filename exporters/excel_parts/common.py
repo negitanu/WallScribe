@@ -8,7 +8,9 @@ Excel本体クラスから切り出して巨大化を抑制する。
 
 from __future__ import annotations
 
+from math import ceil
 from typing import Any, List, Optional
+from unicodedata import east_asian_width
 
 from models.config import PolicyAction
 
@@ -80,6 +82,9 @@ class ExcelCommonMixin:
 
     def _set_header_row(self, ws: Worksheet, headers: List[str], row: int = 1):
         """ヘッダ行を設定（VDOMコンテキストの色を使用）"""
+        if not hasattr(self, "_sheet_header_rows"):
+            self._sheet_header_rows = {}
+        self._sheet_header_rows.setdefault(ws.title, set()).add(row)
         styles = self._get_vdom_styles()
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=row, column=col, value=header)
@@ -193,13 +198,82 @@ class ExcelCommonMixin:
                     continue
                 try:
                     if cell.value:
-                        cell_length = sum(2 if ord(c) > 127 else 1 for c in str(cell.value))
+                        cell_length = max(
+                            sum(2 if east_asian_width(c) in ("W", "F") else 1 for c in line)
+                            for line in str(cell.value).split("\n")
+                        )
                         max_length = max(max_length, cell_length)
                 except Exception:
                     pass
 
             adjusted_width = min(max(max_length + 2, min_width), max_width)
             ws.column_dimensions[column_letter].width = adjusted_width
+
+    def _finish_sheet_layout(self, ws: Worksheet):
+        """Size wrapped rows after final column widths and set a legible print layout."""
+        from openpyxl.cell.cell import MergedCell
+        from openpyxl.utils import get_column_letter
+        from openpyxl.worksheet.page import PageMargins
+
+        # Constrain screen widths before fit-to-page shrinks printed text too far.
+        widths = [
+            ws.column_dimensions[get_column_letter(col)].width or 13
+            for col in range(1, ws.max_column + 1)
+        ]
+        if sum(widths) > 195:
+            ratio = 195 / sum(widths)
+            for col, width in enumerate(widths, 1):
+                ws.column_dimensions[get_column_letter(col)].width = max(8, width * ratio)
+
+        merged_starts = {(area.min_row, area.min_col): area for area in ws.merged_cells.ranges}
+        for row in ws.iter_rows():
+            height = ws.row_dimensions[row[0].row].height or 22
+            for cell in row:
+                if isinstance(cell, MergedCell) or cell.value is None:
+                    continue
+                area = merged_starts.get((cell.row, cell.column))
+                if area and area.max_row > area.min_row:
+                    continue
+                columns = range(area.min_col, area.max_col + 1) if area else [cell.column]
+                width = sum(
+                    ws.column_dimensions[get_column_letter(col)].width or 13 for col in columns
+                )
+                lines = sum(
+                    max(
+                        1,
+                        ceil(
+                            sum(2 if east_asian_width(c) in ("W", "F") else 1 for c in line)
+                            / max(1, width - 2)
+                        ),
+                    )
+                    for line in str(cell.value).split("\n")
+                )
+                height = max(height, lines * (float(cell.font.sz or 9) * 1.5) + 10)
+            ws.row_dimensions[row[0].row].height = min(409, height)
+
+        ws.sheet_view.zoomScale = 90
+        ws.print_options.horizontalCentered = True
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
+        ws.page_setup.orientation = "landscape"
+        ws.page_setup.paperSize = ws.PAPERSIZE_A3
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0
+        ws.page_margins = PageMargins(
+            left=0.4, right=0.4, top=0.6, bottom=0.6, header=0.25, footer=0.25
+        )
+        ws.print_area = ws.dimensions
+        # Only repeat headings for a single table, not the first of many subsections.
+        if (
+            ws.freeze_panes
+            and int(str(ws.freeze_panes)[1:]) <= 3
+            and len(getattr(self, "_sheet_header_rows", {}).get(ws.title, set())) == 1
+        ):
+            ws.print_title_rows = f"1:{int(str(ws.freeze_panes)[1:]) - 1}"
+        ws.oddHeader.left.text = "WallScribe / Parameter sheet"
+        ws.oddHeader.left.size = 9
+        ws.oddHeader.left.font = "Yu Gothic UI"
+        ws.oddFooter.left.text = ws.title.replace("&", "&&")
+        ws.oddFooter.right.text = "&P / &N"
 
     def _list_to_str(self, items: List[Any], separator: str = "\n") -> str:
         """リストを文字列に変換"""

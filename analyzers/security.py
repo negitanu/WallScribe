@@ -204,11 +204,14 @@ def analyze_security(config: ConfigModel) -> SecurityReport:
         if not policy.enabled or policy.action != PolicyAction.ALLOW:
             continue
         target = f"{policy.policy_id}: {policy.name}"
-        source_any = not policy.source_negate and _addresses_unrestricted(
-            policy.source_address, policy.vdom, objects, groups
+        source_any = (
+            not policy.internet_service_source_enabled
+            and not policy.source_negate
+            and _addresses_unrestricted(policy.source_address, policy.vdom, objects, groups)
         )
         dest_any = (
-            not policy.destination_negate
+            not policy.internet_service_enabled
+            and not policy.destination_negate
             and not policy.internet_service_name
             and _addresses_unrestricted(policy.destination_address, policy.vdom, objects, groups)
         )
@@ -216,7 +219,10 @@ def analyze_security(config: ConfigModel) -> SecurityReport:
         app_any = config.device_info.device_type != DeviceType.PALOALTO or any(
             a.lower() == "any" for a in policy.application
         )
-        if source_any and dest_any and service_any and app_any:
+        category_any = not policy.url_categories or any(
+            n.lower() == "any" for n in policy.url_categories
+        )
+        if source_any and dest_any and service_any and app_any and category_any:
             user_constraint = policy.source_groups or any(
                 u.lower() != "any" for u in policy.source_users
             )

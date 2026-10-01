@@ -88,28 +88,55 @@ class FortiGateParser(BaseConfigParser):
 
         # Phase 3: データモデルに変換（コンバーター使用）
         self._convert_to_model()
+        if self.config_model.device_info.os_version:
+            self.config_model.device_info.os_version_source = "config-version header"
 
+        from analyzers.coverage import capture_forti_coverage
+
+        capture_forti_coverage(self.config_model, self.parsed_config)
         self.config_model.parse_errors = self.errors
         return self.config_model
 
     def _separate_config(self, lines: List[str]) -> None:
         """設定をglobalとvdomに分割"""
         # Parse wrapper blocks with the same nesting rules as ordinary sections.
-        pending = ""
+        pending = []
+        quote, escaped = None, False
         for line in lines:
             stripped = line.strip()
             if not pending and stripped.startswith("#"):
                 if stripped.startswith("#config-version="):
                     self._parse_header_line(stripped)
                 continue
-            pending = pending + "\n" + line if pending else stripped
+            fragment = line if pending else stripped
+            scan = "\n" + fragment if pending else fragment
+            pending.append(fragment)
+            # Track quote state once per character. Re-running shlex over an
+            # unfinished multiline value for every line makes malformed input
+            # quadratic even when the whole upload is only a few kilobytes.
+            for char in scan:
+                if escaped:
+                    escaped = False
+                elif quote == "'":
+                    if char == "'":
+                        quote = None
+                elif char == "\\":
+                    escaped = True
+                elif quote:
+                    if char == quote:
+                        quote = None
+                elif char in ("'", '"'):
+                    quote = char
+            if quote or escaped:
+                continue
+            complete = "\n".join(pending)
             try:
-                shlex.split(pending)
+                shlex.split(complete)
             except ValueError:
                 continue
-            if pending.strip():
-                self.raw_config["global"].append(pending.strip())
-            pending = ""
+            if complete.strip():
+                self.raw_config["global"].append(complete.strip())
+            pending = []
         if pending:
             self.add_error("FortiGate設定に閉じていない引用符があります")
 

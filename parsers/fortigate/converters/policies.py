@@ -38,7 +38,12 @@ def convert_policies(config_model: ConfigModel, parsed_config: Dict) -> None:
 
 def _add_policies_from_config(config_model: ConfigModel, config: Dict, vdom: str) -> None:
     """ポリシーを追加"""
-    firewall_policy = get_nested(config, "firewall policy", default={})
+    for section in ("firewall policy", "firewall security-policy"):
+        _add_policy_section(config_model, config, vdom, section)
+
+
+def _add_policy_section(config_model, config, vdom, section):
+    firewall_policy = get_nested(config, section, default={})
     if isinstance(firewall_policy, dict):
         for policy_id, policy_data in firewall_policy.items():
             if isinstance(policy_data, dict):
@@ -64,6 +69,17 @@ def _add_policies_from_config(config_model: ConfigModel, config: Dict, vdom: str
                         policy_data.get("internet-service-name", []),
                         policy_data.get("internet-service-id", []),
                     ),
+                    internet_service_source_name=_merge_lists(
+                        policy_data.get("internet-service-src-name", []),
+                        policy_data.get("internet-service-src-id", []),
+                    ),
+                    internet_service_negate=policy_data.get("internet-service-negate") == "enable",
+                    internet_service_source_negate=policy_data.get("internet-service-src-negate")
+                    == "enable",
+                    internet_service_enabled=policy_data.get("internet-service") == "enable",
+                    internet_service_source_enabled=policy_data.get("internet-service-src")
+                    == "enable",
+                    url_categories=to_list(policy_data.get("url-category", [])),
                     service=to_list(policy_data.get("service", [])),
                     application=to_list(policy_data.get("application", [])),
                     schedule=policy_data.get("schedule", ""),
@@ -83,6 +99,60 @@ def _add_policies_from_config(config_model: ConfigModel, config: Dict, vdom: str
                     tags=_merge_lists(policy_data.get("tag", []), policy_data.get("tags", [])),
                 )
 
+                modeled = {
+                    "policyid",
+                    "name",
+                    "srcintf",
+                    "dstintf",
+                    "srcaddr",
+                    "srcaddr6",
+                    "dstaddr",
+                    "dstaddr6",
+                    "internet-service-name",
+                    "internet-service-id",
+                    "service",
+                    "internet-service",
+                    "internet-service-src",
+                    "internet-service-src-name",
+                    "internet-service-src-id",
+                    "internet-service-negate",
+                    "internet-service-src-negate",
+                    "url-category",
+                    "application",
+                    "schedule",
+                    "srcaddr-negate",
+                    "dstaddr-negate",
+                    "users",
+                    "groups",
+                    "logtraffic-start",
+                    "action",
+                    "nat",
+                    "logtraffic",
+                    "status",
+                    "comments",
+                    "tag",
+                    "tags",
+                    "av-profile",
+                    "webfilter-profile",
+                    "application-list",
+                    "ips-sensor",
+                    "ssl-ssh-profile",
+                    "profile-group",
+                    "utm-status",
+                }
+                policy.unmodeled_fields = [
+                    "未モデル化オプション: " + key
+                    for key in policy_data
+                    if key not in modeled and not key.startswith("_")
+                ]
+                if section == "firewall security-policy":
+                    policy.unmodeled_fields.append(
+                        "NGFW policy-based: pre-match・Central NAT・実効評価順序の確認が必要"
+                    )
+                for key in ("action", "status", "logtraffic", "nat", "schedule"):
+                    if key not in policy_data:
+                        policy.unmodeled_fields.append("省略された設定の既定値未検証: " + key)
+                        config_model.default_fields.add(f"policy.{vdom}.{policy.policy_id}.{key}")
                 config_model.firewall_policies.append(policy)
 
 

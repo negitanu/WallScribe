@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from exporters.sections import section_selected
+
 try:
     from openpyxl import Workbook  # type: ignore
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side  # type: ignore
@@ -33,9 +35,9 @@ except ImportError:  # pragma: no cover - openpyxl未導入環境向け
 
 
 from exporters import excel_styles as styles
-from exporters.excel_parts.insights import ExcelInsightsMixin
 from exporters.excel_parts.common import ExcelCommonMixin
 from exporters.excel_parts.global_sheets import ExcelGlobalSheetsMixin
+from exporters.excel_parts.insights import ExcelInsightsMixin
 from exporters.excel_parts.vdom_sheets import ExcelVdomSheetsMixin
 from models.cluster import ClusterConfig, HARole
 from models.config import ConfigModel, DeviceType, HAMode, PolicyAction
@@ -56,6 +58,7 @@ class ExcelExporter(
     GLOBAL_SECTIONS = [
         ("security_analysis", "セキュリティ診断", "_create_security_analysis_sheet"),
         ("topology", "推定ネットワーク構造", "_create_topology_sheet"),
+        ("flow_analysis", "通信候補の確認", "_create_flow_analysis_sheet"),
         ("cluster_overview", "クラスタ概要", "_create_cluster_overview_sheet"),
         ("device_info", "機器概要", "_create_overview_sheet"),
         ("system_settings", "システム設定", "_create_system_sheet"),
@@ -240,19 +243,7 @@ class ExcelExporter(
         }
 
     def _section_selected(self, key: str) -> bool:
-        """sections 指定に対して、旧UIのグループ名も含めて出力対象か判定する。"""
-        if not self.sections:
-            return True
-        aliases = {
-            "device": {"device_info", "system_settings", "ha", "logging"},
-            "network": {"interfaces", "routes", "dhcp"},
-            "policy": {"policies", "nat"},
-        }
-        selected = set(self.sections)
-        expanded = set(selected)
-        for section in selected:
-            expanded.update(aliases.get(section, set()))
-        return key in expanded
+        return section_selected(self.sections, key, "excel")
 
     def export(self, output_path: Optional[str] = None, sections: List[str] = None) -> Workbook:
         """Excelファイルを生成（グローバル設定 → VDOM/vsys単位）"""
@@ -285,6 +276,13 @@ class ExcelExporter(
                     continue
                 method = getattr(self, method_name)
                 method(vdom)
+
+        if not self.workbook.worksheets:
+            # A saved selection may contain only sections that were retired.
+            self._create_overview_sheet()
+
+        for ws in self.workbook.worksheets:
+            self._finish_sheet_layout(ws)
 
         if output_path:
             self.workbook.save(output_path)

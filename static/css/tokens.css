@@ -1,0 +1,43 @@
+/* Shared visual contract: web UI and standalone reports. */
+:root {
+    /* ink & paper */
+    --ink: #1c2530;
+    --ink-2: #4b5563;
+    --ink-3: #626f7e;
+    --paper: #f2f4f6;
+    --sheet: #ffffff;
+    --sheet-2: #f8f9fb;
+    --rule: #dde2e8;
+    --rule-2: #c4ccd6;
+
+    /* signals */
+    --blueprint: #1d4f91;
+    --blueprint-ink: #163d70;
+    --blueprint-tint: #e8eef7;
+    --verdigris: #0f7b5f;
+    --verdigris-ink: #0b5f49;
+    --verdigris-tint: #e1f2ec;
+    --vermilion: #b3261e;
+    --vermilion-tint: #f9e6e4;
+    --ochre: #9a5b00;
+    --ochre-tint: #f8efdc;
+
+    /* type */
+    --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Noto Sans JP",
+        "Segoe UI", system-ui, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", Menlo, Consolas, "Noto Sans Mono CJK JP",
+        ui-monospace, monospace;
+
+    /* rhythm */
+    --r-sm: 4px;
+    --r-md: 6px;
+    --r-lg: 10px;
+    --shadow-sheet: 0 1px 0 rgba(28, 37, 48, 0.04), 0 1px 2px rgba(28, 37, 48, 0.06);
+    --focus: 0 0 0 3px rgba(29, 79, 145, 0.28);
+    --ease: 160ms ease;
+    --vermilion-ink: #8e1f18;
+    --plum: #6b3fa0;
+    --plum-tint: #ece4f5;
+    --teal: #2f6f8f;
+    --teal-tint: #e1eef4;
+}

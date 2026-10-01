@@ -74,27 +74,20 @@ class ExcelInsightsMixin:
             ):
                 self._set_cell(ws, row, column, value)
             row += 1
-        row += 1
-        self._set_section_title(
-            ws, row, 1, "許可ポリシーの通信条件（物理接続ではありません）", colspan=5
-        )
-        self._set_header_row(
-            ws, ["区画", "ルール", "送信元 IF / ゾーン", "宛先 IF / ゾーン", "条件"], row + 1
-        )
-        row += 2
-        for flow in topology.flows:
-            for column, value in enumerate(
-                [
-                    flow.scope,
-                    flow.policy,
-                    ", ".join(flow.source),
-                    ", ".join(flow.destination),
-                    flow.conditions,
-                ],
-                1,
-            ):
-                self._set_cell(ws, row, column, value)
-            row += 1
         for offset, limitation in enumerate(topology.limitations, row + 1):
             self._set_cell(ws, offset, 1, limitation)
+        self._auto_column_width(ws)
+
+    def _create_flow_analysis_sheet(self):
+        ws = self._create_sheet("通信候補の確認")
+        self._set_header_row(ws, ["機能", "利用方法", "判断範囲"])
+        for column, value in enumerate(
+            [
+                "通信候補の確認",
+                "HTML レポートのフォームまたは CLI --flow SOURCE DEST TCP PORT --analysis-json result.json",
+                "静的な候補照合です。実効経路・NAT 適用・疎通は人が確認します。",
+            ],
+            1,
+        ):
+            self._set_cell(ws, 2, column, value)
         self._auto_column_width(ws)
