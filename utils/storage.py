@@ -11,6 +11,7 @@ NOTE:
 from __future__ import annotations
 
 import json
+import time
 import logging
 import os
 from datetime import datetime
@@ -68,15 +69,19 @@ def load_file_metadata(file_id: str) -> Optional[Dict[str, Any]]:
     """ファイルメタデータを読み込み"""
     try:
         metadata_path = get_metadata_path(file_id)
-        if not metadata_path.exists():
-            return None
-
-        with open(metadata_path, "r", encoding="utf-8") as f:
-            metadata: Dict[str, Any] = json.load(f)
-            # created_atをdatetimeに変換
-            if "created_at" in metadata and isinstance(metadata["created_at"], str):
-                metadata["created_at"] = datetime.fromisoformat(metadata["created_at"])
-            return metadata
+        # Bind-mounted files can briefly disappear while another worker
+        # publishes an atomic replacement. Do not turn that window into a 404.
+        for attempt in range(4):
+            try:
+                with open(metadata_path, "r", encoding="utf-8") as f:
+                    metadata: Dict[str, Any] = json.load(f)
+                if "created_at" in metadata and isinstance(metadata["created_at"], str):
+                    metadata["created_at"] = datetime.fromisoformat(metadata["created_at"])
+                return metadata
+            except FileNotFoundError:
+                if attempt == 3:
+                    return None
+                time.sleep(0.01)
     except Exception as e:
         logger.error(f"メタデータ読み込みエラー: {e}", exc_info=True)
         return None

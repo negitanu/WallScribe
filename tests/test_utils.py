@@ -135,3 +135,23 @@ class TestParseProposal:
         encryption, authentication = parse_proposal("")
         assert encryption == ""
         assert authentication == ""
+
+
+def test_metadata_read_survives_transient_replacement(tmp_path, monkeypatch):
+    import builtins
+    from pathlib import Path
+    import utils.storage as storage
+
+    monkeypatch.setattr(storage, "_UPLOAD_FOLDER", tmp_path)
+    storage.save_file_metadata("temporary-job", {"status": "processing"})
+    original = builtins.open
+    attempts = []
+
+    def intermittent(path, *args, **kwargs):
+        if Path(path) == tmp_path / "temporary-job.meta.json" and not attempts:
+            attempts.append(True)
+            raise FileNotFoundError("transient bind-mount replacement")
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", intermittent)
+    assert storage.load_file_metadata("temporary-job")["status"] == "processing"
