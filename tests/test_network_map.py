@@ -246,3 +246,38 @@ def test_same_interface_name_across_scopes_does_not_misattach_routes():
     nodes = {n.id: n for n in graph.nodes}
     edge = next(e for e in graph.edges if e.relation == "設定ルート")
     assert nodes[edge.source].scope == "a"
+
+
+def test_connection_layout_contains_every_node_without_overlaps():
+    from exporters.network_layout import layout_topology
+    from models.config import Route
+
+    c = ConfigModel()
+    c.interfaces = [Interface(name=f"port{i}", ip_address=f"192.0.{i}.1/24") for i in range(16)]
+    c.routes = [Route(destination=f"198.51.{i}.0/24", interface=f"port{i}") for i in range(16)]
+    topology = infer_topology(c)
+    positions, bounds, width, height = layout_topology(topology)
+    assert len(positions) == len(topology.nodes)
+    assert layout_topology(topology) == (positions, bounds, width, height)
+    for node in topology.nodes:
+        x, y, w, h = positions[node.id]
+        bx, by, bw, bh = bounds[node.scope]
+        assert bx <= x and by + 60 <= y and x + w <= bx + bw and y + h <= by + bh
+    rectangles = list(positions.values())
+    for index, (x, y, w, h) in enumerate(rectangles):
+        for nx, ny, nw, nh in rectangles[index + 1 :]:
+            assert x + w <= nx or nx + nw <= x or y + h <= ny or ny + nh <= y
+
+
+def test_connection_layout_fans_out_interfaces_below_device():
+    from exporters.network_layout import layout_topology
+
+    c = FortiGateParser().parse_content(VDOM_CONFIG)
+    topology = infer_topology(c)
+    positions, bounds, _, _ = layout_topology(topology)
+    for scope in bounds:
+        device = next(n for n in topology.nodes if n.scope == scope and n.kind == "device")
+        interfaces = [n for n in topology.nodes if n.scope == scope and n.kind == "interface"]
+        assert len({positions[n.id][0] for n in interfaces}) > 1
+        assert all(positions[n.id][1] > positions[device.id][1] for n in interfaces)
+    assert bounds["branch"][1] != bounds["root"][1]

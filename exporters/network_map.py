@@ -10,6 +10,7 @@ from pathlib import Path
 from analyzers import analyze_security, infer_topology
 from analyzers.network import LIMITATIONS, flow_snapshot
 from exporters.investigation import script
+from exporters.network_layout import layout_topology
 
 
 def short_label(value, columns=30):
@@ -35,36 +36,14 @@ def render_network_map(config, section_num, section_id, for_pdf=False, cluster=F
         findings[(finding.scope, finding.target)].append(asdict(finding))
     for node in topology.nodes:
         grouped[node.scope].append(node)
-    # Shared row heights keep every partition contained; nodes are never discarded.
-    columns = min(3, len(scopes))
-    heights = [
-        max(320, 184 + 90 * sum(n.kind not in ("device", "subnet") for n in grouped[scope]))
-        for scope in scopes
-    ]
-    row_heights = [max(heights[i : i + columns]) for i in range(0, len(scopes), columns)]
-    width = columns * 610 + 60
-    height = sum(row_heights) + 110 * len(row_heights) + 30
-    positions, bounds, cards, nodes = {}, {}, [], []
-    for index, scope in enumerate(scopes):
-        row, column = divmod(index, columns)
-        x, y = 30 + column * 610, 80 + sum(row_heights[:row]) + row * 110
-        box_height = row_heights[row]
-        bounds[scope] = (x, y, 570, box_height)
+    positions, bounds, width, height = layout_topology(topology)
+    cards, nodes = [], []
+    for scope in scopes:
+        x, y, box_width, box_height = bounds[scope]
         cards.append(
-            f'<g class="map-scope" data-scope="{escape(scope, quote=True)}"><rect x="{x}" y="{y}" width="570" height="{box_height}" rx="20"/><text x="{x+22}" y="{y+30}" class="map-scope-title">{escape(scope)}</text><text x="{x+22}" y="{y+52}" class="map-scope-meta">{sum(n.kind == "interface" for n in grouped[scope])} IF · {sum(n.kind in ("route", "discard") for n in grouped[scope])} 設定ルート</text></g>'
+            f'<g class="map-scope" data-scope="{escape(scope, quote=True)}"><rect x="{x}" y="{y}" width="{box_width}" height="{box_height}" rx="20"/><text x="{x+22}" y="{y+30}" class="map-scope-title">{escape(scope)}</text><text x="{x+22}" y="{y+52}" class="map-scope-meta">{sum(n.kind == "interface" for n in grouped[scope])} IF · {sum(n.kind in ("route", "discard") for n in grouped[scope])} 設定ルート</text></g>'
         )
-        offset = 0
         for node in grouped[scope]:
-            if node.kind in ("device", "router"):
-                nx, ny = x + 22, y + 70
-            else:
-                nx, ny = (
-                    x + (292 if node.kind in ("subnet", "route", "discard") else 22),
-                    y + 164 + (offset - 1 if node.kind == "subnet" else offset) * 90,
-                )
-                if node.kind != "subnet":
-                    offset += 1
-            positions[node.id] = (nx, ny, 250, 64)
             item = asdict(node)
             item["findings"] = (
                 findings[(node.scope, node.label)] if node.kind == "interface" else []
@@ -103,24 +82,27 @@ def render_network_map(config, section_num, section_id, for_pdf=False, cluster=F
         tx, ty, tw, th = positions[edge.target]
         if edge.relation in ("VDOM 間リンク", "vsys 間接続", "VR 所属", "next-vr"):
             # Cross-partition links run in the outer gutter, never through a node.
-            lane = (
-                min(bounds[lookup[edge.source].scope][1], bounds[lookup[edge.target].scope][1])
-                - 22
-                - (index % 5) * 9
-            )
+            source_box = bounds[lookup[edge.source].scope]
+            target_box = bounds[lookup[edge.target].scope]
+            if source_box[1] + source_box[3] <= target_box[1]:
+                lane = source_box[1] + source_box[3] + 30 + (index % 5) * 9
+            elif target_box[1] + target_box[3] <= source_box[1]:
+                lane = target_box[1] + target_box[3] + 30 + (index % 5) * 9
+            else:
+                lane = min(source_box[1], target_box[1]) - 22 - (index % 5) * 9
             left_gutter = bounds[lookup[edge.source].scope][0] + 8
             right_gutter = bounds[lookup[edge.target].scope][0] + 8
-            path = f"M{sx} {sy+sh/2} H{left_gutter} V{lane} H{right_gutter} V{ty+th/2} H{tx}"
+            path = f"M{sx+sw/2} {sy+sh} V{sy+sh+14} H{left_gutter} V{lane} H{right_gutter} V{ty-14} H{tx+tw/2} V{ty}"
         else:
-            if sx < tx:
-                ax, bx = sx + sw, tx
-            elif sx > tx:
-                ax, bx = sx, tx + tw
+            # Local graph levels flow top-to-bottom, with centered fan-out.
+            if sy != ty:
+                ax, bx = sx + sw / 2, tx + tw / 2
+                ay, by = (sy + sh, ty) if sy < ty else (sy, ty + th)
+                middle = (ay + by) / 2
+                path = f"M{ax} {ay} C{ax} {middle} {bx} {middle} {bx} {by}"
             else:
-                ax, bx = sx + sw, tx + tw
-            ay, by = sy + sh / 2, ty + th / 2
-            curve = max(ax, bx) + 16 if sx == tx else (ax + bx) / 2
-            path = f"M{ax} {ay} C{curve} {ay} {curve} {by} {bx} {by}"
+                ax, bx = (sx + sw, tx) if sx < tx else (sx, tx + tw)
+                path = f"M{ax} {sy+sh/2} H{bx}"
         kind = (
             "interlink"
             if edge.relation in ("VDOM 間リンク", "vsys 間接続", "VR 所属", "next-vr")
