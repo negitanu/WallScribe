@@ -226,7 +226,11 @@ def test_report_offline_form_safe_json_and_topology_links(config):
     html = HTMLExporter(config).export()
     assert 'id="flow-query"' in html and 'id="review-save"' not in html
     assert "\\u003c/script\\u003e" in html
-    assert "#a51b28" in html and "map-inspector investigation-card" in html
+    assert (
+        "#a51b28" in html
+        and "map-inspector map-device-panel" in html
+        and "map-policy-panel map-inspector" in html
+    )
     assert "最終判断は人" in html
     pdf = HTMLExporter(config, for_pdf=True).export()
     assert 'id="flow-query"' not in pdf and 'id="review-save"' not in pdf

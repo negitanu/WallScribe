@@ -281,3 +281,80 @@ def test_connection_layout_fans_out_interfaces_below_device():
         assert len({positions[n.id][0] for n in interfaces}) > 1
         assert all(positions[n.id][1] > positions[device.id][1] for n in interfaces)
     assert bounds["branch"][1] != bounds["root"][1]
+
+
+def run_policy_flow(config, index=0):
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js unavailable")
+    return json.loads(
+        subprocess.check_output(
+            [
+                node,
+                "-e",
+                "const {policyFlow}=require(process.argv[1]); console.log(JSON.stringify(policyFlow(JSON.parse(process.argv[2]),Number(process.argv[3]))));",
+                str(Path("static/js/network_map.js").resolve()),
+                json.dumps(map_data(config)),
+                str(index),
+            ],
+            text=True,
+        )
+    )
+
+
+def test_policy_animation_scope_and_direction_are_configuration_based():
+    config = FortiGateParser().parse_content(VDOM_CONFIG)
+    flow = run_policy_flow(config)
+    graph = {n["id"]: n for n in map_data(config)["nodes"]}
+    assert [graph[s["from"]]["label"] for s in flow["segments"]] == ["lan", "FW-VDOM-DEMO"]
+    assert [graph[s["to"]]["label"] for s in flow["segments"]] == ["FW-VDOM-DEMO", "transit0"]
+    assert [s["stage"] for s in flow["segments"]] == [0, 1]
+    assert all(graph[s["from"]]["scope"] == "branch" for s in flow["segments"])
+    assert flow["segments"][1]["reverse"] is True
+
+
+def test_disabled_deny_unknown_policy_and_interface_do_not_animate_success():
+    from models.config import PolicyAction
+
+    config = FortiGateParser().parse_content(VDOM_CONFIG)
+    policy = config.firewall_policies[0]
+    policy.enabled = False
+    assert run_policy_flow(config)["segments"] == []
+    policy.enabled = True
+    for action in (PolicyAction.DENY, PolicyAction.DROP, PolicyAction.UNKNOWN):
+        policy.action = action
+        assert all(s["stage"] == 0 for s in run_policy_flow(config)["segments"])
+    policy.action = PolicyAction.ALLOW
+    next(i for i in config.interfaces if i.name == "transit0").status = "down"
+    flow = run_policy_flow(config)
+    assert not flow["destinations"]
+    assert "特定できません" in flow["reason"]
+    assert all(s["stage"] == 0 for s in flow["segments"])
+
+
+def test_policy_zone_wildcard_and_unknown_names_are_not_cross_scope_guesses():
+    config = FortiGateParser().parse_content(VDOM_CONFIG)
+    next(i for i in config.interfaces if i.name == "lan").zone = "trust"
+    policy = config.firewall_policies[0]
+    policy.source_interface = ["trust"]
+    assert len(run_policy_flow(config)["sources"]) == 1
+    policy.destination_interface = ["any"]
+    assert len(run_policy_flow(config)["destinations"]) == 2
+    policy.source_interface = ["nonexistent"]
+    assert not run_policy_flow(config)["sources"]
+    assert not run_policy_flow(config)["segments"]
+
+
+def test_map_has_separate_inspectors_disabled_control_and_motion_export_cleanup():
+    html = HTMLExporter(
+        FortiGateParser().parse_content(VDOM_CONFIG), sections=["topology"]
+    ).export()
+    assert (
+        html.index('class="map-inspector map-device-panel"')
+        < html.index('class="map-viewport"')
+        < html.index('class="map-policy-panel map-inspector"')
+    )
+    assert "data-map-hide-disabled" in html
+    assert "prefers-reduced-motion" in html
+    assert "repeatCount', '3'" in html
+    assert "clone.querySelectorAll('.map-packet-layer')" in html
