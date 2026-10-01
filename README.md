@@ -73,8 +73,12 @@ Web アップロード上限は既定 50 MB。構築テストは設定 2 MB・�
 
 ```bash
 WALLSCRIBE_DISABLE_CLEANUP_THREAD=1 UPLOAD_FOLDER=/tmp/wallscribe-tests pytest -q
+# Python / Jinja / JavaScript / CSS の構文検査（Node.js が必要）
+python scripts/check_syntax.py
 # PDF を含むコンテナテスト
 docker compose --profile test run --rm test
+# コンテナ内の構文検査
+docker compose --profile test run --rm test python scripts/check_syntax.py
 ```
 
 テストでは利用中の `uploads/` を指定しないでください。GitHub Actions でもテストを実行します。開発手順と責務の分け方は [CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
