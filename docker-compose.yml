@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: WallScribe
     ports:
-      - "80:8080"
+      - "127.0.0.1:${WALLSCRIBE_PORT:-8080}:8080"
     environment:
       - FLASK_ENV=${FLASK_ENV:-production}
       - FLASK_PORT=8080
@@ -49,6 +49,7 @@ services:
       - .:/app
     environment:
       - PYTHONPATH=/app
+      - UPLOAD_FOLDER=/tmp/wallscribe-tests
       - WALLSCRIBE_DISABLE_CLEANUP_THREAD=1
       - TZ=${TZ:-Asia/Tokyo}
     command: ["pytest", "-v"]

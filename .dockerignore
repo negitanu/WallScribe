@@ -54,3 +54,6 @@ LICENSE
 # アップロードファイル（コンテナ内で生成）
 uploads/*
 !uploads/.gitkeep
+
+# Never ship local generated artifacts
+output/

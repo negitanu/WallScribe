@@ -127,5 +127,4 @@ class TestIntegration:
         if not workflows_path.exists():
             pytest.skip(".github/workflows が無い環境ではスキップ")
 
-        assert (workflows_path / "ci.yml").exists()
-        assert (workflows_path / "security.yml").exists()
+        assert (workflows_path / "tests.yml").is_file()

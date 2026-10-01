@@ -63,3 +63,6 @@ uploads/*
 
 # Claude
 .claude/
+
+# Local previews and generated artifacts
+/output/
