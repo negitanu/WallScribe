@@ -92,3 +92,21 @@ docker compose --profile test run --rm test python scripts/check_syntax.py
 - [デザイン共通ルール](docs/DESIGN_SYSTEM.md)
 
 MIT License。バグ報告には機密情報を除いた最小設定、期待した結果、実際の結果を添えてください。
+
+## Docker Hub への自動公開
+
+`main` への push 後、Python 3.12 / 3.14 のテストと構文検査に成功すると、本番 Docker イメージのビルド・起動確認を行い、`negitanu/wallscribe` に公開します。タグは `latest` と `sha-<完全なコミット SHA>`、対応は `linux/amd64` / `linux/arm64` です。PR や他ブランチからは公開しません。
+
+初回のみ、Docker Hub に `negitanu/wallscribe` リポジトリを作成し、[GitHub Actions Secrets](https://github.com/negitanu/WallScribe/settings/secrets/actions) に次を登録してください。
+
+- `DOCKERHUB_USERNAME`: Docker Hub のユーザー名。
+- `DOCKERHUB_TOKEN`: 公開先への書き込み権限を持つ Docker Hub アクセストークン。パスワードやトークンを設定ファイルへ書かないでください。
+
+未登録の場合、ビルド・起動確認のみを行い、公開をスキップした理由を Actions の Summary に表示します。登録後は `Tests` の `Run workflow` を `main` で実行するか、次の push で初回公開できます。古いコミットが新しい `latest` を置き換えないよう、公開直前に `main` の SHA を照合します。
+
+```bash
+docker pull negitanu/wallscribe:latest
+docker run --rm -p 127.0.0.1:80:8080 -e SECRET_KEY="${SECRET_KEY}" negitanu/wallscribe:latest
+```
+
+`SECRET_KEY` は起動前に環境変数へ設定してください。保存したい生成物は `/app/uploads` を永続ボリュームへマウントします。
