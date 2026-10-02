@@ -1,6 +1,6 @@
 /* ============================================================
    WallScribe — Web UI
-   デザイン言語: 「仕様書 (Spec Sheet)」
+   デザイン言語: Material Design × 「仕様書 (Spec Sheet)」
    紙 (paper) の上に置いた白いシート、藍色のインク、表題欄。
    生成されるパラメータシートと同じ語法で UI を組む。
    ------------------------------------------------------------
@@ -1252,3 +1252,124 @@ button, input, select, textarea { font: inherit; }
 }
 
 .btn-md { padding: 10px 16px; font-size: 13px; }
+
+/* Material surfaces, accessible state layers and a focused workspace. */
+html { scroll-padding-top: 24px; scroll-padding-bottom: 128px; }
+body { font-size: 15px; line-height: 1.75; }
+main { padding-top: 36px; }
+.container { max-width: 1200px; }
+.topbar { background: var(--sheet); box-shadow: 0 2px 10px #202b3505; }
+.topbar-inner { height: 76px; gap: 40px; }
+.wordmark { font-size: 20px; gap: 14px; }
+.topbar-nav { padding: 4px; border-radius: 999px; background: var(--sheet-2); gap: 4px; }
+.topbar-link { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 999px; font-size: 14px; }
+.topbar-link.is-active { border-radius: 999px; background: var(--blueprint-tint); color: var(--blueprint-ink); box-shadow: none; font-weight: 700; }
+.hero-workspace { padding: 32px; gap: 24px 48px; border-radius: 28px; background: #eaf0f7; border: 1px solid #e0e8f2; }
+.hero-workspace .hero-title { font-size: clamp(30px, 3.5vw, 44px); line-height: 1.45; letter-spacing: -.035em; }
+.hero-sub { font-size: 15px; }
+.eyebrow { font-size: 11px; letter-spacing: .08em; }
+.hero-action { margin-top: 20px; border: 0; padding: 10px 18px; border-radius: 999px; background: var(--sheet); color: var(--blueprint-ink); min-height: 44px; box-shadow: 0 2px 4px #24487f08; }
+.hero-action:hover { background: var(--blueprint-tint); text-decoration: none; }
+.hero-blueprint { padding: 24px; border-radius: 20px; background-color: var(--blueprint-ink); box-shadow: var(--shadow-raised); }
+.blueprint-heading { font-size: 10px; margin-bottom: 20px; }
+.blueprint-document { border-radius: 12px; background: #ffffff12; }
+.blueprint-output span:not(.blueprint-index) { border-radius: 8px; }
+.guide-details { grid-column: 1 / -1; padding-top: 16px; border-top: 1px solid #bac8d580; }
+.guide-details > summary { display: flex; align-items: center; gap: 10px; width: fit-content; cursor: pointer; color: var(--ink-2); font-size: 13px; min-height: 44px; border-radius: 8px; }
+.guide-details > summary::after, .section-details > summary::after { content: ''; width: 7px; height: 7px; border-bottom: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); margin: 0 6px 4px 10px; flex: none; }
+.guide-details[open] > summary::after, .section-details[open] > summary::after { transform: rotate(225deg); margin-bottom: -4px; }
+.guide-details .spec-list { margin-top: 12px; border-top: 0; }
+.guide-details .spec-row:last-child { border-bottom: 0; }
+.workflow-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 36px 0 20px; }
+.workflow-heading .eyebrow { margin-bottom: 6px; color: var(--blueprint); }
+.workflow-heading h2 { font-size: 23px; letter-spacing: -.02em; font-weight: 700; margin: 0; }
+.workflow-heading > p { margin: 0; font-size: 13px; color: var(--ink-3); }
+.panel { border-color: var(--rule); box-shadow: var(--shadow-sheet); }
+.panel-head { padding: 20px 24px 0; align-items: center; }
+.panel-label { font-size: 15px; letter-spacing: 0; display: inline-flex; align-items: center; gap: 10px; }
+.panel-label::before { display: none; }
+.step-number { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--blueprint-tint); color: var(--blueprint-ink); font-size: 12px; flex: none; }
+.panel-body { padding: 24px; }
+.panel-hint { line-height: 1.6; }
+.bench-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; }
+.drop-zone { margin: 20px 24px 4px; border-color: #97aec5; border-radius: 16px; background: #f6f9fc; }
+.drop-zone-content { padding: 48px 20px; }
+.drop-glyph { width: 64px; height: 64px; border: 0; border-radius: 20px; background: var(--blueprint-tint); color: var(--blueprint); margin-bottom: 20px; }
+.drop-title { font-size: 17px; font-weight: 600; }
+.drop-sub { margin-bottom: 16px; }
+.drop-formats { margin-top: 24px; }
+.chip { border-radius: 999px; padding: 5px 10px; }
+.format-list { padding: 16px 24px 24px; gap: 10px; }
+.format-row { grid-template-columns: 56px minmax(0, 1fr) 18px; padding: 14px; border-radius: 14px; align-items: center; }
+.format-ext { border: 0; border-radius: 10px; padding: 12px 0; }
+.format-name { font-size: 14px; }
+.format-desc, .preset-desc, .check-desc { font-size: 12.5px; line-height: 1.65; color: var(--ink-3); }
+.seg-input:checked + .format-row, .seg-input:checked + .preset-row { border-color: #8ca9d8; box-shadow: none; }
+.format-row::after { content: ''; width: 18px; height: 18px; border: 2px solid var(--rule-2); border-radius: 50%; flex: none; margin-left: auto; }
+.seg-input:checked + .format-row::after { border: 5px solid var(--blueprint); background: white; }
+.preset-list { padding: 16px 24px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.preset-row { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 12px; align-items: start; }
+.preset-name { font-size: 14px; }
+.section-details { border-top: 1px solid var(--rule); margin: 0 24px; }
+.section-details > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; min-height: 56px; font-size: 13px; font-weight: 600; color: var(--blueprint-ink); }
+.detail-count { margin-left: auto; font-size: 12px; color: var(--ink-3); font-weight: 400; }
+.sections-panel { padding: 4px 0 20px; }
+.sections-group-label { font-family: var(--font-sans); font-size: 12px; }
+.check-item { padding: 12px; }
+.check-item input { width: 18px; height: 18px; }
+.check-item:has(input:checked) { background: var(--sheet-2); border-color: var(--rule); }
+.check-item:focus-within { outline: 2px solid var(--blueprint); outline-offset: 2px; }
+.preferences-bar { margin: 16px 4px 0; gap: 4px; }
+.generation-bar { grid-column: 1 / -1; position: sticky; bottom: 16px; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 20px 24px; border: 1px solid var(--rule); border-radius: 20px; background: var(--sheet); box-shadow: var(--shadow-raised); }
+.generation-info { display: flex; gap: 14px; align-items: center; min-width: 0; }
+.generation-info > i { font-size: 26px; color: var(--blueprint); }
+.generation-info strong { font-size: 14px; }
+.generation-bar .bench-note { margin: 3px 0 0; text-align: left; }
+.generation-bar .submit-btn { margin: 0; min-width: 260px; }
+.btn-primary, .btn-secondary, .btn-ghost { border-radius: 999px; min-height: 44px; line-height: 1.4; }
+.btn-primary { border-color: transparent; box-shadow: 0 2px 4px #10544212; }
+.btn-primary:hover { box-shadow: 0 4px 10px #10544224; }
+.btn-primary:disabled { box-shadow: none; color: #61707c; background: #e9eef2; border-color: transparent; }
+.btn-secondary { border-color: var(--rule-2); color: var(--blueprint-ink); }
+.btn-secondary:hover { background: var(--blueprint-tint); color: var(--blueprint-ink); border-color: #8ca9d8; }
+.btn-sm { font-size: 12px; padding: 8px 12px; }
+.btn-md { font-size: 14px; padding: 11px 20px; }
+.btn-lg { min-height: 48px; padding: 13px 24px; }
+.notice-close { min-width: 44px; min-height: 44px; border-radius: 50%; cursor: pointer; }
+.stat { padding: 20px; }
+.stat dd { font-size: 28px; font-variant-numeric: tabular-nums; color: var(--blueprint-ink); }
+.footbar { background: transparent; margin-top: 16px; }
+:focus-visible { outline: 2px solid var(--blueprint); outline-offset: 3px; box-shadow: none; }
+.seg-input:focus-visible + :is(.format-row, .preset-row, .seg-item) { outline: 2px solid var(--blueprint); outline-offset: 3px; box-shadow: none; }
+@media (max-width: 900px) {
+    .bench-grid { grid-template-columns: minmax(0, 1fr); }
+    .hero-workspace { gap: 24px; padding: 24px; }
+    .topbar-inner { gap: 24px; }
+}
+@media (max-width: 600px) {
+    html { scroll-padding-bottom: 176px; }
+    main { padding-top: 20px; }
+    .topbar-inner { height: auto; min-height: 112px; flex-wrap: wrap; gap: 10px; padding-top: 14px; padding-bottom: 12px; }
+    .wordmark { width: 100%; font-size: 18px; }
+    .topbar-nav { width: 100%; }
+    .topbar-link { flex: 1; justify-content: center; padding: 8px; font-size: 13px; }
+    .hero-workspace { padding: 24px 20px; border-radius: 20px; }
+    .hero-workspace .hero-title { font-size: 30px; }
+    .hero-blueprint { display: none; }
+    .blueprint-heading { font-size: 9px; }
+    .workflow-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
+    .workflow-heading h2 { font-size: 21px; }
+    .panel-head { padding: 20px 18px 0; }
+    .drop-zone { margin: 16px 18px 0; }
+    .drop-zone-content { padding: 32px 12px; }
+    .drop-title { font-size: 15px; }
+    .format-list, .preset-list { padding: 16px 18px; }
+    .section-details { margin: 0 18px; }
+    .section-details > summary { flex-wrap: wrap; font-size: 12px; gap: 4px; }
+    .detail-count { font-size: 11px; }
+    .generation-bar { bottom: 8px; flex-direction: column; align-items: stretch; gap: 12px; padding: 16px; border-radius: 16px; }
+    .generation-bar .submit-btn { min-width: 0; width: 100%; }
+    .generation-info > i { font-size: 22px; }
+    .generation-info strong { display: none; }
+    .generation-bar .bench-note { margin: 0; }
+}

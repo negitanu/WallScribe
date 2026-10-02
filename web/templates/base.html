@@ -23,8 +23,8 @@
                 <span class="wordmark-text">WallScribe</span>
             </a>
             <nav class="topbar-nav" aria-label="メイン">
-                <a class="topbar-link {% if request.endpoint == 'index' %}is-active{% endif %}" href="{{ url_for('index') }}">生成</a>
-                <a class="topbar-link {% if request.endpoint == 'lab_page' %}is-active{% endif %}" href="{{ url_for('lab_page') }}">構築テスト</a>
+                <a class="topbar-link {% if request.endpoint == 'index' %}is-active{% endif %}" href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}aria-current="page"{% endif %}><i class="bi bi-file-earmark-text" aria-hidden="true"></i> 生成</a>
+                <a class="topbar-link {% if request.endpoint == 'lab_page' %}is-active{% endif %}" href="{{ url_for('lab_page') }}" {% if request.endpoint == 'lab_page' %}aria-current="page"{% endif %}><i class="bi bi-check2-square" aria-hidden="true"></i> 構築テスト</a>
                 <a class="topbar-link" href="/apidocs" target="_blank" rel="noopener">API</a>
             </nav>
             <span class="topbar-meta">ファイアウォール構築支援</span>

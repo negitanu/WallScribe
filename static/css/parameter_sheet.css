@@ -1,6 +1,6 @@
 /**
  * WallScribe パラメータシート (HTML 出力)
- * デザイン言語: 「仕様書 (Spec Sheet)」
+ * デザイン言語: Material Design × 「仕様書 (Spec Sheet)」
  *   紙 (paper) の上に白いシート、藍のインク、表題欄 (title block)。
  *   装飾ではなく罫線と余白で階層を作る。色は「意味」にだけ使う。
  *
@@ -968,3 +968,21 @@ mark.search-current { background: #ffe08a; outline: 2px solid #9a5b00; outline-o
 .flow-query { padding: 20px; border: 1px solid #d9e1e8; border-radius: 12px; background: #f7f9fc; gap: 16px; }
 .flow-query input, .flow-query select { border: 1px solid #bac8d5; border-radius: 6px; padding: 9px; background: #fff; color: #243e57; }
 .flow-query button { border: 0; border-radius: 8px; background: #243e57; color: #fff; padding: 12px 18px; font: inherit; cursor: pointer; }
+
+/* Screen-only Material refinement; printed sheets retain their compact layout. */
+@media screen {
+    body { line-height: 1.75; }
+    header { border: 1px solid var(--rule); border-top: 0; padding: 32px; background: var(--sheet); }
+    header h1 { font-size: clamp(24px, 3vw, 34px); line-height: 1.4; }
+    header .doc-kind { color: var(--blueprint-ink); }
+    header .meta { border: 0; background: var(--sheet-2); border-radius: 14px; }
+    header .meta-item { padding: 14px 18px; }
+    #searchInput { min-height: 48px; border-radius: 14px; background: var(--sheet-2); }
+    #searchBtn, #clearBtn { min-height: 44px; border-radius: 999px; padding: 11px 20px; }
+    #searchBtn { background: var(--blueprint); border-color: var(--blueprint); }
+    #searchBtn:hover { background: var(--blueprint-ink); }
+    nav.toc { background: #edf2f9; padding: 24px 28px; }
+    nav.toc a { display: inline-block; padding: 4px 0; }
+    section { padding: 28px; scroll-margin-top: 24px; }
+    :focus-visible { outline: 2px solid var(--blueprint); outline-offset: 3px; }
+}

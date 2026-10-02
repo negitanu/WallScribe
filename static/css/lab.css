@@ -137,3 +137,28 @@
 .lab-layout :is(input, select, textarea, summary):focus-visible { outline: 2px solid var(--blueprint); outline-offset: 3px; }
 @media (max-width: 900px) { .lab-layout { grid-template-columns: minmax(0, 1fr); } .lab-setup { grid-template-columns: repeat(2, minmax(0, 1fr)); } .lab-note { grid-column: 1 / -1; } }
 @media (max-width: 600px) { .lab-setup, .lab-edit { grid-template-columns: minmax(0, 1fr); } .lab-workspace-head { align-items: flex-start; flex-direction: column; } .lab-case-head { align-items: flex-start; } }
+
+/* Material controls share the generation workspace's state and surface tokens. */
+.lab-panel-body { padding: 24px; }
+.lab-setup label, .lab-edit label { font-size: 14px; }
+.lab-file input { padding: 14px; border-radius: 14px; }
+.lab-file input::file-selector-button { min-height: 44px; border-radius: 999px; padding: 10px 14px; }
+.lab-filters { border: 0; padding: 14px; border-radius: 16px; background: var(--sheet-2); }
+.lab-filters select, .lab-edit input, .lab-edit select { min-height: 44px; padding: 10px 12px; color: var(--ink); }
+.lab-filters input, .lab-case-head input { width: 18px; height: 18px; }
+.lab-summary > div { background: var(--sheet-2); border: 0; padding: 16px; }
+.lab-summary strong { font-size: 28px; color: var(--blueprint-ink); font-variant-numeric: tabular-nums; }
+.lab-summary small { font-size: 12px; }
+.lab-case { border-radius: 16px; }
+.lab-case-head { padding: 20px; }
+.lab-badge { border-radius: 999px; padding: 6px 10px; font-size: 12px; }
+.lab-case summary, .lab-note summary, .lab-setup summary { min-height: 44px; line-height: 1.7; }
+.lab-case details { background: #fafcfe; }
+.lab-empty { border: 0; padding: 48px 24px; border-radius: 16px; }
+.lab-empty p, #lab-status, .lab-setup p { font-size: 13px; }
+@media (max-width: 600px) {
+    .lab-panel-body { padding: 18px; }
+    .lab-case-head { padding: 16px; flex-wrap: wrap; }
+    .lab-case-head .lab-badge { margin-left: 30px; }
+    .lab-file input::file-selector-button { margin: 0 0 8px; display: block; }
+}

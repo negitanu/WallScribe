@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressBarFill = document.getElementById('progressBarFill');
     const progressPercent = document.getElementById('progressPercent');
     const sectionsGrid = document.getElementById('sectionsGrid');
+    const sectionDetails = document.getElementById('sectionDetails');
+    const detailCount = document.getElementById('detailCount');
     const filesCount = document.getElementById('filesCount');
     const submitHint = document.getElementById('submitHint');
     const stageItems = Array.from(document.querySelectorAll('#stageList .stage'));
@@ -88,6 +90,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!sectionsHint) return;
         const n = Array.from(sectionCheckboxes).filter(c => c.checked).length;
         sectionsHint.textContent = n + ' / ' + sectionCheckboxes.length;
+        if (detailCount) detailCount.textContent = n + ' 項目を選択';
     }
 
     function applyPresetFromCurrentSelection() {
@@ -97,11 +100,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (preset === 'custom') {
             sectionsGrid.classList.remove('disabled');
+            if (sectionDetails) sectionDetails.open = true;
             updateSectionsHint();
             return;
         }
 
-        sectionsGrid.classList.add('disabled');
+        sectionsGrid.classList.remove('disabled');
 
         const selectedSections = presets[preset] || [];
         sectionCheckboxes.forEach(checkbox => {

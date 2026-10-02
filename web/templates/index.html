@@ -19,6 +19,8 @@
         <div class="blueprint-connector"></div>
         <div class="blueprint-output"><span class="blueprint-index">03</span><span>HTML</span><span>PDF</span><span>XLSX</span></div>
     </div>
+    <details class="guide-details">
+        <summary><i class="bi bi-info-circle" aria-hidden="true"></i> 入力・出力と利用条件を確認</summary>
     <dl class="spec-list">
         <div class="spec-row">
             <dt>入力</dt>
@@ -37,9 +39,11 @@
             <dd>アップロードした設定と生成物はサーバー上に 1 時間だけ保持し、以降は自動削除します。</dd>
         </div>
     </dl>
+    </details>
 </section>
 
 <!-- Workbench -->
+<div class="workflow-heading"><div><p class="eyebrow">DOCUMENT WORKSPACE</p><h2>パラメータシートを作成</h2></div><p>設定を選び、用途に合った出力を。</p></div>
 <section class="workbench" id="uploadSection">
     <form id="uploadForm" enctype="multipart/form-data" novalidate>
         <div class="bench-grid">
@@ -48,7 +52,7 @@
             <div class="bench-main">
                 <div class="panel">
                     <div class="panel-head">
-                        <span class="panel-label">入力</span>
+                        <span class="panel-label"><span class="step-number" aria-hidden="true">1</span>設定ファイル</span>
                         <span class="panel-hint">2 ファイル以上を選ぶと HA 構成として扱えます</span>
                     </div>
 
@@ -100,7 +104,7 @@
             <aside class="bench-side">
                 <div class="panel">
                     <div class="panel-head">
-                        <span class="panel-label">出力形式</span>
+                        <span class="panel-label"><span class="step-number" aria-hidden="true">2</span>出力形式</span>
                     </div>
                     <div class="format-list" role="radiogroup" aria-label="出力形式">
                         <input type="radio" class="seg-input" name="output_format" id="formatHtml" value="html" checked>
@@ -132,7 +136,7 @@
 
                 <div class="panel">
                     <div class="panel-head">
-                        <span class="panel-label">出力する項目</span>
+                        <span class="panel-label"><span class="step-number" aria-hidden="true">3</span>出力する項目</span>
                         <span class="panel-hint" id="sectionsHint">10 / 10</span>
                     </div>
 
@@ -169,6 +173,8 @@
                         </label>
                     </div>
 
+                    <details class="section-details" id="sectionDetails">
+                        <summary>項目を確認・個別に変更 <span class="detail-count" id="detailCount"></span></summary>
                     <div class="sections-panel" id="sectionsGrid">
                         <div class="sections-group">
                             <div class="sections-group-label">グローバル</div>
@@ -264,18 +270,21 @@
                         </div>
                         <p class="sections-note">HA クラスタ時はメンバー一覧と設定差分（クラスタ概要）が自動で追加されます。</p>
                     </div>
+                    </details>
                 </div>
 
                 <div class="preferences-bar">
                     <p id="preferencesStatus" role="status">出力設定をこのブラウザに記憶します（設定ファイルはブラウザに保存しません）</p>
                     <button type="button" class="btn-ghost btn-sm" id="resetPreferences">設定をリセット</button>
                 </div>
-                <button type="submit" class="btn-primary btn-lg btn-block submit-btn" id="submitBtn" disabled>
+            </aside>
+            <div class="generation-bar">
+                <div class="generation-info"><i class="bi bi-file-earmark-check" aria-hidden="true"></i><div><strong>設計書の準備</strong><p class="bench-note" id="submitHint" role="status">設定ファイルを選択すると生成できます</p></div></div>
+                <button type="submit" class="btn-primary btn-lg submit-btn" id="submitBtn" aria-describedby="submitHint" disabled>
                     <span class="btn-text">パラメータシートを生成</span>
                     <span class="btn-loading" style="display: none;">生成中…</span>
                 </button>
-                <p class="bench-note" id="submitHint">設定ファイルを選択すると生成できます</p>
-            </aside>
+            </div>
         </div>
     </form>
 </section>
