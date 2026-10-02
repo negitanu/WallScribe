@@ -1,3 +1,10 @@
+# Alpine の署名検証済み Pango から、WeasyPrint が使うライブラリだけを再パッケージ化。
+# Cairo/X11 バックエンドは不要で、CVE-2025-50422 の対象を本番に持ち込まない。
+FROM python:3.14-alpine3.24 AS pdf-runtime
+RUN apk add --no-cache pango pax-utils
+COPY scripts/package_pango_runtime.py /build/package_pango_runtime.py
+RUN python /build/package_pango_runtime.py /pango-runtime.apk
+
 # マルチステージビルド: ビルドステージ
 FROM python:3.14-alpine3.24 AS builder
 
@@ -24,7 +31,11 @@ LABEL maintainer="WallScribe"
 LABEL description="ファイアウォール パラメータシート生成ツール"
 
 # WeasyPrint実行時に必要なランタイムライブラリと日本語フォント、タイムゾーンデータをインストール
-RUN apk upgrade --no-cache && apk add --no-cache pango harfbuzz-subset font-noto-cjk tzdata
+COPY --from=pdf-runtime /pango-runtime.apk /tmp/pango-runtime.apk
+RUN apk upgrade --no-cache && \
+    apk add --no-cache harfbuzz-subset font-noto-cjk tzdata && \
+    apk add --no-cache --allow-untrusted /tmp/pango-runtime.apk && \
+    rm /tmp/pango-runtime.apk
 
 # ベースイメージのインストール用ツールも本番には不要。
 RUN python -m pip uninstall --yes pip

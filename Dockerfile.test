@@ -1,9 +1,17 @@
+FROM python:3.14-alpine3.24 AS pdf-runtime
+RUN apk add --no-cache pango pax-utils
+COPY scripts/package_pango_runtime.py /build/package_pango_runtime.py
+RUN python /build/package_pango_runtime.py /pango-runtime.apk
+
 FROM python:3.14-alpine3.24
 
 WORKDIR /app
 
+COPY --from=pdf-runtime /pango-runtime.apk /tmp/pango-runtime.apk
 RUN apk upgrade --no-cache && apk add --no-cache \
-    gcc musl-dev libffi-dev nodejs pango harfbuzz-subset font-noto-cjk tzdata
+    gcc musl-dev libffi-dev nodejs harfbuzz-subset font-noto-cjk tzdata && \
+    apk add --no-cache --allow-untrusted /tmp/pango-runtime.apk && \
+    rm /tmp/pango-runtime.apk
 
 COPY requirements.txt pyproject.toml README.md ./
 COPY app.py main.py exceptions.py ./

@@ -72,8 +72,7 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:18080/ >/dev/null
           curl --fail --silent http://127.0.0.1:18080/lab >/dev/null
-          docker run --rm --entrypoint python "wallscribe:ci-$ARCH" -c \
-            'import importlib.util, os; from weasyprint import HTML; assert (os.getuid(), os.getgid()) == (999, 999); assert importlib.util.find_spec("pip") is None; assert HTML(string="<p>日本語PDF</p>").write_pdf().startswith(b"%PDF")'
+          docker run --rm -i --entrypoint python "wallscribe:ci-$ARCH" < scripts/check_pdf_runtime.py
           docker logs wallscribe-smoke
       - name: Remove smoke-test container
         if: always()

@@ -101,6 +101,8 @@ Python 3.12 / 3.14 のテストと構文検査に成功すると、`linux/amd64`
 
 本番ベースは Python 3.14 / Alpine 3.24 です。PDF の依存は Pango・HarfBuzz と日本語フォントに限定し、pip やビルドツールを本番に含めません。CI ではベースを取得し直してキャッシュなしでビルドするため、OS・Python依存の更新もスキャン対象になります。Docker Scout と Trivy はデータベース・判定基準が異なるため、Hub の検出結果も公開後に確認してください。
 
+`CVE-2025-50422` の対象である Cairo は PDF 生成に不要なため、本番・Docker テスト環境に含めません。Alpine の署名検証済み Pango パッケージから `libpango` / `libpangoft2` だけを取り出し、ELF の依存関係に基づく最小 APK を作成します。元のパッケージ名・バージョン・ソース名を保持するため、Pango 自体の脆弱性検査も継続できます。`--allow-untrusted` はこのビルド内で作成した APK のインストールだけに使用します。CI は両アーキテクチャで Cairo / Poppler のパッケージ・ライブラリが存在しないことと、多言語 PDF 出力を確認します。
+
 初回のみ、Docker Hub に `negitanu/wallscribe` リポジトリを作成し、[GitHub Actions Secrets](https://github.com/negitanu/WallScribe/settings/secrets/actions) に次を登録してください。
 
 - `DOCKERHUB_USERNAME`: Docker Hub のユーザー名。
