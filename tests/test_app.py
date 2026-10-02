@@ -8,12 +8,10 @@ import io
 import json
 
 # Flaskアプリをインポート（テスト設定で）
-import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app import allowed_file, app, get_file_extension
 

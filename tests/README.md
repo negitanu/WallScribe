@@ -15,18 +15,20 @@
 リポジトリルートで:
 
 ```bash
-pytest
+WALLSCRIBE_DISABLE_CLEANUP_THREAD=1 UPLOAD_FOLDER=/tmp/wallscribe-tests pytest
 ```
 
 静かにまとめて見るなら:
 
 ```bash
-pytest -q
+WALLSCRIBE_DISABLE_CLEANUP_THREAD=1 UPLOAD_FOLDER=/tmp/wallscribe-tests pytest -q
 ```
 
 ## 補足
 
 - テストファイル名は `test_*.py` 形式
+- import パスは `pyproject.toml` の `pythonpath` で共通設定し、各テストで `sys.path` を変更しません。
+- テスト用保存先には利用中のアップロードディレクトリを指定しないでください。
 - 共有フィクスチャ用のデータ置き場は [fixtures/](fixtures/)（必要に応じて利用）
 - [conftest.py](conftest.py) に pytest フィクスチャや共通設定を記述
 

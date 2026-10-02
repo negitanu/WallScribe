@@ -6,12 +6,11 @@ HAクラスタパーサー
 """
 
 import logging
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, cast
 
 from models.cluster import ClusterConfig, ConfigDifference, HAClusterInfo, HAMemberInfo, HARole
 from models.config import ConfigModel, DeviceType, HAMode
-from parsers.base import detect_encoding, get_parser_for_content, get_parser_for_file
+from parsers.base import get_parser_for_content, get_parser_for_file
 
 logger = logging.getLogger(__name__)
 

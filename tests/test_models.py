@@ -4,12 +4,8 @@
 データモデルのテスト
 """
 
-import pytest
-
 from models.config import (
-    AddressGroup,
     AddressObject,
-    AdminUser,
     ConfigModel,
     DeviceInfo,
     DeviceType,
@@ -17,14 +13,10 @@ from models.config import (
     HAMode,
     HASettings,
     Interface,
-    LoggingSettings,
-    NATPolicy,
     Objects,
     OperationMode,
     PolicyAction,
     Route,
-    ServiceGroup,
-    ServiceObject,
     SystemSettings,
     VPNSettings,
 )

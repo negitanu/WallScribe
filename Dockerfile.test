@@ -1,21 +1,9 @@
-FROM python:3.14-slim
+FROM python:3.14-alpine3.24
 
 WORKDIR /app
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    python3-dev \
-    nodejs \
-    libcairo2 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libpangoft2-1.0-0 \
-    libharfbuzz-subset0 \
-    libgdk-pixbuf-2.0-0 \
-    shared-mime-info \
-    fonts-noto-cjk \
-    tzdata \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk upgrade --no-cache && apk add --no-cache \
+    gcc musl-dev libffi-dev nodejs pango harfbuzz-subset font-noto-cjk tzdata
 
 COPY requirements.txt pyproject.toml README.md ./
 COPY app.py main.py exceptions.py ./

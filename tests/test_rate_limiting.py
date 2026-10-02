@@ -5,13 +5,6 @@
 """
 
 import os
-import sys
-from pathlib import Path
-
-import pytest
-
-# テスト用にflask_limiterをモック
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 class TestRateLimiting:

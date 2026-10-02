@@ -4,13 +4,9 @@
 Excel パーツ（common, global_sheets, vdom_sheets）のテスト
 """
 
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models.cluster import ClusterConfig, HAClusterInfo, HAMemberInfo, HARole
 from models.config import (
@@ -18,18 +14,16 @@ from models.config import (
     DeviceInfo,
     DeviceType,
     FirewallPolicy,
-    HAManagementInterface,
     HAMode,
     HASettings,
     Interface,
-    Objects,
     PolicyAction,
     SystemSettings,
 )
 
 # openpyxlが利用可能かチェック
 try:
-    import openpyxl
+    import openpyxl  # noqa: F401 — optional dependency probe
 
     OPENPYXL_AVAILABLE = True
 except ImportError:

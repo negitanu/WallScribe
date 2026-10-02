@@ -1,55 +1,43 @@
 # マルチステージビルド: ビルドステージ
-FROM python:3.14-slim AS builder
+FROM python:3.14-alpine3.24 AS builder
 
 # 作業ディレクトリを設定
 WORKDIR /build
 
 # システムパッケージの更新とビルドツールのインストール
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    python3-dev \
-    libcairo2-dev \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libpangoft2-1.0-0 \
-    libgdk-pixbuf-2.0-dev \
-    libffi-dev \
-    shared-mime-info \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache gcc musl-dev libffi-dev
 
 # 依存関係ファイルをコピー
 COPY requirements.txt .
 
 # 依存関係をインストール
-RUN pip install --no-cache-dir --user -r requirements.txt
+# 実行環境にはアプリの依存だけをコピーし、pip の同梱ライブラリを持ち込まない。
+RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt && \
+    /opt/venv/bin/pip uninstall --yes pip
 
 # 本番ステージ
-FROM python:3.14-slim
+FROM python:3.14-alpine3.24
 
 # メタデータ
 LABEL maintainer="WallScribe"
 LABEL description="ファイアウォール パラメータシート生成ツール"
 
 # WeasyPrint実行時に必要なランタイムライブラリと日本語フォント、タイムゾーンデータをインストール
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y --no-install-recommends \
-    libcairo2 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libpangoft2-1.0-0 \
-    libgdk-pixbuf-2.0-0 \
-    shared-mime-info \
-    fonts-noto-cjk \
-    tzdata \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk upgrade --no-cache && apk add --no-cache pango harfbuzz-subset font-noto-cjk tzdata
 
-# 非rootユーザーを作成
-RUN groupadd -r appuser && useradd -r -m -g appuser appuser
+# ベースイメージのインストール用ツールも本番には不要。
+RUN python -m pip uninstall --yes pip
+
+# 旧 Debian イメージと UID/GID を揃え、既存ボリュームの所有権を維持する。
+RUN delgroup ping && addgroup -S -g 999 appuser && \
+    adduser -S -u 999 -G appuser -h /home/appuser appuser
 
 # 作業ディレクトリを設定
 WORKDIR /app
 
 # ビルドステージから依存関係をコピー
-COPY --from=builder /root/.local /home/appuser/.local
+COPY --from=builder /opt/venv /opt/venv
 
 # アプリケーションファイルをコピー
 COPY app.py main.py exceptions.py ./
@@ -71,7 +59,7 @@ RUN mkdir -p /app/uploads /home/appuser/.cache/fontconfig && \
     chown -R appuser:appuser /app /home/appuser
 
 # 環境変数を設定
-ENV PATH=/home/appuser/.local/bin:$PATH
+ENV PATH=/opt/venv/bin:$PATH
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_ENV=production
 ENV FLASK_PORT=8080

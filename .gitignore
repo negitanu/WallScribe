@@ -66,3 +66,7 @@ uploads/*
 
 # Local previews and generated artifacts
 /output/
+
+# Temporary architecture validation artifacts
+/docs/*.visual-check.*
+/test_uploads/

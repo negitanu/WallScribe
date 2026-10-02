@@ -1,0 +1,64 @@
+name: Delete initial Docker Hub image
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  delete:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Delete the initial SHA tag after verifying the replacement
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          base = "https://hub.docker.com/v2/repositories/negitanu/wallscribe/tags/"
+          old_tag = "sha-935d02a6945d7473cdb3981f893f9b4faa3c9734"
+          old_digest = "sha256:1d01b8b5da1b53514e9fa646cfacb531a0c873dd4ddd847532e62246d58d0dc1"
+
+          def read_tag(tag):
+              with urllib.request.urlopen(base + tag + "/", timeout=30) as response:
+                  return json.load(response)
+
+          latest = read_tag("latest")
+          replacement = read_tag("sha-" + os.environ["GITHUB_SHA"])
+          if latest["digest"] != replacement["digest"] or latest["digest"] == old_digest:
+              raise SystemExit("The current commit must be published as latest before deletion")
+          try:
+              initial = read_tag(old_tag)
+          except urllib.error.HTTPError as error:
+              if error.code == 404:
+                  print("Initial image tag is already absent")
+                  raise SystemExit(0)
+              raise
+          if initial["digest"] != old_digest:
+              raise SystemExit("Initial tag points to an unexpected digest; deletion refused")
+
+          body = json.dumps({
+              "identifier": os.environ["DOCKERHUB_USERNAME"],
+              "secret": os.environ["DOCKERHUB_TOKEN"],
+          }).encode()
+          request = urllib.request.Request(
+              "https://hub.docker.com/v2/auth/token", data=body,
+              headers={"Content-Type": "application/json"}, method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  token = json.load(response)["access_token"]
+              request = urllib.request.Request(
+                  base + old_tag + "/", method="DELETE",
+                  headers={"Authorization": "Bearer " + token},
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  print("Initial tag deletion accepted, HTTP", response.status)
+          except urllib.error.HTTPError as error:
+              raise SystemExit(f"Docker Hub rejected deletion: HTTP {error.code}; verify delete permission")
+          PY

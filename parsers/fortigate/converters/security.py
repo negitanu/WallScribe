@@ -16,7 +16,7 @@ from models.config import (
     SSLInspectionProfile,
     WebFilterProfile,
 )
-from parsers.utils import get_app_info, get_app_name, get_nested
+from parsers.utils import get_app_info, get_nested
 
 
 def convert_security_profiles(config_model: ConfigModel, parsed_config: Dict) -> None:

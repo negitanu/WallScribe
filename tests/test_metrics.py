@@ -4,8 +4,6 @@
 Prometheusメトリクスのテスト
 """
 
-import pytest
-
 from utils.metrics import (
     PROMETHEUS_AVAILABLE,
     get_metrics,

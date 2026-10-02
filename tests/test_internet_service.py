@@ -4,11 +4,9 @@
 Internet Service関連のテスト
 """
 
-import pytest
-
 from exporters.html import HTMLExporter
 from exporters.utils import load_isdb
-from models.config import ConfigModel, FirewallPolicy, PolicyAction
+from models.config import FirewallPolicy, PolicyAction
 from parsers.fortigate import FortiGateParser
 
 

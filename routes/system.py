@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from flask import jsonify, request
+from flask import jsonify
 
 logger = logging.getLogger(__name__)
 

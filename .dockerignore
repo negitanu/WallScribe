@@ -57,3 +57,4 @@ uploads/*
 
 # Never ship local generated artifacts
 output/
+test_uploads/

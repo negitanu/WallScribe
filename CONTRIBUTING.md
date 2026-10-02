@@ -19,4 +19,8 @@ python -m compileall -q analyzers parsers services routes exporters models
 node --check static/js/lab.js
 ```
 
+CI は Python / Jinja / JavaScript / CSS の構文に加えて、未使用 import・変数、重複定義、未定義名を検査します。互換用の再エクスポートや任意依存の存在確認は削除せず、用途を明記して検査対象から除外します。
+
+配布対象は `pyproject.toml` の `include` と `package-data` で管理します。実行時に使う CSV・TextFSM・Web テンプレート・静的資産を追加した場合は wheel に収録されることを確認してください。アップロード、出力、ローカル検証ログは配布対象に含めません。
+
 機能ごとに commit を分け、何が変わるか、検証した内容、未検証の条件を記載してください。UI 変更はデスクトップ・モバイル・キーボード操作とオフライン HTML を確認します。README の GIF は架空設定の実画面を収録し、1 ファイル 1 MB 未満を目安にしてください。

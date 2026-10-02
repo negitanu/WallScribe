@@ -95,7 +95,11 @@ MIT License。バグ報告には機密情報を除いた最小設定、期待し
 
 ## Docker Hub への自動公開
 
-`main` への push 後、Python 3.12 / 3.14 のテストと構文検査に成功すると、本番 Docker イメージのビルド・起動確認を行い、`negitanu/wallscribe` に公開します。タグは `latest` と `sha-<完全なコミット SHA>`、対応は `linux/amd64` / `linux/arm64` です。PR や他ブランチからは公開しません。
+Python 3.12 / 3.14 のテストと構文検査に成功すると、`linux/amd64` / `linux/arm64` の本番 Docker イメージをビルドし、起動・PDF出力と Trivy の脆弱性スキャンを実行します。スキャンは重大度や修正版の有無で指摘を除外せず、検出があれば公開を停止します。全件の結果は Actions の `wallscribe-cves-*` artifact から確認できます。
+
+`main` への push / 手動実行では、検査に成功した同じイメージを再ビルドせずに `negitanu/wallscribe` に公開します。タグは `latest` と `sha-<完全なコミット SHA>`、各アーキテクチャ用に `sha-<完全なコミット SHA>-amd64` / `-arm64` も作成します。PR や他ブランチからは公開しません。
+
+本番ベースは Python 3.14 / Alpine 3.24 です。PDF の依存は Pango・HarfBuzz と日本語フォントに限定し、pip やビルドツールを本番に含めません。CI ではベースを取得し直してキャッシュなしでビルドするため、OS・Python依存の更新もスキャン対象になります。Docker Scout と Trivy はデータベース・判定基準が異なるため、Hub の検出結果も公開後に確認してください。
 
 初回のみ、Docker Hub に `negitanu/wallscribe` リポジトリを作成し、[GitHub Actions Secrets](https://github.com/negitanu/WallScribe/settings/secrets/actions) に次を登録してください。
 

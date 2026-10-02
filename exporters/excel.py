@@ -5,15 +5,13 @@ Excelエクスポーター
 """
 
 import logging
-from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from exporters.sections import section_selected
 
 try:
     from openpyxl import Workbook  # type: ignore
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side  # type: ignore
+    from openpyxl.styles import Border, Font, PatternFill, Side  # type: ignore
     from openpyxl.utils import get_column_letter  # type: ignore
     from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
 
@@ -21,7 +19,7 @@ try:
 except ImportError:  # pragma: no cover - openpyxl未導入環境向け
     OPENPYXL_AVAILABLE = False
     # スタイル定義はフォールバックがあるため再利用する
-    from exporters.excel_styles import Alignment, Border, Font, PatternFill, Side  # type: ignore
+    from exporters.excel_styles import Border, Font, PatternFill, Side  # type: ignore
 
     class Workbook:  # type: ignore
         def __init__(self, *args, **kwargs):
@@ -33,14 +31,13 @@ except ImportError:  # pragma: no cover - openpyxl未導入環境向け
     def get_column_letter(*args, **kwargs):  # type: ignore
         raise ImportError("Excel出力には openpyxl が必要です")
 
-
 from exporters import excel_styles as styles
 from exporters.excel_parts.common import ExcelCommonMixin
 from exporters.excel_parts.global_sheets import ExcelGlobalSheetsMixin
 from exporters.excel_parts.insights import ExcelInsightsMixin
 from exporters.excel_parts.vdom_sheets import ExcelVdomSheetsMixin
-from models.cluster import ClusterConfig, HARole
-from models.config import ConfigModel, DeviceType, HAMode, PolicyAction
+from models.cluster import ClusterConfig
+from models.config import ConfigModel, DeviceType
 
 logger = logging.getLogger(__name__)
 

@@ -29,10 +29,85 @@ jobs:
       - run: pip install -r requirements.txt && pip install -e ".[dev]"
       - run: pytest -q
       - run: python scripts/check_syntax.py
-      - run: flake8 analyzers parsers services routes exporters models app.py main.py --select=F821,F822,F823 --ignore= --isolated
+      - run: flake8 analyzers api exporters jobs models parsers routes services utils web scripts tests app.py main.py exceptions.py gunicorn_config.py --select=F401,F811,F841,F821,F822,F823 --isolated
+  image:
+    name: Image security (${{ matrix.arch }})
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    env:
+      TRIVY_IMAGE: aquasec/trivy@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - name: Build production image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          pull: true
+          no-cache: true
+          load: true
+          tags: wallscribe:ci-${{ matrix.arch }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/negitanu/WallScribe
+            org.opencontainers.image.revision=${{ github.sha }}
+      - name: Test production startup and pages
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          docker run -d --name wallscribe-smoke -p 127.0.0.1:18080:8080 \
+            -e WALLSCRIBE_DISABLE_CLEANUP_THREAD=1 -e SECRET_KEY=ci-smoke-only "wallscribe:ci-$ARCH"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18080/ >/dev/null; then break; fi
+            sleep 2
+          done
+          curl --fail --silent http://127.0.0.1:18080/ >/dev/null
+          curl --fail --silent http://127.0.0.1:18080/lab >/dev/null
+          docker run --rm --entrypoint python "wallscribe:ci-$ARCH" -c \
+            'import importlib.util, os; from weasyprint import HTML; assert (os.getuid(), os.getgid()) == (999, 999); assert importlib.util.find_spec("pip") is None; assert HTML(string="<p>日本語PDF</p>").write_pdf().startswith(b"%PDF")'
+          docker logs wallscribe-smoke
+      - name: Remove smoke-test container
+        if: always()
+        run: docker rm -f wallscribe-smoke || true
+      - name: Scan the image to be published
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/wallscribe-images /tmp/wallscribe-scan
+          docker save --output "/tmp/wallscribe-images/wallscribe-$ARCH.tar" "wallscribe:ci-$ARCH"
+          docker run --rm \
+            --mount type=bind,source=/tmp/wallscribe-images,target=/images,readonly \
+            --mount type=bind,source=/tmp/wallscribe-scan,target=/scan \
+            "$TRIVY_IMAGE" image --scanners vuln --exit-code 1 \
+            --input "/images/wallscribe-$ARCH.tar" --format json --output /scan/cves.json
+      - name: Save vulnerability report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: wallscribe-cves-${{ matrix.arch }}
+          path: /tmp/wallscribe-scan/cves.json
+          if-no-files-found: warn
+      - name: Save tested image
+        uses: actions/upload-artifact@v7
+        with:
+          name: wallscribe-image-${{ matrix.arch }}
+          path: /tmp/wallscribe-images/*.tar
+          compression-level: 0
+          retention-days: 1
   publish:
     name: Docker Hub
-    needs: test
+    needs: image
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     timeout-minutes: 40
@@ -43,34 +118,7 @@ jobs:
       IMAGE: negitanu/wallscribe
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
-      - name: Build production image for smoke test
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: Dockerfile
-          platforms: linux/amd64
-          load: true
-          tags: wallscribe:ci
-          cache-from: type=gha,scope=wallscribe
-          cache-to: type=gha,mode=max,scope=wallscribe
-      - name: Test production startup and pages
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker run -d --name wallscribe-smoke -p 127.0.0.1:18080:8080 \
-            -e WALLSCRIBE_DISABLE_CLEANUP_THREAD=1 -e SECRET_KEY=ci-smoke-only wallscribe:ci
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:18080/ >/dev/null; then break; fi
-            sleep 2
-          done
-          curl --fail --silent http://127.0.0.1:18080/ >/dev/null
-          curl --fail --silent http://127.0.0.1:18080/lab >/dev/null
-          docker logs wallscribe-smoke
-      - name: Remove smoke-test container
-        if: always()
-        run: docker rm -f wallscribe-smoke || true
       - name: Check publication prerequisites
         id: publish
         shell: bash
@@ -95,27 +143,28 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push AMD64 and ARM64 images
+      - name: Download tested images
         if: steps.publish.outputs.ready == 'true'
-        id: image
-        uses: docker/build-push-action@v7
+        uses: actions/download-artifact@v8
         with:
-          context: .
-          file: Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            negitanu/wallscribe:latest
-            negitanu/wallscribe:sha-${{ github.sha }}
-          labels: |
-            org.opencontainers.image.source=https://github.com/negitanu/WallScribe
-            org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha,scope=wallscribe
-          cache-to: type=gha,mode=max,scope=wallscribe
-      - name: Record published image
+          pattern: wallscribe-image-*
+          merge-multiple: true
+          path: /tmp/wallscribe-images
+      - name: Publish tested AMD64 and ARM64 images
         if: steps.publish.outputs.ready == 'true'
-        env:
-          DIGEST: ${{ steps.image.outputs.digest }}
+        shell: bash
         run: |
-          echo "Published $IMAGE:latest and $IMAGE:sha-$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
-          echo "Digest: $DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          for arch in amd64 arm64; do
+            docker load --input "/tmp/wallscribe-images/wallscribe-$arch.tar"
+            docker tag "wallscribe:ci-$arch" "$IMAGE:sha-$GITHUB_SHA-$arch"
+            docker push "$IMAGE:sha-$GITHUB_SHA-$arch"
+          done
+          if [[ "$(git ls-remote origin refs/heads/main | cut -f1)" != "$GITHUB_SHA" ]]; then
+            echo "Newer main commit exists; latest was not replaced." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          docker buildx imagetools create \
+            --tag "$IMAGE:latest" --tag "$IMAGE:sha-$GITHUB_SHA" \
+            "$IMAGE:sha-$GITHUB_SHA-amd64" "$IMAGE:sha-$GITHUB_SHA-arm64"
+          echo "Published scanned and tested $IMAGE:latest and $IMAGE:sha-$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"

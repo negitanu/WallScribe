@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=83.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,6 +8,7 @@ version = "1.1.0"
 description = "FortiGate / Palo Alto 設定からパラメータシートを生成するツール"
 readme = "README.md"
 requires-python = ">=3.12"
+dynamic = ["dependencies"]
 optional-dependencies.dev = [
     "black==24.10.0",
     "isort>=5.13.0",
@@ -21,9 +22,24 @@ optional-dependencies.dev = [
     "pip-audit>=2.6.0",
 ]
 
+[tool.setuptools]
+py-modules = ["app", "main", "exceptions", "gunicorn_config"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
 [tool.setuptools.packages.find]
 where = ["."]
+include = [
+    "analyzers*", "api*", "exporters*", "jobs*", "models*", "parsers*",
+    "routes*", "services*", "static*", "utils*", "web*",
+]
 exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+parsers = ["textfsm_templates/*/*.textfsm"]
+web = ["templates/*.html"]
+static = ["css/*.css", "data/*.csv", "fonts/*.woff", "fonts/*.woff2", "js/*.js", "js/vendor/*.js"]
 
 [tool.black]
 line-length = 100

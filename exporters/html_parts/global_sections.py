@@ -170,7 +170,6 @@ class HTMLGlobalMixin:
         # メンバー一覧テーブル
         member_rows = ""
         for member in cluster_info.members:
-            role_class = "primary" if member.role == HARole.PRIMARY else "secondary"
             role_badge = f'<span class="badge bg-{"success" if member.role == HARole.PRIMARY else "info"}">{member.role.value}</span>'
             member_rows += f"""<tr>
                 <td>{role_badge}</td>

@@ -7,7 +7,6 @@ Flask アプリのフック/ハンドラ登録
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 
 from flask import jsonify, render_template, request

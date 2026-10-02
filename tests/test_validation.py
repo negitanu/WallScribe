@@ -4,8 +4,6 @@
 バリデーション機能のテスト
 """
 
-import pytest
-
 from utils.validation import (
     validate_file_content,
     validate_file_size,

@@ -4,8 +4,6 @@
 カスタム例外クラスのテスト
 """
 
-import pytest
-
 from exceptions import ExportError, FileError, ParseError, ValidationError, WallScribeError
 
 

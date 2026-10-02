@@ -4,8 +4,6 @@
 Excelスタイル定義のテスト
 """
 
-import pytest
-
 from exporters.excel_styles import (
     ACTION_FILLS,
     ACTION_FONTS,

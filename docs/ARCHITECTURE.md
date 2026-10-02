@@ -305,4 +305,4 @@ Archify の `deliver` は成功しています。
 - 仕様 SHA-256: `017e33c51c39f40842cb740e8ebfd5fcd8caf8776aca7033891c7e15e68e2435`
 - 成果物 SHA-256: `e867bf9fce5b63a3cdca22f979822012ad3318436d8fbbbe511fe5020a74b0bb`
 
-visual-check は Chrome で実行でき、読みやすさ、Viewer Chrome、スクリーンショット取得は成功しました。ただし、1440x900 と 1600x1000 の light/dark 一部条件で縦方向に小さな overflow が残ったため、visual-check 全体の status は `fail` です。生成されたスクリーンショットと sidecar は、`wallscribe-architecture.visual-check.*` として同じ `docs/` 配下に保存されています。
+visual-check は Chrome で実行でき、読みやすさ、Viewer Chrome、スクリーンショット取得は成功しました。ただし、1440x900 と 1600x1000 の light/dark 一部条件で縦方向に小さな overflow が残ったため、visual-check 全体の status は `fail` です。一時的なスクリーンショットと検証ログは配布資料に含めません。図のレイアウトを変更する際は visual-check を再実行してください。

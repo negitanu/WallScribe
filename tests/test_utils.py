@@ -4,8 +4,6 @@
 ユーティリティ関数のテスト
 """
 
-import pytest
-
 from parsers.utils import get_nested, ip_to_cidr, parse_proposal, to_list
 
 
